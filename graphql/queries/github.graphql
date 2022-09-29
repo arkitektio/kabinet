@@ -1,0 +1,12 @@
+query get_github_repo($id: ID!) {
+  githubRepo(id: $id) {
+    ...GithubRepo
+  }
+}
+
+query search_githubrepo($search: String!) {
+  githubRepos(name: $search) {
+    value: id
+    label: repo
+  }
+}

@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "kuay"
+version = "0.1.19"
+description = ""
+authors = ["jhnnsrs <jhnnsrs@gmail.com>"]
+packages = [{include = "kuay"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+herre = "^0.1.55"
+
+[tool.poetry.scripts]
+kuay = "kuay.cli.main:entrypoint"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.5"
+pytest-aiohttp = "^0.3.0"
+pytest-cov = "^3.0.0"
+black = "^21.12b0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

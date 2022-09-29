@@ -1,0 +1,2 @@
+class NoKuayFound(Exception):
+    pass
