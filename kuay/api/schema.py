@@ -1,9 +1,35 @@
-from typing import Optional, Literal, List
 from enum import Enum
-from kuay.funcs import aexecute, execute
-from rath.scalars import ID
 from kuay.rath import KuayRath
+from kuay.funcs import execute, aexecute
+from typing import List, Tuple, Optional, Literal
 from pydantic import Field, BaseModel
+from rath.scalars import ID
+
+
+class WhaleRuntime(str, Enum):
+    """An enumeration."""
+
+    NVIDIA = "NVIDIA"
+    "NVIDIA"
+    RUNC = "RUNC"
+    "RunC"
+
+
+class ContainerStatus(str, Enum):
+    CREATED = "CREATED"
+    RESTARTING = "RESTARTING"
+    RUNNING = "RUNNING"
+    REMOVING = "REMOVING"
+    PAUSED = "PAUSED"
+    EXITED = "EXITED"
+    DEAD = "DEAD"
+
+
+class DockerRuntime(str, Enum):
+    """Docker runtime."""
+
+    NVIDIA = "NVIDIA"
+    RUNC = "RUNC"
 
 
 class GithubRepoFragment(BaseModel):
@@ -12,44 +38,6 @@ class GithubRepoFragment(BaseModel):
     branch: str
     repo: str
     id: ID
-
-    class Config:
-        frozen = True
-
-
-class Get_github_repoQuery(BaseModel):
-    github_repo: Optional[GithubRepoFragment] = Field(alias="githubRepo")
-    "Get information on your Docker Template"
-
-    class Arguments(BaseModel):
-        id: ID
-
-    class Meta:
-        document = "fragment GithubRepo on GithubRepo {\n  user\n  branch\n  repo\n  id\n}\n\nquery get_github_repo($id: ID!) {\n  githubRepo(id: $id) {\n    ...GithubRepo\n  }\n}"
-
-    class Config:
-        frozen = True
-
-
-class Search_githubrepoQueryGithubrepos(BaseModel):
-    typename: Optional[Literal["GithubRepo"]] = Field(alias="__typename")
-    value: ID
-    label: str
-
-    class Config:
-        frozen = True
-
-
-class Search_githubrepoQuery(BaseModel):
-    github_repos: Optional[List[Optional[Search_githubrepoQueryGithubrepos]]] = Field(
-        alias="githubRepos"
-    )
-
-    class Arguments(BaseModel):
-        search: str
-
-    class Meta:
-        document = "query search_githubrepo($search: String!) {\n  githubRepos(name: $search) {\n    value: id\n    label: repo\n  }\n}"
 
     class Config:
         frozen = True
@@ -66,8 +54,83 @@ class Create_githubrepoMutation(BaseModel):
     class Meta:
         document = "fragment GithubRepo on GithubRepo {\n  user\n  branch\n  repo\n  id\n}\n\nmutation create_githubrepo($branch: String!, $user: String!, $repo: String!) {\n  createGithubRepo(branch: $branch, user: $user, repo: $repo) {\n    ...GithubRepo\n  }\n}"
 
+
+class Get_github_repoQuery(BaseModel):
+    github_repo: Optional[GithubRepoFragment] = Field(alias="githubRepo")
+    "Get information on your Docker Template"
+
+    class Arguments(BaseModel):
+        id: ID
+
+    class Meta:
+        document = "fragment GithubRepo on GithubRepo {\n  user\n  branch\n  repo\n  id\n}\n\nquery get_github_repo($id: ID!) {\n  githubRepo(id: $id) {\n    ...GithubRepo\n  }\n}"
+
+
+class Search_githubrepoQueryGithubrepos(BaseModel):
+    typename: Optional[Literal["GithubRepo"]] = Field(alias="__typename")
+    value: ID
+    label: str
+
     class Config:
         frozen = True
+
+
+class Search_githubrepoQuery(BaseModel):
+    github_repos: Optional[
+        Tuple[Optional[Search_githubrepoQueryGithubrepos], ...]
+    ] = Field(alias="githubRepos")
+
+    class Arguments(BaseModel):
+        search: str
+
+    class Meta:
+        document = "query search_githubrepo($search: String!) {\n  githubRepos(name: $search) {\n    value: id\n    label: repo\n  }\n}"
+
+
+async def acreate_githubrepo(
+    branch: str, user: str, repo: str, rath: KuayRath = None
+) -> Optional[GithubRepoFragment]:
+    """create_githubrepo
+
+
+
+    Arguments:
+        branch (str): branch
+        user (str): user
+        repo (str): repo
+        rath (kuay.rath.KuayRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        Optional[GithubRepoFragment]"""
+    return (
+        await aexecute(
+            Create_githubrepoMutation,
+            {"branch": branch, "user": user, "repo": repo},
+            rath=rath,
+        )
+    ).create_github_repo
+
+
+def create_githubrepo(
+    branch: str, user: str, repo: str, rath: KuayRath = None
+) -> Optional[GithubRepoFragment]:
+    """create_githubrepo
+
+
+
+    Arguments:
+        branch (str): branch
+        user (str): user
+        repo (str): repo
+        rath (kuay.rath.KuayRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        Optional[GithubRepoFragment]"""
+    return execute(
+        Create_githubrepoMutation,
+        {"branch": branch, "user": user, "repo": repo},
+        rath=rath,
+    ).create_github_repo
 
 
 async def aget_github_repo(
@@ -132,49 +195,3 @@ def search_githubrepo(
     Returns:
         Optional[List[Optional[Search_githubrepoQueryGithubrepos]]]"""
     return execute(Search_githubrepoQuery, {"search": search}, rath=rath).github_repos
-
-
-async def acreate_githubrepo(
-    branch: str, user: str, repo: str, rath: KuayRath = None
-) -> Optional[GithubRepoFragment]:
-    """create_githubrepo
-
-
-
-    Arguments:
-        branch (str): branch
-        user (str): user
-        repo (str): repo
-        rath (kuay.rath.KuayRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        Optional[GithubRepoFragment]"""
-    return (
-        await aexecute(
-            Create_githubrepoMutation,
-            {"branch": branch, "user": user, "repo": repo},
-            rath=rath,
-        )
-    ).create_github_repo
-
-
-def create_githubrepo(
-    branch: str, user: str, repo: str, rath: KuayRath = None
-) -> Optional[GithubRepoFragment]:
-    """create_githubrepo
-
-
-
-    Arguments:
-        branch (str): branch
-        user (str): user
-        repo (str): repo
-        rath (kuay.rath.KuayRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        Optional[GithubRepoFragment]"""
-    return execute(
-        Create_githubrepoMutation,
-        {"branch": branch, "user": user, "repo": repo},
-        rath=rath,
-    ).create_github_repo
