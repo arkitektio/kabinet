@@ -1,9 +1,9 @@
+from pydantic import BaseModel, Field
+from typing import List, Tuple, Literal, Optional
 from enum import Enum
-from kuay.rath import KuayRath
-from kuay.funcs import execute, aexecute
-from typing import List, Tuple, Optional, Literal
-from pydantic import Field, BaseModel
+from kuay.funcs import aexecute, execute
 from rath.scalars import ID
+from kuay.rath import KuayRath
 
 
 class WhaleRuntime(str, Enum):
@@ -33,7 +33,7 @@ class DockerRuntime(str, Enum):
 
 
 class GithubRepoFragment(BaseModel):
-    typename: Optional[Literal["GithubRepo"]] = Field(alias="__typename")
+    typename: Optional[Literal["GithubRepo"]] = Field(alias="__typename", exclude=True)
     user: str
     branch: str
     repo: str
@@ -67,7 +67,7 @@ class Get_github_repoQuery(BaseModel):
 
 
 class Search_githubrepoQueryGithubrepos(BaseModel):
-    typename: Optional[Literal["GithubRepo"]] = Field(alias="__typename")
+    typename: Optional[Literal["GithubRepo"]] = Field(alias="__typename", exclude=True)
     value: ID
     label: str
 
