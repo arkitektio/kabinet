@@ -1,18 +1,16 @@
+from typing import Literal, Tuple, List, Optional
 from pydantic import BaseModel, Field
-from typing import List, Tuple, Literal, Optional
-from enum import Enum
-from kuay.funcs import aexecute, execute
 from rath.scalars import ID
+from enum import Enum
 from kuay.rath import KuayRath
+from kuay.funcs import aexecute, execute
 
 
-class WhaleRuntime(str, Enum):
-    """An enumeration."""
+class PullProgressStatus(str, Enum):
+    """Docker pull progress status."""
 
-    NVIDIA = "NVIDIA"
-    "NVIDIA"
-    RUNC = "RUNC"
-    "RunC"
+    PULLING = "PULLING"
+    PULLED = "PULLED"
 
 
 class ContainerStatus(str, Enum):

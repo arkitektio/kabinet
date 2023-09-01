@@ -6,7 +6,7 @@ import logging
 
 from rath.links.base import TerminatingLink
 from rath.contrib.fakts.links.aiohttp import FaktsAIOHttpLink
-from rath.contrib.fakts.links.websocket import FaktsWebsocketLink
+from rath.contrib.fakts.links.subscription_transport_ws import FaktsWebsocketLink
 from rath.contrib.herre.links.auth import HerreAuthLink
 from rath.links.aiohttp import AIOHttpLink
 from rath.links.auth import AuthTokenLink
