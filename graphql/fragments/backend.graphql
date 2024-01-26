@@ -1,0 +1,8 @@
+fragment Backend on Backend {
+    user {
+        id
+    }
+    client {
+        id
+    }
+}

@@ -1,0 +1,17 @@
+fragment ListFlavour on Flavour {
+  id
+  name
+  deployments {
+    id
+  }
+}
+
+
+fragment Flavour on Flavour {
+  id
+  name
+  deployments {
+    id
+  }
+  image
+}

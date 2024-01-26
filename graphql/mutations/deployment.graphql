@@ -1,0 +1,9 @@
+mutation CreateDeployment($flavour: ID!, $instanceId: ID!) {
+    createDeployment(input: {
+        flavour: $flavour,
+        instanceId: $instanceId
+    }){
+        ...Deployment
+    }
+
+}

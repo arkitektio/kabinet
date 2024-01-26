@@ -1,0 +1,2 @@
+class NoKabinetInContextError(Exception):
+    pass

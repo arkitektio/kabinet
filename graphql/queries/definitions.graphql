@@ -1,0 +1,12 @@
+query ListDefinitions {
+  definitions {
+    ...ListDefinition
+  }
+}
+
+
+query GetDefinition($id: ID!) {
+  definition(id: $id) {
+    ...Definition
+  }
+}

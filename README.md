@@ -1,4 +1,4 @@
-# Kuay
+# Kabinet
 
 ### Idea
 
