@@ -54,7 +54,7 @@ In the above example, we use the `deployed` context manager to spin up a a local
 a repo on github. Repositories are online collections of various Apps (in various releases and flaovurs), that can be
 used to deploy containers running these apps.
 
-More info to come soon.
+More info to come soon. Stay tuned.
 
 
 
