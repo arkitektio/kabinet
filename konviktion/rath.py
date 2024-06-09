@@ -1,4 +1,4 @@
-""" The Kluster Rath packages (GraphQL Client)"""
+""" The Konviktion Rath packages (GraphQL Client)"""
 
 from pydantic import Field
 from rath import rath
@@ -11,39 +11,39 @@ from rath.links.split import SplitLink
 from typing import Optional, Type
 import traceback
 
-from kabinet.errors import NoKabinetInContextError
+from konviktion.errors import NoKonviktionInContextError
 
-current_kabinet_rath: contextvars.ContextVar[
-    Optional["KabinetRath"]
-] = contextvars.ContextVar("current_kabinet_rath", default=None)
+current_konviktion_rath: contextvars.ContextVar[
+    Optional["KonviktionRath"]
+] = contextvars.ContextVar("current_konviktion_rath", default=None)
 
 
-def get_current_kabinet_rath() -> "KabinetRath":
-    """Get Current KlusterRath
+def get_current_konviktion_rath() -> "KonviktionRath":
+    """Get Current KonviktionRath
 
     Returns
     -------
-    KlusterRath
-        The current KlusterRath
+    KonviktionRath
+        The current KonviktionRath
 
     Raises
     ------
-    NoKlusterRathInContextError
-        If there is no KlusterRath in context
+    NoKonviktionRathInContextError
+        If there is no KonviktionRath in context
     """
 
-    x = current_kabinet_rath.get()
+    x = current_konviktion_rath.get()
 
     if x is None:
-        raise NoKabinetInContextError("No KlusterRath in context")
+        raise NoKonviktionInContextError("No KonviktionRath in context")
 
     return x
 
 
-class KabinetRathLinkComposition(TypedComposedLink):
-    """OmeroArk Rath Link Composition
+class KonviktionRathLinkComposition(TypedComposedLink):
+    """Konviktion Rath Link Composition
 
-    This is a composition of links that are used by the OmeroArkRath. It is a subclass of
+    This is a composition of links that are used by the KonviktionRath. It is a subclass of
     TypedComposedLink that adds some default links to convert files and array to support
     the graphql multipart request spec."""
 
@@ -53,7 +53,7 @@ class KabinetRathLinkComposition(TypedComposedLink):
     split: SplitLink
 
 
-class KabinetRath(rath.Rath):
+class KonviktionRath(rath.Rath):
     """OmeroAArk Rath
 
     Mikro Rath is the GraphQL client for omero_ark It is a thin wrapper around Rath
@@ -64,12 +64,12 @@ class KabinetRath(rath.Rath):
     This is a subclass of Rath that adds some default links to convert files and array to support
     the graphql multipart request spec."""
 
-    link: KabinetRathLinkComposition
+    link: KonviktionRathLinkComposition
 
-    async def __aenter__(self: "KabinetRath") -> "KabinetRath":
+    async def __aenter__(self: "KonviktionRath") -> "KonviktionRath":
         """Enters the context manager and sets the current client to this client"""
         await super().__aenter__()
-        current_kabinet_rath.set(self)
+        current_konviktion_rath.set(self)
         return self
 
     async def __aexit__(
@@ -80,4 +80,4 @@ class KabinetRath(rath.Rath):
     ) -> None:
         """Exits the context manager and sets the current client to None"""
         await super().__aexit__(exc_type, exc_val, exc_tb)
-        current_kabinet_rath.set(None)
+        current_konviktion_rath.set(None)

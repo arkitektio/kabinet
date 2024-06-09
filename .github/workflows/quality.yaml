@@ -2,10 +2,10 @@ name: Python Code Quality and Style Check
 on:
   push:
     branches: [main]
-    paths: [kabinet/**, tests/**]
+    paths: [konviktion/**, tests/**]
   pull_request:
     branches: [main]
-    paths: [kabinet/**, tests/**]
+    paths: [konviktion/**, tests/**]
 jobs:
   ruff:
     strategy:

@@ -7,7 +7,7 @@ try:
     from rekuest.structures.default import get_default_structure_registry, Scope
     from rekuest.widgets import SearchWidget
 
-    from kabinet.api.schema import (
+    from konviktion.api.schema import (
         GithubRepoFragment,
         aget_github_repo,
         SearchGithubRepoQuery,
@@ -19,7 +19,7 @@ try:
         identifier="@port/githubrepo",
         scope=Scope.GLOBAL,
         expand=aget_github_repo,
-        default_widget=SearchWidget(query=SearchGithubRepoQuery.Meta.document, ward="kabinet"),
+        default_widget=SearchWidget(query=SearchGithubRepoQuery.Meta.document, ward="konviktion"),
     )
 
 except ImportError:

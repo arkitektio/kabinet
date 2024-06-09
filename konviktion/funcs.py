@@ -1,6 +1,6 @@
 """ This module provides helpers for the mikro rath api
 they are wrapped functions for the turms generated api"""
-from .rath import KabinetRath, get_current_kabinet_rath
+from .rath import KonviktionRath, get_current_konviktion_rath
 from koil.helpers import unkoil, unkoil_gen
 from typing import Optional, Type, Dict, Any, TypeVar, Iterator, AsyncIterator
 
@@ -11,7 +11,7 @@ T = TypeVar("T")
 async def aexecute(
     operation: Type[T],
     variables: Dict[str, Any],
-    rath: Optional[KabinetRath] = None,
+    rath: Optional[KonviktionRath] = None,
 ) -> T:
     """Execute a graphql operation (asynchronous)
 
@@ -25,7 +25,7 @@ async def aexecute(
         The graphql operation to execute
     variables : Dict[str, Any]
         The variables for the graphql operation
-    rath : Optional[KlusterRath], optional
+    rath : Optional[KonviktionRath], optional
         The rath client to use, by default None
 
     Returns
@@ -33,7 +33,7 @@ async def aexecute(
     T
         The result of the graphql operation
     """
-    rath = rath or get_current_kabinet_rath()
+    rath = rath or get_current_konviktion_rath()
 
     x = await rath.aquery(
         operation.Meta.document,  # type: ignore
@@ -45,7 +45,7 @@ async def aexecute(
 def execute(
     operation: Type[T],
     variables: Dict[str, Any],
-    rath: Optional[KabinetRath] = None,
+    rath: Optional[KonviktionRath] = None,
 ) -> T:
     """Execute a graphql operation (synchronous)
 
@@ -59,7 +59,7 @@ def execute(
         The graphql operation to execute
     variables : Dict[str, Any]
         The variables for the graphql operation
-    rath : Optional[KlusterRath], optional
+    rath : Optional[KonviktionRath], optional
         The rath client to use, by default None
 
     Returns
@@ -73,7 +73,7 @@ def execute(
 def subscribe(
     operation: Type[T],
     variables: Dict[str, Any],
-    rath: Optional[KabinetRath] = None,
+    rath: Optional[KonviktionRath] = None,
 ) -> Iterator[T]:
     """Subscribe to a graphql operation (synchronous)
 
@@ -87,7 +87,7 @@ def subscribe(
         The graphql operation to execute
     variables : Dict[str, Any]
         The variables for the graphql operation
-    rath : Optional[KlusterRath], optional
+    rath : Optional[KonviktionRath], optional
         The rath client to use, by default None
 
     Yields
@@ -102,7 +102,7 @@ def subscribe(
 async def asubscribe(
     operation: Type[T],
     variables: Dict[str, Any],
-    rath: Optional[KabinetRath] = None,
+    rath: Optional[KonviktionRath] = None,
 ) -> AsyncIterator[T]:
     """Subscribe to a graphql operation (asynchronous)
 
@@ -116,7 +116,7 @@ async def asubscribe(
         The graphql operation to execute
     variables : Dict[str, Any]
         The variables for the graphql operation
-    rath : Optional[KlusterRath], optional
+    rath : Optional[KonviktionRath], optional
         The rath client to use, by default None
 
     Yields
@@ -124,7 +124,7 @@ async def asubscribe(
     T
         The result of the graphql operation
     """
-    rath = rath or get_current_kabinet_rath()
+    rath = rath or get_current_konviktion_rath()
     async for event in rath.asubscribe(
         operation.Meta.document,  # type: ignore
         operation.Arguments(**variables).dict(by_alias=True),  # type: ignore

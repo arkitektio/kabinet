@@ -1,6 +1,0 @@
-fragment Deployment on Deployment {
-    id
-    backend {
-        ...Backend
-    }
-}

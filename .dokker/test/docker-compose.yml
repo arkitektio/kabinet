@@ -4,7 +4,7 @@ version: '3.7'
 services:
   db:
     environment:
-      POSTGRES_MULTIPLE_DATABASES: kabinet_db
+      POSTGRES_MULTIPLE_DATABASES: konviktion_db
       POSTGRES_PASSWORD: fostgres
       POSTGRES_USER: postgres
     image: jhnnsrs/daten:next
@@ -14,11 +14,11 @@ services:
     image: redis:latest
     labels:
       - "arkitekt.default.service=redis"
-  kabinet:
+  konviktion:
     depends_on:
     - redis
     - db
-    image: jhnnsrs/kabinet:paper
+    image: jhnnsrs/konviktion:paper
     command: bash run-debug.sh
     ports:
       - 7766:80

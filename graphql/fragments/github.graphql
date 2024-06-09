@@ -1,6 +1,0 @@
-fragment GithubRepo on GithubRepo {
-  user
-  branch
-  repo
-  id
-}

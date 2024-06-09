@@ -1,5 +1,0 @@
-fragment PodUpdateMessage on PodUpdateMessage {
-  id
-  status
-  progress
-}

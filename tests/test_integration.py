@@ -1,5 +1,5 @@
 import pytest
-from kabinet.api.schema import create_github_repo
+from konviktion.api.schema import create_github_repo
 
 
 @pytest.mark.integration

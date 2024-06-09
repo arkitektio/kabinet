@@ -1,6 +1,0 @@
-mutation CreateGithubRepo($name: String!, $branch: String!, $user: String!, $repo: String!, ) {
-  createGithubRepo(input: {branch: $branch, user: $user, repo: $repo, name: $name}) {
-    ...GithubRepo
-  }
-}
-
