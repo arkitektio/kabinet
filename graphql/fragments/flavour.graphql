@@ -1,0 +1,10 @@
+fragment ListFlavour on Flavour {
+  id
+  name
+}
+
+fragment Flavour on Flavour {
+  release {
+    ...Release
+  }
+}

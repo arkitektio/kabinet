@@ -1,0 +1,29 @@
+mutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!) {
+  createPod(
+    input: {
+      deployment: $deployment
+      instanceId: $instanceId
+      localId: $localId
+    }
+  ) {
+    ...Pod
+  }
+}
+
+mutation UpdatePod(
+  $status: PodStatus!
+  $instanceId: String!
+  $pod: ID
+  $localId: ID
+) {
+  updatePod(
+    input: {
+      pod: $pod
+      localId: $localId
+      status: $status
+      instanceId: $instanceId
+    }
+  ) {
+    ...Pod
+  }
+}

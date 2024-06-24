@@ -1,0 +1,9 @@
+fragment Deployment on Deployment {
+  id
+  localId
+}
+
+fragment ListDeployment on Deployment {
+  id
+  localId
+}

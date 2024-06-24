@@ -1,0 +1,19 @@
+mutation CreateDeployment(
+  $flavour: ID!
+  $instanceId: String!
+  $localId: ID!
+  $lastPulled: DateTime
+  $secretParams: UntypedParams
+) {
+  createDeployment(
+    input: {
+      flavour: $flavour
+      lastPulled: $lastPulled
+      secretParams: $secretParams
+      instanceId: $instanceId
+      localId: $localId
+    }
+  ) {
+    ...Deployment
+  }
+}

@@ -1,0 +1,11 @@
+query ListDefinitions {
+  definitions {
+    ...ListDefinition
+  }
+}
+
+query Definition($hash: NodeHash) {
+  definition(hash: $hash) {
+    ...Definition
+  }
+}

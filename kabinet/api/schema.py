@@ -1,28 +1,11 @@
+from typing import Literal, Optional, List, Tuple
 from rath.scalars import ID
-from kabinet.rath import KabinetRath
 from pydantic import Field, BaseModel
-from typing import Literal, Iterator, Optional, AsyncIterator, Tuple, List
+from kabinet.scalars import UntypedParams, NodeHash
+from kabinet.funcs import execute, aexecute
 from enum import Enum
-from kabinet.funcs import aexecute, execute, asubscribe, subscribe
-
-
-class PortKind(str, Enum):
-    INT = "INT"
-    STRING = "STRING"
-    STRUCTURE = "STRUCTURE"
-    LIST = "LIST"
-    BOOL = "BOOL"
-    DICT = "DICT"
-    FLOAT = "FLOAT"
-    DATE = "DATE"
-    UNION = "UNION"
-
-
-class ContainerType(str, Enum):
-    """The state of a dask cluster"""
-
-    APPTAINER = "APPTAINER"
-    DOCKER = "DOCKER"
+from kabinet.rath import KabinetRath
+from datetime import datetime
 
 
 class PodStatus(str, Enum):
@@ -36,9 +19,17 @@ class PodStatus(str, Enum):
     UNKOWN = "UNKOWN"
 
 
+class ContainerType(str, Enum):
+    """The state of a dask cluster"""
+
+    APPTAINER = "APPTAINER"
+    DOCKER = "DOCKER"
+
+
 class EnvironmentInput(BaseModel):
     """Which environment do you want to match against?"""
 
+    features: Optional[Tuple["DeviceFeature", ...]]
     container_type: ContainerType = Field(alias="containerType")
 
     class Config:
@@ -46,76 +37,27 @@ class EnvironmentInput(BaseModel):
 
         frozen = True
         extra = "forbid"
-        allow_population_by_field_name = True
         use_enum_values = True
 
 
-class GithubRepoFragment(BaseModel):
-    typename: Optional[Literal["GithubRepo"]] = Field(alias="__typename", exclude=True)
-    user: str
-    branch: str
-    repo: str
-    id: ID
+class DeviceFeature(BaseModel):
+    """The Feature you are trying to match"""
+
+    kind: str
+    cpu_count: str = Field(alias="cpuCount")
 
     class Config:
         """A config class"""
 
         frozen = True
-
-
-class ListFlavourFragmentDeployments(BaseModel):
-    """A user of the bridge server. Maps to an authentikate user"""
-
-    typename: Optional[Literal["Deployment"]] = Field(alias="__typename", exclude=True)
-    id: ID
-
-    class Config:
-        """A config class"""
-
-        frozen = True
-
-
-class ListFlavourFragment(BaseModel):
-    typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
-    id: ID
-    name: str
-    deployments: Tuple[ListFlavourFragmentDeployments, ...]
-
-    class Config:
-        """A config class"""
-
-        frozen = True
-
-
-class FlavourFragmentDeployments(BaseModel):
-    """A user of the bridge server. Maps to an authentikate user"""
-
-    typename: Optional[Literal["Deployment"]] = Field(alias="__typename", exclude=True)
-    id: ID
-
-    class Config:
-        """A config class"""
-
-        frozen = True
-
-
-class FlavourFragment(BaseModel):
-    typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
-    id: ID
-    name: str
-    deployments: Tuple[FlavourFragmentDeployments, ...]
-    image: str
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+        extra = "forbid"
+        use_enum_values = True
 
 
 class DeploymentFragment(BaseModel):
     typename: Optional[Literal["Deployment"]] = Field(alias="__typename", exclude=True)
     id: ID
-    backend: "BackendFragment"
+    local_id: ID = Field(alias="localId")
 
     class Config:
         """A config class"""
@@ -123,9 +65,10 @@ class DeploymentFragment(BaseModel):
         frozen = True
 
 
-class DefinitionFragmentArgs(BaseModel):
-    typename: Optional[Literal["Port"]] = Field(alias="__typename", exclude=True)
-    kind: PortKind
+class ListDeploymentFragment(BaseModel):
+    typename: Optional[Literal["Deployment"]] = Field(alias="__typename", exclude=True)
+    id: ID
+    local_id: ID = Field(alias="localId")
 
     class Config:
         """A config class"""
@@ -133,17 +76,15 @@ class DefinitionFragmentArgs(BaseModel):
         frozen = True
 
 
-class DefinitionFragment(BaseModel):
+class GithubRepoFragmentFlavoursDefinitions(BaseModel):
+    """Nodes are abstraction of RPC Tasks. They provide a common API to deal with creating tasks.
+
+    See online Documentation"""
+
     typename: Optional[Literal["Definition"]] = Field(alias="__typename", exclude=True)
     id: ID
-    name: str
-    "The cleartext name of this Node"
-    hash: ID
+    hash: NodeHash
     "The hash of the Node (completely unique)"
-    description: Optional[str]
-    "A description for the Node"
-    args: Tuple[DefinitionFragmentArgs, ...]
-    "Inputs for this Node"
 
     class Config:
         """A config class"""
@@ -151,38 +92,26 @@ class DefinitionFragment(BaseModel):
         frozen = True
 
 
-class ListDefinitionFragment(BaseModel):
-    typename: Optional[Literal["Definition"]] = Field(alias="__typename", exclude=True)
+class GithubRepoFragmentFlavours(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
+    typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
+    definitions: Tuple[GithubRepoFragmentFlavoursDefinitions, ...]
+    "The flavours this Definition belongs to"
+
+    class Config:
+        """A config class"""
+
+        frozen = True
+
+
+class GithubRepoFragment(BaseModel):
+    typename: Optional[Literal["GithubRepo"]] = Field(alias="__typename", exclude=True)
     id: ID
-    name: str
-    "The cleartext name of this Node"
-    hash: ID
-    "The hash of the Node (completely unique)"
-    description: Optional[str]
-    "A description for the Node"
-
-    class Config:
-        """A config class"""
-
-        frozen = True
-
-
-class PodFragment(BaseModel):
-    typename: Optional[Literal["Pod"]] = Field(alias="__typename", exclude=True)
-    pod_id: str = Field(alias="podId")
-    status: PodStatus
-    backend: "BackendFragment"
-
-    class Config:
-        """A config class"""
-
-        frozen = True
-
-
-class ListPodFragment(BaseModel):
-    typename: Optional[Literal["Pod"]] = Field(alias="__typename", exclude=True)
-    id: ID
-    pod_id: str = Field(alias="podId")
+    branch: str
+    user: str
+    repo: str
+    flavours: Tuple[GithubRepoFragmentFlavours, ...]
 
     class Config:
         """A config class"""
@@ -202,27 +131,12 @@ class ReleaseFragmentApp(BaseModel):
         frozen = True
 
 
-class ReleaseFragmentDeployments(BaseModel):
-    """A user of the bridge server. Maps to an authentikate user"""
-
-    typename: Optional[Literal["Deployment"]] = Field(alias="__typename", exclude=True)
-    id: ID
-    flavour: ListFlavourFragment
-
-    class Config:
-        """A config class"""
-
-        frozen = True
-
-
 class ReleaseFragment(BaseModel):
     typename: Optional[Literal["Release"]] = Field(alias="__typename", exclude=True)
     id: ID
     version: str
     app: ReleaseFragmentApp
     scopes: Tuple[str, ...]
-    deployments: Tuple[ReleaseFragmentDeployments, ...]
-    "Is this release deployed"
     colour: str
     "Is this release deployed"
     description: str
@@ -254,7 +168,7 @@ class ListReleaseFragment(BaseModel):
     installed: bool
     "Is this release deployed"
     scopes: Tuple[str, ...]
-    flavours: Tuple[ListFlavourFragment, ...]
+    flavours: Tuple["ListFlavourFragment", ...]
     colour: str
     "Is this release deployed"
     description: str
@@ -266,13 +180,10 @@ class ListReleaseFragment(BaseModel):
         frozen = True
 
 
-class PodUpdateMessageFragment(BaseModel):
-    typename: Optional[Literal["PodUpdateMessage"]] = Field(
-        alias="__typename", exclude=True
-    )
-    id: str
-    status: str
-    progress: Optional[int]
+class ListPodFragment(BaseModel):
+    typename: Optional[Literal["Pod"]] = Field(alias="__typename", exclude=True)
+    id: ID
+    pod_id: str = Field(alias="podId")
 
     class Config:
         """A config class"""
@@ -280,11 +191,23 @@ class PodUpdateMessageFragment(BaseModel):
         frozen = True
 
 
-class BackendFragmentUser(BaseModel):
+class PodFragmentDeployment(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["User"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Deployment"]] = Field(alias="__typename", exclude=True)
+    flavour: "FlavourFragment"
+
+    class Config:
+        """A config class"""
+
+        frozen = True
+
+
+class PodFragment(BaseModel):
+    typename: Optional[Literal["Pod"]] = Field(alias="__typename", exclude=True)
     id: ID
+    pod_id: str = Field(alias="podId")
+    deployment: PodFragmentDeployment
 
     class Config:
         """A config class"""
@@ -292,11 +215,10 @@ class BackendFragmentUser(BaseModel):
         frozen = True
 
 
-class BackendFragmentClient(BaseModel):
-    """A user of the bridge server. Maps to an authentikate user"""
-
-    typename: Optional[Literal["Client"]] = Field(alias="__typename", exclude=True)
+class ListFlavourFragment(BaseModel):
+    typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
     id: ID
+    name: str
 
     class Config:
         """A config class"""
@@ -304,10 +226,9 @@ class BackendFragmentClient(BaseModel):
         frozen = True
 
 
-class BackendFragment(BaseModel):
-    typename: Optional[Literal["Backend"]] = Field(alias="__typename", exclude=True)
-    user: BackendFragmentUser
-    client: BackendFragmentClient
+class FlavourFragment(BaseModel):
+    typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
+    release: ReleaseFragment
 
     class Config:
         """A config class"""
@@ -315,29 +236,32 @@ class BackendFragment(BaseModel):
         frozen = True
 
 
-class PodsSubscription(BaseModel):
-    pods: PodUpdateMessageFragment
-    "Create a new dask cluster on a bridge server"
+class ListDefinitionFragment(BaseModel):
+    typename: Optional[Literal["Definition"]] = Field(alias="__typename", exclude=True)
+    id: ID
+    name: str
+    "The cleartext name of this Node"
+    hash: NodeHash
+    "The hash of the Node (completely unique)"
+    description: Optional[str]
+    "A description for the Node"
 
-    class Arguments(BaseModel):
-        pass
+    class Config:
+        """A config class"""
 
-    class Meta:
-        document = "fragment PodUpdateMessage on PodUpdateMessage {\n  id\n  status\n  progress\n}\n\nsubscription Pods {\n  pods {\n    ...PodUpdateMessage\n  }\n}"
+        frozen = True
 
 
-class CreateGithubRepoMutation(BaseModel):
-    create_github_repo: GithubRepoFragment = Field(alias="createGithubRepo")
-    "Create a new Github repository on a bridge server"
+class DefinitionFragment(BaseModel):
+    typename: Optional[Literal["Definition"]] = Field(alias="__typename", exclude=True)
+    id: ID
+    name: str
+    "The cleartext name of this Node"
 
-    class Arguments(BaseModel):
-        name: str
-        branch: str
-        user: str
-        repo: str
+    class Config:
+        """A config class"""
 
-    class Meta:
-        document = "fragment GithubRepo on GithubRepo {\n  user\n  branch\n  repo\n  id\n}\n\nmutation CreateGithubRepo($name: String!, $branch: String!, $user: String!, $repo: String!) {\n  createGithubRepo(\n    input: {branch: $branch, user: $user, repo: $repo, name: $name}\n  ) {\n    ...GithubRepo\n  }\n}"
+        frozen = True
 
 
 class CreateDeploymentMutation(BaseModel):
@@ -346,10 +270,15 @@ class CreateDeploymentMutation(BaseModel):
 
     class Arguments(BaseModel):
         flavour: ID
-        instance_id: ID = Field(alias="instanceId")
+        instance_id: str = Field(alias="instanceId")
+        local_id: ID = Field(alias="localId")
+        last_pulled: Optional[datetime] = Field(alias="lastPulled", default=None)
+        secret_params: Optional[UntypedParams] = Field(
+            alias="secretParams", default=None
+        )
 
     class Meta:
-        document = "fragment Backend on Backend {\n  user {\n    id\n  }\n  client {\n    id\n  }\n}\n\nfragment Deployment on Deployment {\n  id\n  backend {\n    ...Backend\n  }\n}\n\nmutation CreateDeployment($flavour: ID!, $instanceId: ID!) {\n  createDeployment(input: {flavour: $flavour, instanceId: $instanceId}) {\n    ...Deployment\n  }\n}"
+        document = "fragment Deployment on Deployment {\n  id\n  localId\n}\n\nmutation CreateDeployment($flavour: ID!, $instanceId: String!, $localId: ID!, $lastPulled: DateTime, $secretParams: UntypedParams) {\n  createDeployment(\n    input: {flavour: $flavour, lastPulled: $lastPulled, secretParams: $secretParams, instanceId: $instanceId, localId: $localId}\n  ) {\n    ...Deployment\n  }\n}"
 
 
 class CreatePodMutation(BaseModel):
@@ -359,87 +288,38 @@ class CreatePodMutation(BaseModel):
     class Arguments(BaseModel):
         deployment: ID
         instance_id: str = Field(alias="instanceId")
+        local_id: ID = Field(alias="localId")
 
     class Meta:
-        document = "fragment Backend on Backend {\n  user {\n    id\n  }\n  client {\n    id\n  }\n}\n\nfragment Pod on Pod {\n  podId\n  status\n  backend {\n    ...Backend\n  }\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!) {\n  createPod(input: {deployment: $deployment, instanceId: $instanceId}) {\n    ...Pod\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!) {\n  createPod(\n    input: {deployment: $deployment, instanceId: $instanceId, localId: $localId}\n  ) {\n    ...Pod\n  }\n}"
 
 
-class GetGithubRepoQuery(BaseModel):
-    github_repo: GithubRepoFragment = Field(alias="githubRepo")
-    "Return all dask clusters"
+class UpdatePodMutation(BaseModel):
+    update_pod: PodFragment = Field(alias="updatePod")
+    "Create a new dask cluster on a bridge server"
 
     class Arguments(BaseModel):
-        id: ID
+        status: PodStatus
+        instance_id: str = Field(alias="instanceId")
+        pod: Optional[ID] = Field(default=None)
+        local_id: Optional[ID] = Field(alias="localId", default=None)
 
     class Meta:
-        document = "fragment GithubRepo on GithubRepo {\n  user\n  branch\n  repo\n  id\n}\n\nquery GetGithubRepo($id: ID!) {\n  githubRepo(id: $id) {\n    ...GithubRepo\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n  }\n}"
 
 
-class SearchGithubReposQueryOptions(BaseModel):
-    """A user of the bridge server. Maps to an authentikate user"""
-
-    typename: Optional[Literal["GithubRepo"]] = Field(alias="__typename", exclude=True)
-    value: ID
-    label: str
-
-    class Config:
-        """A config class"""
-
-        frozen = True
-
-
-class SearchGithubReposQuery(BaseModel):
-    options: Tuple[SearchGithubReposQueryOptions, ...]
+class CreateGithubRepoMutation(BaseModel):
+    create_github_repo: GithubRepoFragment = Field(alias="createGithubRepo")
+    "Create a new Github repository on a bridge server"
 
     class Arguments(BaseModel):
-        search: Optional[str] = Field(default=None)
-        values: Optional[List[ID]] = Field(default=None)
+        user: str
+        repo: str
+        branch: str
+        name: str
 
     class Meta:
-        document = "query SearchGithubRepos($search: String, $values: [ID!]) {\n  options: githubRepos(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n  }\n}"
-
-
-class ListFlavourQuery(BaseModel):
-    flavours: Tuple[ListFlavourFragment, ...]
-
-    class Arguments(BaseModel):
-        pass
-
-    class Meta:
-        document = "fragment ListFlavour on Flavour {\n  id\n  name\n  deployments {\n    id\n  }\n}\n\nquery ListFlavour {\n  flavours {\n    ...ListFlavour\n  }\n}"
-
-
-class GetFlavourQuery(BaseModel):
-    flavour: FlavourFragment
-    "Return all dask clusters"
-
-    class Arguments(BaseModel):
-        id: ID
-
-    class Meta:
-        document = "fragment Flavour on Flavour {\n  id\n  name\n  deployments {\n    id\n  }\n  image\n}\n\nquery GetFlavour($id: ID!) {\n  flavour(id: $id) {\n    ...Flavour\n  }\n}"
-
-
-class BestFlavourForQuery(BaseModel):
-    best_flavour: FlavourFragment = Field(alias="bestFlavour")
-    "Return the currently logged in user"
-
-    class Arguments(BaseModel):
-        id: ID
-        environment: EnvironmentInput
-
-    class Meta:
-        document = "fragment Flavour on Flavour {\n  id\n  name\n  deployments {\n    id\n  }\n  image\n}\n\nquery BestFlavourFor($id: ID!, $environment: EnvironmentInput!) {\n  bestFlavour(release: $id, environment: $environment) {\n    ...Flavour\n  }\n}"
-
-
-class ListPodsQuery(BaseModel):
-    pods: Tuple[ListPodFragment, ...]
-
-    class Arguments(BaseModel):
-        pass
-
-    class Meta:
-        document = "fragment ListPod on Pod {\n  id\n  podId\n}\n\nquery ListPods {\n  pods {\n    ...ListPod\n  }\n}"
+        document = "fragment GithubRepo on GithubRepo {\n  id\n  branch\n  user\n  repo\n  flavours {\n    definitions {\n      id\n      hash\n    }\n  }\n}\n\nmutation CreateGithubRepo($user: String!, $repo: String!, $branch: String!, $name: String!) {\n  createGithubRepo(\n    input: {user: $user, repo: $repo, branch: $branch, name: $name}\n  ) {\n    ...GithubRepo\n  }\n}"
 
 
 class ListReleasesQuery(BaseModel):
@@ -449,18 +329,49 @@ class ListReleasesQuery(BaseModel):
         pass
 
     class Meta:
-        document = "fragment ListFlavour on Flavour {\n  id\n  name\n  deployments {\n    id\n  }\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  installed\n  scopes\n  flavours {\n    ...ListFlavour\n  }\n  colour\n  description\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n  }\n}"
+        document = "fragment ListFlavour on Flavour {\n  id\n  name\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  installed\n  scopes\n  flavours {\n    ...ListFlavour\n  }\n  colour\n  description\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n  }\n}"
 
 
-class GetReleaseQuery(BaseModel):
-    release: ReleaseFragment
+class GetDeploymentQuery(BaseModel):
+    deployment: DeploymentFragment
     "Return all dask clusters"
 
     class Arguments(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment ListFlavour on Flavour {\n  id\n  name\n  deployments {\n    id\n  }\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  deployments {\n    id\n    flavour {\n      ...ListFlavour\n    }\n  }\n  colour\n  description\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n  }\n}"
+        document = "fragment Deployment on Deployment {\n  id\n  localId\n}\n\nquery GetDeployment($id: ID!) {\n  deployment(id: $id) {\n    ...Deployment\n  }\n}"
+
+
+class ListDeploymentsQuery(BaseModel):
+    deployments: Tuple[ListDeploymentFragment, ...]
+
+    class Arguments(BaseModel):
+        pass
+
+    class Meta:
+        document = "fragment ListDeployment on Deployment {\n  id\n  localId\n}\n\nquery ListDeployments {\n  deployments {\n    ...ListDeployment\n  }\n}"
+
+
+class ListPodQuery(BaseModel):
+    pods: Tuple[ListPodFragment, ...]
+
+    class Arguments(BaseModel):
+        pass
+
+    class Meta:
+        document = "fragment ListPod on Pod {\n  id\n  podId\n}\n\nquery ListPod {\n  pods {\n    ...ListPod\n  }\n}"
+
+
+class PodQuery(BaseModel):
+    pod: PodFragment
+    "Return all dask clusters"
+
+    class Arguments(BaseModel):
+        id: ID
+
+    class Meta:
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery Pod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
 
 
 class ListDefinitionsQuery(BaseModel):
@@ -473,105 +384,49 @@ class ListDefinitionsQuery(BaseModel):
         document = "fragment ListDefinition on Definition {\n  id\n  name\n  hash\n  description\n}\n\nquery ListDefinitions {\n  definitions {\n    ...ListDefinition\n  }\n}"
 
 
-class GetDefinitionQuery(BaseModel):
+class DefinitionQuery(BaseModel):
     definition: DefinitionFragment
     "Return all dask clusters"
 
     class Arguments(BaseModel):
-        id: ID
+        hash: Optional[NodeHash] = Field(default=None)
 
     class Meta:
-        document = "fragment Definition on Definition {\n  id\n  name\n  hash\n  description\n  args {\n    kind\n  }\n}\n\nquery GetDefinition($id: ID!) {\n  definition(id: $id) {\n    ...Definition\n  }\n}"
+        document = "fragment Definition on Definition {\n  id\n  name\n}\n\nquery Definition($hash: NodeHash) {\n  definition(hash: $hash) {\n    ...Definition\n  }\n}"
 
 
-async def apods(
-    rath: Optional[KabinetRath] = None,
-) -> AsyncIterator[PodUpdateMessageFragment]:
-    """Pods
+class MatchFlavourQueryMatchflavour(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
+    typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
+    id: ID
+    image: str
+
+    class Config:
+        """A config class"""
+
+        frozen = True
 
 
-     pods: An update on a pod
+class MatchFlavourQuery(BaseModel):
+    match_flavour: MatchFlavourQueryMatchflavour = Field(alias="matchFlavour")
+    "Return the currently logged in user"
 
+    class Arguments(BaseModel):
+        nodes: Optional[List[NodeHash]] = Field(default=None)
+        environment: Optional[EnvironmentInput] = Field(default=None)
 
-    Arguments:
-        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        PodUpdateMessageFragment"""
-    async for event in asubscribe(PodsSubscription, {}, rath=rath):
-        yield event.pods
-
-
-def pods(rath: Optional[KabinetRath] = None) -> Iterator[PodUpdateMessageFragment]:
-    """Pods
-
-
-     pods: An update on a pod
-
-
-    Arguments:
-        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        PodUpdateMessageFragment"""
-    for event in subscribe(PodsSubscription, {}, rath=rath):
-        yield event.pods
-
-
-async def acreate_github_repo(
-    name: str, branch: str, user: str, repo: str, rath: Optional[KabinetRath] = None
-) -> GithubRepoFragment:
-    """CreateGithubRepo
-
-
-     createGithubRepo: A user of the bridge server. Maps to an authentikate user
-
-
-    Arguments:
-        name (str): name
-        branch (str): branch
-        user (str): user
-        repo (str): repo
-        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        GithubRepoFragment"""
-    return (
-        await aexecute(
-            CreateGithubRepoMutation,
-            {"name": name, "branch": branch, "user": user, "repo": repo},
-            rath=rath,
-        )
-    ).create_github_repo
-
-
-def create_github_repo(
-    name: str, branch: str, user: str, repo: str, rath: Optional[KabinetRath] = None
-) -> GithubRepoFragment:
-    """CreateGithubRepo
-
-
-     createGithubRepo: A user of the bridge server. Maps to an authentikate user
-
-
-    Arguments:
-        name (str): name
-        branch (str): branch
-        user (str): user
-        repo (str): repo
-        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        GithubRepoFragment"""
-    return execute(
-        CreateGithubRepoMutation,
-        {"name": name, "branch": branch, "user": user, "repo": repo},
-        rath=rath,
-    ).create_github_repo
+    class Meta:
+        document = "query MatchFlavour($nodes: [NodeHash!], $environment: EnvironmentInput) {\n  matchFlavour(input: {nodes: $nodes, environment: $environment}) {\n    id\n    image\n  }\n}"
 
 
 async def acreate_deployment(
-    flavour: ID, instance_id: ID, rath: Optional[KabinetRath] = None
+    flavour: ID,
+    instance_id: str,
+    local_id: ID,
+    last_pulled: Optional[datetime] = None,
+    secret_params: Optional[UntypedParams] = None,
+    rath: Optional[KabinetRath] = None,
 ) -> DeploymentFragment:
     """CreateDeployment
 
@@ -581,7 +436,10 @@ async def acreate_deployment(
 
     Arguments:
         flavour (ID): flavour
-        instance_id (ID): instanceId
+        instance_id (str): instanceId
+        local_id (ID): localId
+        last_pulled (Optional[datetime], optional): lastPulled.
+        secret_params (Optional[UntypedParams], optional): secretParams.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -589,14 +447,25 @@ async def acreate_deployment(
     return (
         await aexecute(
             CreateDeploymentMutation,
-            {"flavour": flavour, "instanceId": instance_id},
+            {
+                "flavour": flavour,
+                "instanceId": instance_id,
+                "localId": local_id,
+                "lastPulled": last_pulled,
+                "secretParams": secret_params,
+            },
             rath=rath,
         )
     ).create_deployment
 
 
 def create_deployment(
-    flavour: ID, instance_id: ID, rath: Optional[KabinetRath] = None
+    flavour: ID,
+    instance_id: str,
+    local_id: ID,
+    last_pulled: Optional[datetime] = None,
+    secret_params: Optional[UntypedParams] = None,
+    rath: Optional[KabinetRath] = None,
 ) -> DeploymentFragment:
     """CreateDeployment
 
@@ -606,20 +475,29 @@ def create_deployment(
 
     Arguments:
         flavour (ID): flavour
-        instance_id (ID): instanceId
+        instance_id (str): instanceId
+        local_id (ID): localId
+        last_pulled (Optional[datetime], optional): lastPulled.
+        secret_params (Optional[UntypedParams], optional): secretParams.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
         DeploymentFragment"""
     return execute(
         CreateDeploymentMutation,
-        {"flavour": flavour, "instanceId": instance_id},
+        {
+            "flavour": flavour,
+            "instanceId": instance_id,
+            "localId": local_id,
+            "lastPulled": last_pulled,
+            "secretParams": secret_params,
+        },
         rath=rath,
     ).create_deployment
 
 
 async def acreate_pod(
-    deployment: ID, instance_id: str, rath: Optional[KabinetRath] = None
+    deployment: ID, instance_id: str, local_id: ID, rath: Optional[KabinetRath] = None
 ) -> PodFragment:
     """CreatePod
 
@@ -630,6 +508,7 @@ async def acreate_pod(
     Arguments:
         deployment (ID): deployment
         instance_id (str): instanceId
+        local_id (ID): localId
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -637,14 +516,14 @@ async def acreate_pod(
     return (
         await aexecute(
             CreatePodMutation,
-            {"deployment": deployment, "instanceId": instance_id},
+            {"deployment": deployment, "instanceId": instance_id, "localId": local_id},
             rath=rath,
         )
     ).create_pod
 
 
 def create_pod(
-    deployment: ID, instance_id: str, rath: Optional[KabinetRath] = None
+    deployment: ID, instance_id: str, local_id: ID, rath: Optional[KabinetRath] = None
 ) -> PodFragment:
     """CreatePod
 
@@ -655,235 +534,133 @@ def create_pod(
     Arguments:
         deployment (ID): deployment
         instance_id (str): instanceId
+        local_id (ID): localId
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
         PodFragment"""
     return execute(
         CreatePodMutation,
-        {"deployment": deployment, "instanceId": instance_id},
+        {"deployment": deployment, "instanceId": instance_id, "localId": local_id},
         rath=rath,
     ).create_pod
 
 
-async def aget_github_repo(
-    id: ID, rath: Optional[KabinetRath] = None
+async def aupdate_pod(
+    status: PodStatus,
+    instance_id: str,
+    pod: Optional[ID] = None,
+    local_id: Optional[ID] = None,
+    rath: Optional[KabinetRath] = None,
+) -> PodFragment:
+    """UpdatePod
+
+
+     updatePod: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        status (PodStatus): status
+        instance_id (str): instanceId
+        pod (Optional[ID], optional): pod.
+        local_id (Optional[ID], optional): localId.
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        PodFragment"""
+    return (
+        await aexecute(
+            UpdatePodMutation,
+            {
+                "status": status,
+                "instanceId": instance_id,
+                "pod": pod,
+                "localId": local_id,
+            },
+            rath=rath,
+        )
+    ).update_pod
+
+
+def update_pod(
+    status: PodStatus,
+    instance_id: str,
+    pod: Optional[ID] = None,
+    local_id: Optional[ID] = None,
+    rath: Optional[KabinetRath] = None,
+) -> PodFragment:
+    """UpdatePod
+
+
+     updatePod: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        status (PodStatus): status
+        instance_id (str): instanceId
+        pod (Optional[ID], optional): pod.
+        local_id (Optional[ID], optional): localId.
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        PodFragment"""
+    return execute(
+        UpdatePodMutation,
+        {"status": status, "instanceId": instance_id, "pod": pod, "localId": local_id},
+        rath=rath,
+    ).update_pod
+
+
+async def acreate_github_repo(
+    user: str, repo: str, branch: str, name: str, rath: Optional[KabinetRath] = None
 ) -> GithubRepoFragment:
-    """GetGithubRepo
+    """CreateGithubRepo
 
 
-     githubRepo: A user of the bridge server. Maps to an authentikate user
+     createGithubRepo: A user of the bridge server. Maps to an authentikate user
 
 
     Arguments:
-        id (ID): id
+        user (str): user
+        repo (str): repo
+        branch (str): branch
+        name (str): name
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
         GithubRepoFragment"""
-    return (await aexecute(GetGithubRepoQuery, {"id": id}, rath=rath)).github_repo
+    return (
+        await aexecute(
+            CreateGithubRepoMutation,
+            {"user": user, "repo": repo, "branch": branch, "name": name},
+            rath=rath,
+        )
+    ).create_github_repo
 
 
-def get_github_repo(id: ID, rath: Optional[KabinetRath] = None) -> GithubRepoFragment:
-    """GetGithubRepo
+def create_github_repo(
+    user: str, repo: str, branch: str, name: str, rath: Optional[KabinetRath] = None
+) -> GithubRepoFragment:
+    """CreateGithubRepo
 
 
-     githubRepo: A user of the bridge server. Maps to an authentikate user
+     createGithubRepo: A user of the bridge server. Maps to an authentikate user
 
 
     Arguments:
-        id (ID): id
+        user (str): user
+        repo (str): repo
+        branch (str): branch
+        name (str): name
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
         GithubRepoFragment"""
-    return execute(GetGithubRepoQuery, {"id": id}, rath=rath).github_repo
-
-
-async def asearch_github_repos(
-    search: Optional[str] = None,
-    values: Optional[List[ID]] = None,
-    rath: Optional[KabinetRath] = None,
-) -> List[SearchGithubReposQueryOptions]:
-    """SearchGithubRepos
-
-
-     options: A user of the bridge server. Maps to an authentikate user
-
-
-    Arguments:
-        search (Optional[str], optional): search.
-        values (Optional[List[ID]], optional): values.
-        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        List[SearchGithubReposQueryGithubrepos]"""
-    return (
-        await aexecute(
-            SearchGithubReposQuery, {"search": search, "values": values}, rath=rath
-        )
-    ).options
-
-
-def search_github_repos(
-    search: Optional[str] = None,
-    values: Optional[List[ID]] = None,
-    rath: Optional[KabinetRath] = None,
-) -> List[SearchGithubReposQueryOptions]:
-    """SearchGithubRepos
-
-
-     options: A user of the bridge server. Maps to an authentikate user
-
-
-    Arguments:
-        search (Optional[str], optional): search.
-        values (Optional[List[ID]], optional): values.
-        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        List[SearchGithubReposQueryGithubrepos]"""
     return execute(
-        SearchGithubReposQuery, {"search": search, "values": values}, rath=rath
-    ).options
-
-
-async def alist_flavour(
-    rath: Optional[KabinetRath] = None,
-) -> List[ListFlavourFragment]:
-    """ListFlavour
-
-
-     flavours: A user of the bridge server. Maps to an authentikate user
-
-
-    Arguments:
-        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        List[ListFlavourFragment]"""
-    return (await aexecute(ListFlavourQuery, {}, rath=rath)).flavours
-
-
-def list_flavour(rath: Optional[KabinetRath] = None) -> List[ListFlavourFragment]:
-    """ListFlavour
-
-
-     flavours: A user of the bridge server. Maps to an authentikate user
-
-
-    Arguments:
-        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        List[ListFlavourFragment]"""
-    return execute(ListFlavourQuery, {}, rath=rath).flavours
-
-
-async def aget_flavour(id: ID, rath: Optional[KabinetRath] = None) -> FlavourFragment:
-    """GetFlavour
-
-
-     flavour: A user of the bridge server. Maps to an authentikate user
-
-
-    Arguments:
-        id (ID): id
-        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        FlavourFragment"""
-    return (await aexecute(GetFlavourQuery, {"id": id}, rath=rath)).flavour
-
-
-def get_flavour(id: ID, rath: Optional[KabinetRath] = None) -> FlavourFragment:
-    """GetFlavour
-
-
-     flavour: A user of the bridge server. Maps to an authentikate user
-
-
-    Arguments:
-        id (ID): id
-        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        FlavourFragment"""
-    return execute(GetFlavourQuery, {"id": id}, rath=rath).flavour
-
-
-async def abest_flavour_for(
-    id: ID, environment: EnvironmentInput, rath: Optional[KabinetRath] = None
-) -> FlavourFragment:
-    """BestFlavourFor
-
-
-     bestFlavour: A user of the bridge server. Maps to an authentikate user
-
-
-    Arguments:
-        id (ID): id
-        environment (EnvironmentInput): environment
-        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        FlavourFragment"""
-    return (
-        await aexecute(
-            BestFlavourForQuery, {"id": id, "environment": environment}, rath=rath
-        )
-    ).best_flavour
-
-
-def best_flavour_for(
-    id: ID, environment: EnvironmentInput, rath: Optional[KabinetRath] = None
-) -> FlavourFragment:
-    """BestFlavourFor
-
-
-     bestFlavour: A user of the bridge server. Maps to an authentikate user
-
-
-    Arguments:
-        id (ID): id
-        environment (EnvironmentInput): environment
-        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        FlavourFragment"""
-    return execute(
-        BestFlavourForQuery, {"id": id, "environment": environment}, rath=rath
-    ).best_flavour
-
-
-async def alist_pods(rath: Optional[KabinetRath] = None) -> List[ListPodFragment]:
-    """ListPods
-
-
-     pods: A user of the bridge server. Maps to an authentikate user
-
-
-    Arguments:
-        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        List[ListPodFragment]"""
-    return (await aexecute(ListPodsQuery, {}, rath=rath)).pods
-
-
-def list_pods(rath: Optional[KabinetRath] = None) -> List[ListPodFragment]:
-    """ListPods
-
-
-     pods: A user of the bridge server. Maps to an authentikate user
-
-
-    Arguments:
-        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        List[ListPodFragment]"""
-    return execute(ListPodsQuery, {}, rath=rath).pods
+        CreateGithubRepoMutation,
+        {"user": user, "repo": repo, "branch": branch, "name": name},
+        rath=rath,
+    ).create_github_repo
 
 
 async def alist_releases(
@@ -918,27 +695,13 @@ def list_releases(rath: Optional[KabinetRath] = None) -> List[ListReleaseFragmen
     return execute(ListReleasesQuery, {}, rath=rath).releases
 
 
-async def aget_release(id: ID, rath: Optional[KabinetRath] = None) -> ReleaseFragment:
-    """GetRelease
+async def aget_deployment(
+    id: ID, rath: Optional[KabinetRath] = None
+) -> DeploymentFragment:
+    """GetDeployment
 
 
-     release: A user of the bridge server. Maps to an authentikate user
-
-
-    Arguments:
-        id (ID): id
-        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        ReleaseFragment"""
-    return (await aexecute(GetReleaseQuery, {"id": id}, rath=rath)).release
-
-
-def get_release(id: ID, rath: Optional[KabinetRath] = None) -> ReleaseFragment:
-    """GetRelease
-
-
-     release: A user of the bridge server. Maps to an authentikate user
+     deployment: A user of the bridge server. Maps to an authentikate user
 
 
     Arguments:
@@ -946,8 +709,120 @@ def get_release(id: ID, rath: Optional[KabinetRath] = None) -> ReleaseFragment:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        ReleaseFragment"""
-    return execute(GetReleaseQuery, {"id": id}, rath=rath).release
+        DeploymentFragment"""
+    return (await aexecute(GetDeploymentQuery, {"id": id}, rath=rath)).deployment
+
+
+def get_deployment(id: ID, rath: Optional[KabinetRath] = None) -> DeploymentFragment:
+    """GetDeployment
+
+
+     deployment: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        id (ID): id
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        DeploymentFragment"""
+    return execute(GetDeploymentQuery, {"id": id}, rath=rath).deployment
+
+
+async def alist_deployments(
+    rath: Optional[KabinetRath] = None,
+) -> List[ListDeploymentFragment]:
+    """ListDeployments
+
+
+     deployments: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        List[ListDeploymentFragment]"""
+    return (await aexecute(ListDeploymentsQuery, {}, rath=rath)).deployments
+
+
+def list_deployments(
+    rath: Optional[KabinetRath] = None,
+) -> List[ListDeploymentFragment]:
+    """ListDeployments
+
+
+     deployments: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        List[ListDeploymentFragment]"""
+    return execute(ListDeploymentsQuery, {}, rath=rath).deployments
+
+
+async def alist_pod(rath: Optional[KabinetRath] = None) -> List[ListPodFragment]:
+    """ListPod
+
+
+     pods: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        List[ListPodFragment]"""
+    return (await aexecute(ListPodQuery, {}, rath=rath)).pods
+
+
+def list_pod(rath: Optional[KabinetRath] = None) -> List[ListPodFragment]:
+    """ListPod
+
+
+     pods: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        List[ListPodFragment]"""
+    return execute(ListPodQuery, {}, rath=rath).pods
+
+
+async def apod(id: ID, rath: Optional[KabinetRath] = None) -> PodFragment:
+    """Pod
+
+
+     pod: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        id (ID): id
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        PodFragment"""
+    return (await aexecute(PodQuery, {"id": id}, rath=rath)).pod
+
+
+def pod(id: ID, rath: Optional[KabinetRath] = None) -> PodFragment:
+    """Pod
+
+
+     pod: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        id (ID): id
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        PodFragment"""
+    return execute(PodQuery, {"id": id}, rath=rath).pod
 
 
 async def alist_definitions(
@@ -988,10 +863,10 @@ def list_definitions(
     return execute(ListDefinitionsQuery, {}, rath=rath).definitions
 
 
-async def aget_definition(
-    id: ID, rath: Optional[KabinetRath] = None
+async def adefinition(
+    hash: Optional[NodeHash] = None, rath: Optional[KabinetRath] = None
 ) -> DefinitionFragment:
-    """GetDefinition
+    """Definition
 
 
      definition: Nodes are abstraction of RPC Tasks. They provide a common API to deal with creating tasks.
@@ -1000,16 +875,18 @@ async def aget_definition(
 
 
     Arguments:
-        id (ID): id
+        hash (Optional[NodeHash], optional): hash.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
         DefinitionFragment"""
-    return (await aexecute(GetDefinitionQuery, {"id": id}, rath=rath)).definition
+    return (await aexecute(DefinitionQuery, {"hash": hash}, rath=rath)).definition
 
 
-def get_definition(id: ID, rath: Optional[KabinetRath] = None) -> DefinitionFragment:
-    """GetDefinition
+def definition(
+    hash: Optional[NodeHash] = None, rath: Optional[KabinetRath] = None
+) -> DefinitionFragment:
+    """Definition
 
 
      definition: Nodes are abstraction of RPC Tasks. They provide a common API to deal with creating tasks.
@@ -1018,13 +895,62 @@ def get_definition(id: ID, rath: Optional[KabinetRath] = None) -> DefinitionFrag
 
 
     Arguments:
-        id (ID): id
+        hash (Optional[NodeHash], optional): hash.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
         DefinitionFragment"""
-    return execute(GetDefinitionQuery, {"id": id}, rath=rath).definition
+    return execute(DefinitionQuery, {"hash": hash}, rath=rath).definition
 
 
-DeploymentFragment.update_forward_refs()
-PodFragment.update_forward_refs()
+async def amatch_flavour(
+    nodes: Optional[List[NodeHash]] = None,
+    environment: Optional[EnvironmentInput] = None,
+    rath: Optional[KabinetRath] = None,
+) -> MatchFlavourQueryMatchflavour:
+    """MatchFlavour
+
+
+     matchFlavour: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        nodes (Optional[List[NodeHash]], optional): nodes.
+        environment (Optional[EnvironmentInput], optional): environment.
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        MatchFlavourQueryMatchflavour"""
+    return (
+        await aexecute(
+            MatchFlavourQuery, {"nodes": nodes, "environment": environment}, rath=rath
+        )
+    ).match_flavour
+
+
+def match_flavour(
+    nodes: Optional[List[NodeHash]] = None,
+    environment: Optional[EnvironmentInput] = None,
+    rath: Optional[KabinetRath] = None,
+) -> MatchFlavourQueryMatchflavour:
+    """MatchFlavour
+
+
+     matchFlavour: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        nodes (Optional[List[NodeHash]], optional): nodes.
+        environment (Optional[EnvironmentInput], optional): environment.
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        MatchFlavourQueryMatchflavour"""
+    return execute(
+        MatchFlavourQuery, {"nodes": nodes, "environment": environment}, rath=rath
+    ).match_flavour
+
+
+EnvironmentInput.update_forward_refs()
+ListReleaseFragment.update_forward_refs()
+PodFragmentDeployment.update_forward_refs()

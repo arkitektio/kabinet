@@ -1,0 +1,12 @@
+fragment GithubRepo on GithubRepo {
+    id
+    branch
+    user 
+    repo
+    flavours {
+        definitions {
+            id
+            hash
+        }
+    }
+}

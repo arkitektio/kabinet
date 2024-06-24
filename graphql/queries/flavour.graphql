@@ -1,0 +1,12 @@
+
+
+query MatchFlavour($nodes: [NodeHash!], $environment: EnvironmentInput){
+    matchFlavour(input: {
+        nodes: $nodes,
+        environment: $environment
+    }) {
+        id
+        image
+    }
+
+}

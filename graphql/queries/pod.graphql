@@ -1,0 +1,11 @@
+query ListPod {
+  pods {
+    ...ListPod
+  }
+}
+
+query Pod($id: ID!) {
+  pod(id: $id) {
+    ...Pod
+  }
+}
