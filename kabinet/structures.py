@@ -13,6 +13,8 @@ try:
         apod,
         DeploymentFragment,
         aget_deployment,
+        ReleaseFragment,
+        aget_release,
     )
 
     structure_reg = get_default_structure_registry()
@@ -28,6 +30,13 @@ try:
         identifier="@kabinet/deployment",
         scope=PortScope.GLOBAL,
         aexpand=aget_deployment,
+        ashrink=id_shrink,
+    )
+    structure_reg.register_as_structure(
+        ReleaseFragment,
+        identifier="@kabinet/release",
+        scope=PortScope.GLOBAL,
+        aexpand=aget_release,
         ashrink=id_shrink,
     )
 

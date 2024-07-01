@@ -1,5 +1,4 @@
 try:
-
     from .kabinet import Kabinet
     from .rath import KabinetLinkComposition, KabinetRath
     from rath.links.split import SplitLink
@@ -10,39 +9,40 @@ try:
     from herre import Herre
     from fakts import Fakts
 
-
-    from arkitekt_next.service_registry import get_default_service_builder_registry, Params
+    from arkitekt_next.service_registry import (
+        get_default_service_builder_registry,
+        Params,
+    )
     from arkitekt_next.model import Requirement
-
 
     class ArkitektNextKabinet(Kabinet):
         rath: KabinetRath
 
-
-    def build_arkitekt_next_fluss(herre: Herre, fakts: Fakts, params: Params):
+    def build_arkitekt_next_fluss(fakts: Fakts, herre: Herre, params: Params):
         return ArkitektNextKabinet(
             rath=KabinetRath(
                 link=KabinetLinkComposition(
                     auth=HerreAuthLink(herre=herre),
                     split=SplitLink(
-                        left=FaktsAIOHttpLink(fakts_group="fluss", fakts=fakts),
-                        right=FaktsGraphQLWSLink(fakts_group="fluss", fakts=fakts),
+                        left=FaktsAIOHttpLink(fakts_group="kabinet", fakts=fakts),
+                        right=FaktsGraphQLWSLink(fakts_group="kabinet", fakts=fakts),
                         split=lambda o: o.node.operation != OperationType.SUBSCRIPTION,
                     ),
                 )
             )
         )
 
-    
-        
     service_builder_registry = get_default_service_builder_registry()
-    service_builder_registry.register("kabinet", build_arkitekt_next_fluss, Requirement(
-            service="live.arkitekt_next.kabinet",
+    service_builder_registry.register(
+        "kabinet",
+        build_arkitekt_next_fluss,
+        Requirement(
+            service="live.arkitekt.kabinet",
             description="An instance of ArkitektNext Kabinet to retrieve nodes from",
-        ))
+        ),
+    )
     imported = True
 
 except ImportError as e:
-
     imported = False
     raise e

@@ -1,11 +1,11 @@
-from typing import Literal, Optional, List, Tuple
+from typing import Optional, Tuple, Literal, List
 from rath.scalars import ID
-from pydantic import Field, BaseModel
-from kabinet.scalars import UntypedParams, NodeHash
-from kabinet.funcs import execute, aexecute
-from enum import Enum
 from kabinet.rath import KabinetRath
+from kabinet.funcs import execute, aexecute
 from datetime import datetime
+from kabinet.scalars import NodeHash, UntypedParams
+from enum import Enum
+from pydantic import Field, BaseModel
 
 
 class PodStatus(str, Enum):
@@ -131,6 +131,19 @@ class ReleaseFragmentApp(BaseModel):
         frozen = True
 
 
+class ReleaseFragmentFlavours(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
+    typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
+    id: ID
+    name: str
+
+    class Config:
+        """A config class"""
+
+        frozen = True
+
+
 class ReleaseFragment(BaseModel):
     typename: Optional[Literal["Release"]] = Field(alias="__typename", exclude=True)
     id: ID
@@ -141,6 +154,7 @@ class ReleaseFragment(BaseModel):
     "Is this release deployed"
     description: str
     "Is this release deployed"
+    flavours: Tuple[ReleaseFragmentFlavours, ...]
 
     class Config:
         """A config class"""
@@ -291,7 +305,7 @@ class CreatePodMutation(BaseModel):
         local_id: ID = Field(alias="localId")
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!) {\n  createPod(\n    input: {deployment: $deployment, instanceId: $instanceId, localId: $localId}\n  ) {\n    ...Pod\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!) {\n  createPod(\n    input: {deployment: $deployment, instanceId: $instanceId, localId: $localId}\n  ) {\n    ...Pod\n  }\n}"
 
 
 class UpdatePodMutation(BaseModel):
@@ -305,7 +319,7 @@ class UpdatePodMutation(BaseModel):
         local_id: Optional[ID] = Field(alias="localId", default=None)
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n  }\n}"
 
 
 class CreateGithubRepoMutation(BaseModel):
@@ -330,6 +344,17 @@ class ListReleasesQuery(BaseModel):
 
     class Meta:
         document = "fragment ListFlavour on Flavour {\n  id\n  name\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  installed\n  scopes\n  flavours {\n    ...ListFlavour\n  }\n  colour\n  description\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n  }\n}"
+
+
+class GetReleaseQuery(BaseModel):
+    release: ReleaseFragment
+    "Return all dask clusters"
+
+    class Arguments(BaseModel):
+        id: ID
+
+    class Meta:
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n  }\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n  }\n}"
 
 
 class GetDeploymentQuery(BaseModel):
@@ -371,7 +396,7 @@ class PodQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery Pod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery Pod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
 
 
 class ListDefinitionsQuery(BaseModel):
@@ -693,6 +718,38 @@ def list_releases(rath: Optional[KabinetRath] = None) -> List[ListReleaseFragmen
     Returns:
         List[ListReleaseFragment]"""
     return execute(ListReleasesQuery, {}, rath=rath).releases
+
+
+async def aget_release(id: ID, rath: Optional[KabinetRath] = None) -> ReleaseFragment:
+    """GetRelease
+
+
+     release: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        id (ID): id
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        ReleaseFragment"""
+    return (await aexecute(GetReleaseQuery, {"id": id}, rath=rath)).release
+
+
+def get_release(id: ID, rath: Optional[KabinetRath] = None) -> ReleaseFragment:
+    """GetRelease
+
+
+     release: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        id (ID): id
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        ReleaseFragment"""
+    return execute(GetReleaseQuery, {"id": id}, rath=rath).release
 
 
 async def aget_deployment(

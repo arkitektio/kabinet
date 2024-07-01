@@ -7,6 +7,10 @@ fragment Release on Release {
   scopes
   colour
   description
+  flavours {
+    id
+    name
+  }
 }
 
 fragment ListRelease on Release {
