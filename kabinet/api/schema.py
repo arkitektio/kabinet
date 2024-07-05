@@ -1,11 +1,11 @@
-from typing import Optional, Tuple, Literal, List
-from rath.scalars import ID
-from kabinet.rath import KabinetRath
-from kabinet.funcs import execute, aexecute
-from datetime import datetime
-from kabinet.scalars import NodeHash, UntypedParams
-from enum import Enum
 from pydantic import Field, BaseModel
+from kabinet.scalars import UntypedParams, NodeHash
+from typing import Tuple, Literal, List, Optional
+from rath.scalars import ID
+from kabinet.funcs import aexecute, execute
+from kabinet.rath import KabinetRath
+from datetime import datetime
+from enum import Enum
 
 
 class PodStatus(str, Enum):
@@ -137,6 +137,9 @@ class ReleaseFragmentFlavours(BaseModel):
     typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
     id: ID
     name: str
+    image: str
+    manifest: UntypedParams
+    requirements: UntypedParams
 
     class Config:
         """A config class"""
@@ -233,6 +236,7 @@ class ListFlavourFragment(BaseModel):
     typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
     id: ID
     name: str
+    manifest: UntypedParams
 
     class Config:
         """A config class"""
@@ -243,6 +247,7 @@ class ListFlavourFragment(BaseModel):
 class FlavourFragment(BaseModel):
     typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
     release: ReleaseFragment
+    manifest: UntypedParams
 
     class Config:
         """A config class"""
@@ -305,7 +310,7 @@ class CreatePodMutation(BaseModel):
         local_id: ID = Field(alias="localId")
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!) {\n  createPod(\n    input: {deployment: $deployment, instanceId: $instanceId, localId: $localId}\n  ) {\n    ...Pod\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!) {\n  createPod(\n    input: {deployment: $deployment, instanceId: $instanceId, localId: $localId}\n  ) {\n    ...Pod\n  }\n}"
 
 
 class UpdatePodMutation(BaseModel):
@@ -319,7 +324,7 @@ class UpdatePodMutation(BaseModel):
         local_id: Optional[ID] = Field(alias="localId", default=None)
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n  }\n}"
 
 
 class CreateGithubRepoMutation(BaseModel):
@@ -343,7 +348,7 @@ class ListReleasesQuery(BaseModel):
         pass
 
     class Meta:
-        document = "fragment ListFlavour on Flavour {\n  id\n  name\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  installed\n  scopes\n  flavours {\n    ...ListFlavour\n  }\n  colour\n  description\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n  }\n}"
+        document = "fragment ListFlavour on Flavour {\n  id\n  name\n  manifest\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  installed\n  scopes\n  flavours {\n    ...ListFlavour\n  }\n  colour\n  description\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n  }\n}"
 
 
 class GetReleaseQuery(BaseModel):
@@ -354,7 +359,7 @@ class GetReleaseQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n  }\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements\n  }\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n  }\n}"
 
 
 class GetDeploymentQuery(BaseModel):
@@ -396,7 +401,7 @@ class PodQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery Pod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery Pod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
 
 
 class ListDefinitionsQuery(BaseModel):

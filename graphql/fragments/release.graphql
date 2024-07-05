@@ -10,6 +10,9 @@ fragment Release on Release {
   flavours {
     id
     name
+    image
+    manifest
+    requirements
   }
 }
 

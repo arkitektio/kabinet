@@ -29,7 +29,6 @@ class KabinetRath(rath.Rath):
     link: KabinetLinkComposition = Field(default_factory=KabinetLinkComposition)
 
     async def __aenter__(self):
-        print("KabinetRath.__aenter__")
         await super().__aenter__()
         current_kabinet_rath.set(self)
         return self
