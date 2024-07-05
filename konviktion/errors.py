@@ -1,2 +1,0 @@
-class NoKonviktionInContextError(Exception):
-    pass

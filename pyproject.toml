@@ -1,9 +1,9 @@
 [tool.poetry]
-name = "konviktion"
+name = "kabinet"
 version = "0.1.0"
 description = ""
 authors = ["jhnnsrs <jhnnsrs@gmail.com>"]
-packages = [{include = "konviktion"}]
+packages = [{include = "kabinet"}]
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -11,7 +11,7 @@ rath = {version = ">=0.5.0", extras = ["websockets"]}
 dokker = ">=0.1.25"
 
 [tool.mypy]
-exclude = ["venv/","konviktion/api", "tests"]
+exclude = ["venv/","kabinet/api", "tests"]
 ignore_missing_imports = true
 
 
