@@ -27,3 +27,11 @@ mutation UpdatePod(
     ...Pod
   }
 }
+
+
+mutation DumpLogs($pod: ID!, $logs: String!) {
+  dumpLogs(input: { pod: $pod , logs: $logs }) {
+    pod {id}
+    logs
+  }
+}

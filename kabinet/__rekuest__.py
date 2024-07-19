@@ -8,7 +8,7 @@ def register_structures(structure_reg):
 
     from kabinet.api.schema import (
         PodFragment,
-        apod,
+        aget_pod,
         DeploymentFragment,
         aget_deployment,
         ReleaseFragment,
@@ -19,7 +19,7 @@ def register_structures(structure_reg):
         PodFragment,
         identifier="@kabinet/pod",
         scope=PortScope.GLOBAL,
-        aexpand=apod,
+        aexpand=aget_pod,
         ashrink=id_shrink,
     )
     structure_reg.register_as_structure(
@@ -36,3 +36,5 @@ def register_structures(structure_reg):
         aexpand=aget_release,
         ashrink=id_shrink,
     )
+
+    print("Registered structures , kabinet")

@@ -9,6 +9,8 @@ def init_services(service_builder_registry):
     from herre import Herre
     from fakts import Fakts
 
+    from arkitekt_next.model import Manifest
+
     from arkitekt_next.service_registry import (
         Params,
     )
@@ -17,7 +19,7 @@ def init_services(service_builder_registry):
     class ArkitektNextKabinet(Kabinet):
         rath: KabinetRath
 
-    def build_arkitekt_next_fluss(fakts: Fakts, herre: Herre, params: Params):
+    def build_arkitekt_next_fluss(fakts: Fakts, herre: Herre, params: Params, manifest: Manifest):
         return ArkitektNextKabinet(
             rath=KabinetRath(
                 link=KabinetLinkComposition(

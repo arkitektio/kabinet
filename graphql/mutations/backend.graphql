@@ -1,0 +1,12 @@
+mutation DeclareBackend($instanceId: String!, $kind: String!, $name: String!) {
+  declareBackend(
+    input: {
+      kind: $kind
+      instanceId: $instanceId
+      name: $name
+    }
+  ) {
+    id
+    name
+  }
+}

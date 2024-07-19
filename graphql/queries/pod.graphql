@@ -4,7 +4,7 @@ query ListPod {
   }
 }
 
-query Pod($id: ID!) {
+query GetPod($id: ID!) {
   pod(id: $id) {
     ...Pod
   }

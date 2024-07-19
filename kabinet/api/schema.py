@@ -1,11 +1,11 @@
 from pydantic import Field, BaseModel
+from typing import Tuple, Optional, Literal, List
 from kabinet.scalars import UntypedParams, NodeHash
-from typing import Tuple, Literal, List, Optional
-from rath.scalars import ID
 from kabinet.funcs import aexecute, execute
-from kabinet.rath import KabinetRath
 from datetime import datetime
 from enum import Enum
+from kabinet.rath import KabinetRath
+from rath.scalars import ID
 
 
 class PodStatus(str, Enum):
@@ -327,6 +327,43 @@ class UpdatePodMutation(BaseModel):
         document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n  }\n}"
 
 
+class DumpLogsMutationDumplogsPod(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
+    typename: Optional[Literal["Pod"]] = Field(alias="__typename", exclude=True)
+    id: ID
+
+    class Config:
+        """A config class"""
+
+        frozen = True
+
+
+class DumpLogsMutationDumplogs(BaseModel):
+    """The logs of a pod"""
+
+    typename: Optional[Literal["LogDump"]] = Field(alias="__typename", exclude=True)
+    pod: DumpLogsMutationDumplogsPod
+    logs: str
+
+    class Config:
+        """A config class"""
+
+        frozen = True
+
+
+class DumpLogsMutation(BaseModel):
+    dump_logs: DumpLogsMutationDumplogs = Field(alias="dumpLogs")
+    "Create a new dask cluster on a bridge server"
+
+    class Arguments(BaseModel):
+        pod: ID
+        logs: str
+
+    class Meta:
+        document = "mutation DumpLogs($pod: ID!, $logs: String!) {\n  dumpLogs(input: {pod: $pod, logs: $logs}) {\n    pod {\n      id\n    }\n    logs\n  }\n}"
+
+
 class CreateGithubRepoMutation(BaseModel):
     create_github_repo: GithubRepoFragment = Field(alias="createGithubRepo")
     "Create a new Github repository on a bridge server"
@@ -339,6 +376,34 @@ class CreateGithubRepoMutation(BaseModel):
 
     class Meta:
         document = "fragment GithubRepo on GithubRepo {\n  id\n  branch\n  user\n  repo\n  flavours {\n    definitions {\n      id\n      hash\n    }\n  }\n}\n\nmutation CreateGithubRepo($user: String!, $repo: String!, $branch: String!, $name: String!) {\n  createGithubRepo(\n    input: {user: $user, repo: $repo, branch: $branch, name: $name}\n  ) {\n    ...GithubRepo\n  }\n}"
+
+
+class DeclareBackendMutationDeclarebackend(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
+    typename: Optional[Literal["Backend"]] = Field(alias="__typename", exclude=True)
+    id: ID
+    name: str
+
+    class Config:
+        """A config class"""
+
+        frozen = True
+
+
+class DeclareBackendMutation(BaseModel):
+    declare_backend: DeclareBackendMutationDeclarebackend = Field(
+        alias="declareBackend"
+    )
+    "Create a new dask cluster on a bridge server"
+
+    class Arguments(BaseModel):
+        instance_id: str = Field(alias="instanceId")
+        kind: str
+        name: str
+
+    class Meta:
+        document = "mutation DeclareBackend($instanceId: String!, $kind: String!, $name: String!) {\n  declareBackend(input: {kind: $kind, instanceId: $instanceId, name: $name}) {\n    id\n    name\n  }\n}"
 
 
 class ListReleasesQuery(BaseModel):
@@ -393,7 +458,7 @@ class ListPodQuery(BaseModel):
         document = "fragment ListPod on Pod {\n  id\n  podId\n}\n\nquery ListPod {\n  pods {\n    ...ListPod\n  }\n}"
 
 
-class PodQuery(BaseModel):
+class GetPodQuery(BaseModel):
     pod: PodFragment
     "Return all dask clusters"
 
@@ -401,7 +466,7 @@ class PodQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery Pod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery GetPod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
 
 
 class ListDefinitionsQuery(BaseModel):
@@ -641,6 +706,46 @@ def update_pod(
     ).update_pod
 
 
+async def adump_logs(
+    pod: ID, logs: str, rath: Optional[KabinetRath] = None
+) -> DumpLogsMutationDumplogs:
+    """DumpLogs
+
+
+     dumpLogs: The logs of a pod
+
+
+    Arguments:
+        pod (ID): pod
+        logs (str): logs
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        DumpLogsMutationDumplogs"""
+    return (
+        await aexecute(DumpLogsMutation, {"pod": pod, "logs": logs}, rath=rath)
+    ).dump_logs
+
+
+def dump_logs(
+    pod: ID, logs: str, rath: Optional[KabinetRath] = None
+) -> DumpLogsMutationDumplogs:
+    """DumpLogs
+
+
+     dumpLogs: The logs of a pod
+
+
+    Arguments:
+        pod (ID): pod
+        logs (str): logs
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        DumpLogsMutationDumplogs"""
+    return execute(DumpLogsMutation, {"pod": pod, "logs": logs}, rath=rath).dump_logs
+
+
 async def acreate_github_repo(
     user: str, repo: str, branch: str, name: str, rath: Optional[KabinetRath] = None
 ) -> GithubRepoFragment:
@@ -691,6 +796,56 @@ def create_github_repo(
         {"user": user, "repo": repo, "branch": branch, "name": name},
         rath=rath,
     ).create_github_repo
+
+
+async def adeclare_backend(
+    instance_id: str, kind: str, name: str, rath: Optional[KabinetRath] = None
+) -> DeclareBackendMutationDeclarebackend:
+    """DeclareBackend
+
+
+     declareBackend: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        instance_id (str): instanceId
+        kind (str): kind
+        name (str): name
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        DeclareBackendMutationDeclarebackend"""
+    return (
+        await aexecute(
+            DeclareBackendMutation,
+            {"instanceId": instance_id, "kind": kind, "name": name},
+            rath=rath,
+        )
+    ).declare_backend
+
+
+def declare_backend(
+    instance_id: str, kind: str, name: str, rath: Optional[KabinetRath] = None
+) -> DeclareBackendMutationDeclarebackend:
+    """DeclareBackend
+
+
+     declareBackend: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        instance_id (str): instanceId
+        kind (str): kind
+        name (str): name
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        DeclareBackendMutationDeclarebackend"""
+    return execute(
+        DeclareBackendMutation,
+        {"instanceId": instance_id, "kind": kind, "name": name},
+        rath=rath,
+    ).declare_backend
 
 
 async def alist_releases(
@@ -855,8 +1010,8 @@ def list_pod(rath: Optional[KabinetRath] = None) -> List[ListPodFragment]:
     return execute(ListPodQuery, {}, rath=rath).pods
 
 
-async def apod(id: ID, rath: Optional[KabinetRath] = None) -> PodFragment:
-    """Pod
+async def aget_pod(id: ID, rath: Optional[KabinetRath] = None) -> PodFragment:
+    """GetPod
 
 
      pod: A user of the bridge server. Maps to an authentikate user
@@ -868,11 +1023,11 @@ async def apod(id: ID, rath: Optional[KabinetRath] = None) -> PodFragment:
 
     Returns:
         PodFragment"""
-    return (await aexecute(PodQuery, {"id": id}, rath=rath)).pod
+    return (await aexecute(GetPodQuery, {"id": id}, rath=rath)).pod
 
 
-def pod(id: ID, rath: Optional[KabinetRath] = None) -> PodFragment:
-    """Pod
+def get_pod(id: ID, rath: Optional[KabinetRath] = None) -> PodFragment:
+    """GetPod
 
 
      pod: A user of the bridge server. Maps to an authentikate user
@@ -884,7 +1039,7 @@ def pod(id: ID, rath: Optional[KabinetRath] = None) -> PodFragment:
 
     Returns:
         PodFragment"""
-    return execute(PodQuery, {"id": id}, rath=rath).pod
+    return execute(GetPodQuery, {"id": id}, rath=rath).pod
 
 
 async def alist_definitions(
