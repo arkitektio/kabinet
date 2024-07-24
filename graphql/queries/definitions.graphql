@@ -4,8 +4,18 @@ query ListDefinitions {
   }
 }
 
-query Definition($hash: NodeHash) {
+query GetDefinition($hash: NodeHash) {
   definition(hash: $hash) {
     ...Definition
+  }
+}
+
+query SearchDefinitions($search: String, $values: [ID!]) {
+  options: definitions(
+    filters: { search: $search, ids: $values }
+    pagination: { limit: 10 }
+  ) {
+    value: id
+    label: name
   }
 }

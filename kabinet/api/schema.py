@@ -1,11 +1,10 @@
-from pydantic import Field, BaseModel
-from typing import Tuple, Optional, Literal, List
-from kabinet.scalars import UntypedParams, NodeHash
+from pydantic import BaseModel, Field
 from kabinet.funcs import aexecute, execute
+from rath.scalars import ID
 from datetime import datetime
 from enum import Enum
+from typing import Tuple, Optional, List, Literal, Any
 from kabinet.rath import KabinetRath
-from rath.scalars import ID
 
 
 class PodStatus(str, Enum):
@@ -29,7 +28,7 @@ class ContainerType(str, Enum):
 class EnvironmentInput(BaseModel):
     """Which environment do you want to match against?"""
 
-    features: Optional[Tuple["DeviceFeature", ...]]
+    features: Optional[Tuple["DeviceFeature", ...]] = None
     container_type: ContainerType = Field(alias="containerType")
 
     class Config:
@@ -54,7 +53,7 @@ class DeviceFeature(BaseModel):
         use_enum_values = True
 
 
-class DeploymentFragment(BaseModel):
+class Deployment(BaseModel):
     typename: Optional[Literal["Deployment"]] = Field(alias="__typename", exclude=True)
     id: ID
     local_id: ID = Field(alias="localId")
@@ -65,7 +64,7 @@ class DeploymentFragment(BaseModel):
         frozen = True
 
 
-class ListDeploymentFragment(BaseModel):
+class ListDeployment(BaseModel):
     typename: Optional[Literal["Deployment"]] = Field(alias="__typename", exclude=True)
     id: ID
     local_id: ID = Field(alias="localId")
@@ -76,14 +75,14 @@ class ListDeploymentFragment(BaseModel):
         frozen = True
 
 
-class GithubRepoFragmentFlavoursDefinitions(BaseModel):
+class GithubRepoFlavoursDefinitions(BaseModel):
     """Nodes are abstraction of RPC Tasks. They provide a common API to deal with creating tasks.
 
     See online Documentation"""
 
     typename: Optional[Literal["Definition"]] = Field(alias="__typename", exclude=True)
     id: ID
-    hash: NodeHash
+    hash: ID
     "The hash of the Node (completely unique)"
 
     class Config:
@@ -92,11 +91,11 @@ class GithubRepoFragmentFlavoursDefinitions(BaseModel):
         frozen = True
 
 
-class GithubRepoFragmentFlavours(BaseModel):
+class GithubRepoFlavours(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
     typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
-    definitions: Tuple[GithubRepoFragmentFlavoursDefinitions, ...]
+    definitions: Tuple[GithubRepoFlavoursDefinitions, ...]
     "The flavours this Definition belongs to"
 
     class Config:
@@ -105,13 +104,13 @@ class GithubRepoFragmentFlavours(BaseModel):
         frozen = True
 
 
-class GithubRepoFragment(BaseModel):
+class GithubRepo(BaseModel):
     typename: Optional[Literal["GithubRepo"]] = Field(alias="__typename", exclude=True)
     id: ID
     branch: str
     user: str
     repo: str
-    flavours: Tuple[GithubRepoFragmentFlavours, ...]
+    flavours: Tuple[GithubRepoFlavours, ...]
 
     class Config:
         """A config class"""
@@ -119,7 +118,7 @@ class GithubRepoFragment(BaseModel):
         frozen = True
 
 
-class ReleaseFragmentApp(BaseModel):
+class ReleaseApp(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
     typename: Optional[Literal["App"]] = Field(alias="__typename", exclude=True)
@@ -131,15 +130,15 @@ class ReleaseFragmentApp(BaseModel):
         frozen = True
 
 
-class ReleaseFragmentFlavours(BaseModel):
+class ReleaseFlavours(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
     typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
     id: ID
     name: str
     image: str
-    manifest: UntypedParams
-    requirements: UntypedParams
+    manifest: Any
+    requirements: Any
 
     class Config:
         """A config class"""
@@ -147,17 +146,17 @@ class ReleaseFragmentFlavours(BaseModel):
         frozen = True
 
 
-class ReleaseFragment(BaseModel):
+class Release(BaseModel):
     typename: Optional[Literal["Release"]] = Field(alias="__typename", exclude=True)
     id: ID
     version: str
-    app: ReleaseFragmentApp
+    app: ReleaseApp
     scopes: Tuple[str, ...]
     colour: str
     "Is this release deployed"
     description: str
     "Is this release deployed"
-    flavours: Tuple[ReleaseFragmentFlavours, ...]
+    flavours: Tuple[ReleaseFlavours, ...]
 
     class Config:
         """A config class"""
@@ -165,7 +164,7 @@ class ReleaseFragment(BaseModel):
         frozen = True
 
 
-class ListReleaseFragmentApp(BaseModel):
+class ListReleaseApp(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
     typename: Optional[Literal["App"]] = Field(alias="__typename", exclude=True)
@@ -177,15 +176,15 @@ class ListReleaseFragmentApp(BaseModel):
         frozen = True
 
 
-class ListReleaseFragment(BaseModel):
+class ListRelease(BaseModel):
     typename: Optional[Literal["Release"]] = Field(alias="__typename", exclude=True)
     id: ID
     version: str
-    app: ListReleaseFragmentApp
+    app: ListReleaseApp
     installed: bool
     "Is this release deployed"
     scopes: Tuple[str, ...]
-    flavours: Tuple["ListFlavourFragment", ...]
+    flavours: Tuple["ListFlavour", ...]
     colour: str
     "Is this release deployed"
     description: str
@@ -197,7 +196,7 @@ class ListReleaseFragment(BaseModel):
         frozen = True
 
 
-class ListPodFragment(BaseModel):
+class ListPod(BaseModel):
     typename: Optional[Literal["Pod"]] = Field(alias="__typename", exclude=True)
     id: ID
     pod_id: str = Field(alias="podId")
@@ -208,11 +207,11 @@ class ListPodFragment(BaseModel):
         frozen = True
 
 
-class PodFragmentDeployment(BaseModel):
+class PodDeployment(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
     typename: Optional[Literal["Deployment"]] = Field(alias="__typename", exclude=True)
-    flavour: "FlavourFragment"
+    flavour: "Flavour"
 
     class Config:
         """A config class"""
@@ -220,11 +219,11 @@ class PodFragmentDeployment(BaseModel):
         frozen = True
 
 
-class PodFragment(BaseModel):
+class Pod(BaseModel):
     typename: Optional[Literal["Pod"]] = Field(alias="__typename", exclude=True)
     id: ID
     pod_id: str = Field(alias="podId")
-    deployment: PodFragmentDeployment
+    deployment: PodDeployment
 
     class Config:
         """A config class"""
@@ -232,11 +231,11 @@ class PodFragment(BaseModel):
         frozen = True
 
 
-class ListFlavourFragment(BaseModel):
+class ListFlavour(BaseModel):
     typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
     id: ID
     name: str
-    manifest: UntypedParams
+    manifest: Any
 
     class Config:
         """A config class"""
@@ -244,10 +243,10 @@ class ListFlavourFragment(BaseModel):
         frozen = True
 
 
-class FlavourFragment(BaseModel):
+class Flavour(BaseModel):
     typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
-    release: ReleaseFragment
-    manifest: UntypedParams
+    release: Release
+    manifest: Any
 
     class Config:
         """A config class"""
@@ -255,12 +254,12 @@ class FlavourFragment(BaseModel):
         frozen = True
 
 
-class ListDefinitionFragment(BaseModel):
+class ListDefinition(BaseModel):
     typename: Optional[Literal["Definition"]] = Field(alias="__typename", exclude=True)
     id: ID
     name: str
     "The cleartext name of this Node"
-    hash: NodeHash
+    hash: ID
     "The hash of the Node (completely unique)"
     description: Optional[str]
     "A description for the Node"
@@ -271,7 +270,7 @@ class ListDefinitionFragment(BaseModel):
         frozen = True
 
 
-class DefinitionFragment(BaseModel):
+class Definition(BaseModel):
     typename: Optional[Literal["Definition"]] = Field(alias="__typename", exclude=True)
     id: ID
     name: str
@@ -284,7 +283,7 @@ class DefinitionFragment(BaseModel):
 
 
 class CreateDeploymentMutation(BaseModel):
-    create_deployment: DeploymentFragment = Field(alias="createDeployment")
+    create_deployment: Deployment = Field(alias="createDeployment")
     "Create a new dask cluster on a bridge server"
 
     class Arguments(BaseModel):
@@ -292,16 +291,14 @@ class CreateDeploymentMutation(BaseModel):
         instance_id: str = Field(alias="instanceId")
         local_id: ID = Field(alias="localId")
         last_pulled: Optional[datetime] = Field(alias="lastPulled", default=None)
-        secret_params: Optional[UntypedParams] = Field(
-            alias="secretParams", default=None
-        )
+        secret_params: Optional[Any] = Field(alias="secretParams", default=None)
 
     class Meta:
         document = "fragment Deployment on Deployment {\n  id\n  localId\n}\n\nmutation CreateDeployment($flavour: ID!, $instanceId: String!, $localId: ID!, $lastPulled: DateTime, $secretParams: UntypedParams) {\n  createDeployment(\n    input: {flavour: $flavour, lastPulled: $lastPulled, secretParams: $secretParams, instanceId: $instanceId, localId: $localId}\n  ) {\n    ...Deployment\n  }\n}"
 
 
 class CreatePodMutation(BaseModel):
-    create_pod: PodFragment = Field(alias="createPod")
+    create_pod: Pod = Field(alias="createPod")
     "Create a new dask cluster on a bridge server"
 
     class Arguments(BaseModel):
@@ -314,7 +311,7 @@ class CreatePodMutation(BaseModel):
 
 
 class UpdatePodMutation(BaseModel):
-    update_pod: PodFragment = Field(alias="updatePod")
+    update_pod: Pod = Field(alias="updatePod")
     "Create a new dask cluster on a bridge server"
 
     class Arguments(BaseModel):
@@ -365,7 +362,7 @@ class DumpLogsMutation(BaseModel):
 
 
 class CreateGithubRepoMutation(BaseModel):
-    create_github_repo: GithubRepoFragment = Field(alias="createGithubRepo")
+    create_github_repo: GithubRepo = Field(alias="createGithubRepo")
     "Create a new Github repository on a bridge server"
 
     class Arguments(BaseModel):
@@ -407,7 +404,7 @@ class DeclareBackendMutation(BaseModel):
 
 
 class ListReleasesQuery(BaseModel):
-    releases: Tuple[ListReleaseFragment, ...]
+    releases: Tuple[ListRelease, ...]
 
     class Arguments(BaseModel):
         pass
@@ -417,7 +414,7 @@ class ListReleasesQuery(BaseModel):
 
 
 class GetReleaseQuery(BaseModel):
-    release: ReleaseFragment
+    release: Release
     "Return all dask clusters"
 
     class Arguments(BaseModel):
@@ -428,7 +425,7 @@ class GetReleaseQuery(BaseModel):
 
 
 class GetDeploymentQuery(BaseModel):
-    deployment: DeploymentFragment
+    deployment: Deployment
     "Return all dask clusters"
 
     class Arguments(BaseModel):
@@ -439,7 +436,7 @@ class GetDeploymentQuery(BaseModel):
 
 
 class ListDeploymentsQuery(BaseModel):
-    deployments: Tuple[ListDeploymentFragment, ...]
+    deployments: Tuple[ListDeployment, ...]
 
     class Arguments(BaseModel):
         pass
@@ -449,7 +446,7 @@ class ListDeploymentsQuery(BaseModel):
 
 
 class ListPodQuery(BaseModel):
-    pods: Tuple[ListPodFragment, ...]
+    pods: Tuple[ListPod, ...]
 
     class Arguments(BaseModel):
         pass
@@ -459,7 +456,7 @@ class ListPodQuery(BaseModel):
 
 
 class GetPodQuery(BaseModel):
-    pod: PodFragment
+    pod: Pod
     "Return all dask clusters"
 
     class Arguments(BaseModel):
@@ -470,7 +467,7 @@ class GetPodQuery(BaseModel):
 
 
 class ListDefinitionsQuery(BaseModel):
-    definitions: Tuple[ListDefinitionFragment, ...]
+    definitions: Tuple[ListDefinition, ...]
 
     class Arguments(BaseModel):
         pass
@@ -479,15 +476,42 @@ class ListDefinitionsQuery(BaseModel):
         document = "fragment ListDefinition on Definition {\n  id\n  name\n  hash\n  description\n}\n\nquery ListDefinitions {\n  definitions {\n    ...ListDefinition\n  }\n}"
 
 
-class DefinitionQuery(BaseModel):
-    definition: DefinitionFragment
+class GetDefinitionQuery(BaseModel):
+    definition: Definition
     "Return all dask clusters"
 
     class Arguments(BaseModel):
-        hash: Optional[NodeHash] = Field(default=None)
+        hash: Optional[ID] = Field(default=None)
 
     class Meta:
-        document = "fragment Definition on Definition {\n  id\n  name\n}\n\nquery Definition($hash: NodeHash) {\n  definition(hash: $hash) {\n    ...Definition\n  }\n}"
+        document = "fragment Definition on Definition {\n  id\n  name\n}\n\nquery GetDefinition($hash: NodeHash) {\n  definition(hash: $hash) {\n    ...Definition\n  }\n}"
+
+
+class SearchDefinitionsQueryOptions(BaseModel):
+    """Nodes are abstraction of RPC Tasks. They provide a common API to deal with creating tasks.
+
+    See online Documentation"""
+
+    typename: Optional[Literal["Definition"]] = Field(alias="__typename", exclude=True)
+    value: ID
+    label: str
+    "The cleartext name of this Node"
+
+    class Config:
+        """A config class"""
+
+        frozen = True
+
+
+class SearchDefinitionsQuery(BaseModel):
+    options: Tuple[SearchDefinitionsQueryOptions, ...]
+
+    class Arguments(BaseModel):
+        search: Optional[str] = Field(default=None)
+        values: Optional[List[ID]] = Field(default=None)
+
+    class Meta:
+        document = "query SearchDefinitions($search: String, $values: [ID!]) {\n  options: definitions(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n  }\n}"
 
 
 class MatchFlavourQueryMatchflavour(BaseModel):
@@ -508,7 +532,7 @@ class MatchFlavourQuery(BaseModel):
     "Return the currently logged in user"
 
     class Arguments(BaseModel):
-        nodes: Optional[List[NodeHash]] = Field(default=None)
+        nodes: Optional[List[ID]] = Field(default=None)
         environment: Optional[EnvironmentInput] = Field(default=None)
 
     class Meta:
@@ -520,9 +544,9 @@ async def acreate_deployment(
     instance_id: str,
     local_id: ID,
     last_pulled: Optional[datetime] = None,
-    secret_params: Optional[UntypedParams] = None,
+    secret_params: Optional[Any] = None,
     rath: Optional[KabinetRath] = None,
-) -> DeploymentFragment:
+) -> Deployment:
     """CreateDeployment
 
 
@@ -534,11 +558,11 @@ async def acreate_deployment(
         instance_id (str): instanceId
         local_id (ID): localId
         last_pulled (Optional[datetime], optional): lastPulled.
-        secret_params (Optional[UntypedParams], optional): secretParams.
+        secret_params (Optional[Any], optional): secretParams.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        DeploymentFragment"""
+        Deployment"""
     return (
         await aexecute(
             CreateDeploymentMutation,
@@ -559,9 +583,9 @@ def create_deployment(
     instance_id: str,
     local_id: ID,
     last_pulled: Optional[datetime] = None,
-    secret_params: Optional[UntypedParams] = None,
+    secret_params: Optional[Any] = None,
     rath: Optional[KabinetRath] = None,
-) -> DeploymentFragment:
+) -> Deployment:
     """CreateDeployment
 
 
@@ -573,11 +597,11 @@ def create_deployment(
         instance_id (str): instanceId
         local_id (ID): localId
         last_pulled (Optional[datetime], optional): lastPulled.
-        secret_params (Optional[UntypedParams], optional): secretParams.
+        secret_params (Optional[Any], optional): secretParams.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        DeploymentFragment"""
+        Deployment"""
     return execute(
         CreateDeploymentMutation,
         {
@@ -593,7 +617,7 @@ def create_deployment(
 
 async def acreate_pod(
     deployment: ID, instance_id: str, local_id: ID, rath: Optional[KabinetRath] = None
-) -> PodFragment:
+) -> Pod:
     """CreatePod
 
 
@@ -607,7 +631,7 @@ async def acreate_pod(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        PodFragment"""
+        Pod"""
     return (
         await aexecute(
             CreatePodMutation,
@@ -619,7 +643,7 @@ async def acreate_pod(
 
 def create_pod(
     deployment: ID, instance_id: str, local_id: ID, rath: Optional[KabinetRath] = None
-) -> PodFragment:
+) -> Pod:
     """CreatePod
 
 
@@ -633,7 +657,7 @@ def create_pod(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        PodFragment"""
+        Pod"""
     return execute(
         CreatePodMutation,
         {"deployment": deployment, "instanceId": instance_id, "localId": local_id},
@@ -647,7 +671,7 @@ async def aupdate_pod(
     pod: Optional[ID] = None,
     local_id: Optional[ID] = None,
     rath: Optional[KabinetRath] = None,
-) -> PodFragment:
+) -> Pod:
     """UpdatePod
 
 
@@ -662,7 +686,7 @@ async def aupdate_pod(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        PodFragment"""
+        Pod"""
     return (
         await aexecute(
             UpdatePodMutation,
@@ -683,7 +707,7 @@ def update_pod(
     pod: Optional[ID] = None,
     local_id: Optional[ID] = None,
     rath: Optional[KabinetRath] = None,
-) -> PodFragment:
+) -> Pod:
     """UpdatePod
 
 
@@ -698,7 +722,7 @@ def update_pod(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        PodFragment"""
+        Pod"""
     return execute(
         UpdatePodMutation,
         {"status": status, "instanceId": instance_id, "pod": pod, "localId": local_id},
@@ -748,7 +772,7 @@ def dump_logs(
 
 async def acreate_github_repo(
     user: str, repo: str, branch: str, name: str, rath: Optional[KabinetRath] = None
-) -> GithubRepoFragment:
+) -> GithubRepo:
     """CreateGithubRepo
 
 
@@ -763,7 +787,7 @@ async def acreate_github_repo(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GithubRepoFragment"""
+        GithubRepo"""
     return (
         await aexecute(
             CreateGithubRepoMutation,
@@ -775,7 +799,7 @@ async def acreate_github_repo(
 
 def create_github_repo(
     user: str, repo: str, branch: str, name: str, rath: Optional[KabinetRath] = None
-) -> GithubRepoFragment:
+) -> GithubRepo:
     """CreateGithubRepo
 
 
@@ -790,7 +814,7 @@ def create_github_repo(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GithubRepoFragment"""
+        GithubRepo"""
     return execute(
         CreateGithubRepoMutation,
         {"user": user, "repo": repo, "branch": branch, "name": name},
@@ -848,9 +872,7 @@ def declare_backend(
     ).declare_backend
 
 
-async def alist_releases(
-    rath: Optional[KabinetRath] = None,
-) -> List[ListReleaseFragment]:
+async def alist_releases(rath: Optional[KabinetRath] = None) -> List[ListRelease]:
     """ListReleases
 
 
@@ -861,11 +883,11 @@ async def alist_releases(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListReleaseFragment]"""
+        List[ListRelease]"""
     return (await aexecute(ListReleasesQuery, {}, rath=rath)).releases
 
 
-def list_releases(rath: Optional[KabinetRath] = None) -> List[ListReleaseFragment]:
+def list_releases(rath: Optional[KabinetRath] = None) -> List[ListRelease]:
     """ListReleases
 
 
@@ -876,11 +898,11 @@ def list_releases(rath: Optional[KabinetRath] = None) -> List[ListReleaseFragmen
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListReleaseFragment]"""
+        List[ListRelease]"""
     return execute(ListReleasesQuery, {}, rath=rath).releases
 
 
-async def aget_release(id: ID, rath: Optional[KabinetRath] = None) -> ReleaseFragment:
+async def aget_release(id: ID, rath: Optional[KabinetRath] = None) -> Release:
     """GetRelease
 
 
@@ -892,11 +914,11 @@ async def aget_release(id: ID, rath: Optional[KabinetRath] = None) -> ReleaseFra
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        ReleaseFragment"""
+        Release"""
     return (await aexecute(GetReleaseQuery, {"id": id}, rath=rath)).release
 
 
-def get_release(id: ID, rath: Optional[KabinetRath] = None) -> ReleaseFragment:
+def get_release(id: ID, rath: Optional[KabinetRath] = None) -> Release:
     """GetRelease
 
 
@@ -908,13 +930,11 @@ def get_release(id: ID, rath: Optional[KabinetRath] = None) -> ReleaseFragment:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        ReleaseFragment"""
+        Release"""
     return execute(GetReleaseQuery, {"id": id}, rath=rath).release
 
 
-async def aget_deployment(
-    id: ID, rath: Optional[KabinetRath] = None
-) -> DeploymentFragment:
+async def aget_deployment(id: ID, rath: Optional[KabinetRath] = None) -> Deployment:
     """GetDeployment
 
 
@@ -926,11 +946,11 @@ async def aget_deployment(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        DeploymentFragment"""
+        Deployment"""
     return (await aexecute(GetDeploymentQuery, {"id": id}, rath=rath)).deployment
 
 
-def get_deployment(id: ID, rath: Optional[KabinetRath] = None) -> DeploymentFragment:
+def get_deployment(id: ID, rath: Optional[KabinetRath] = None) -> Deployment:
     """GetDeployment
 
 
@@ -942,13 +962,11 @@ def get_deployment(id: ID, rath: Optional[KabinetRath] = None) -> DeploymentFrag
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        DeploymentFragment"""
+        Deployment"""
     return execute(GetDeploymentQuery, {"id": id}, rath=rath).deployment
 
 
-async def alist_deployments(
-    rath: Optional[KabinetRath] = None,
-) -> List[ListDeploymentFragment]:
+async def alist_deployments(rath: Optional[KabinetRath] = None) -> List[ListDeployment]:
     """ListDeployments
 
 
@@ -959,13 +977,11 @@ async def alist_deployments(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListDeploymentFragment]"""
+        List[ListDeployment]"""
     return (await aexecute(ListDeploymentsQuery, {}, rath=rath)).deployments
 
 
-def list_deployments(
-    rath: Optional[KabinetRath] = None,
-) -> List[ListDeploymentFragment]:
+def list_deployments(rath: Optional[KabinetRath] = None) -> List[ListDeployment]:
     """ListDeployments
 
 
@@ -976,11 +992,11 @@ def list_deployments(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListDeploymentFragment]"""
+        List[ListDeployment]"""
     return execute(ListDeploymentsQuery, {}, rath=rath).deployments
 
 
-async def alist_pod(rath: Optional[KabinetRath] = None) -> List[ListPodFragment]:
+async def alist_pod(rath: Optional[KabinetRath] = None) -> List[ListPod]:
     """ListPod
 
 
@@ -991,11 +1007,11 @@ async def alist_pod(rath: Optional[KabinetRath] = None) -> List[ListPodFragment]
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListPodFragment]"""
+        List[ListPod]"""
     return (await aexecute(ListPodQuery, {}, rath=rath)).pods
 
 
-def list_pod(rath: Optional[KabinetRath] = None) -> List[ListPodFragment]:
+def list_pod(rath: Optional[KabinetRath] = None) -> List[ListPod]:
     """ListPod
 
 
@@ -1006,11 +1022,11 @@ def list_pod(rath: Optional[KabinetRath] = None) -> List[ListPodFragment]:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListPodFragment]"""
+        List[ListPod]"""
     return execute(ListPodQuery, {}, rath=rath).pods
 
 
-async def aget_pod(id: ID, rath: Optional[KabinetRath] = None) -> PodFragment:
+async def aget_pod(id: ID, rath: Optional[KabinetRath] = None) -> Pod:
     """GetPod
 
 
@@ -1022,11 +1038,11 @@ async def aget_pod(id: ID, rath: Optional[KabinetRath] = None) -> PodFragment:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        PodFragment"""
+        Pod"""
     return (await aexecute(GetPodQuery, {"id": id}, rath=rath)).pod
 
 
-def get_pod(id: ID, rath: Optional[KabinetRath] = None) -> PodFragment:
+def get_pod(id: ID, rath: Optional[KabinetRath] = None) -> Pod:
     """GetPod
 
 
@@ -1038,13 +1054,11 @@ def get_pod(id: ID, rath: Optional[KabinetRath] = None) -> PodFragment:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        PodFragment"""
+        Pod"""
     return execute(GetPodQuery, {"id": id}, rath=rath).pod
 
 
-async def alist_definitions(
-    rath: Optional[KabinetRath] = None,
-) -> List[ListDefinitionFragment]:
+async def alist_definitions(rath: Optional[KabinetRath] = None) -> List[ListDefinition]:
     """ListDefinitions
 
 
@@ -1057,13 +1071,11 @@ async def alist_definitions(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListDefinitionFragment]"""
+        List[ListDefinition]"""
     return (await aexecute(ListDefinitionsQuery, {}, rath=rath)).definitions
 
 
-def list_definitions(
-    rath: Optional[KabinetRath] = None,
-) -> List[ListDefinitionFragment]:
+def list_definitions(rath: Optional[KabinetRath] = None) -> List[ListDefinition]:
     """ListDefinitions
 
 
@@ -1076,14 +1088,14 @@ def list_definitions(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListDefinitionFragment]"""
+        List[ListDefinition]"""
     return execute(ListDefinitionsQuery, {}, rath=rath).definitions
 
 
-async def adefinition(
-    hash: Optional[NodeHash] = None, rath: Optional[KabinetRath] = None
-) -> DefinitionFragment:
-    """Definition
+async def aget_definition(
+    hash: Optional[ID] = None, rath: Optional[KabinetRath] = None
+) -> Definition:
+    """GetDefinition
 
 
      definition: Nodes are abstraction of RPC Tasks. They provide a common API to deal with creating tasks.
@@ -1092,18 +1104,18 @@ async def adefinition(
 
 
     Arguments:
-        hash (Optional[NodeHash], optional): hash.
+        hash (Optional[ID], optional): hash.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        DefinitionFragment"""
-    return (await aexecute(DefinitionQuery, {"hash": hash}, rath=rath)).definition
+        Definition"""
+    return (await aexecute(GetDefinitionQuery, {"hash": hash}, rath=rath)).definition
 
 
-def definition(
-    hash: Optional[NodeHash] = None, rath: Optional[KabinetRath] = None
-) -> DefinitionFragment:
-    """Definition
+def get_definition(
+    hash: Optional[ID] = None, rath: Optional[KabinetRath] = None
+) -> Definition:
+    """GetDefinition
 
 
      definition: Nodes are abstraction of RPC Tasks. They provide a common API to deal with creating tasks.
@@ -1112,16 +1124,68 @@ def definition(
 
 
     Arguments:
-        hash (Optional[NodeHash], optional): hash.
+        hash (Optional[ID], optional): hash.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        DefinitionFragment"""
-    return execute(DefinitionQuery, {"hash": hash}, rath=rath).definition
+        Definition"""
+    return execute(GetDefinitionQuery, {"hash": hash}, rath=rath).definition
+
+
+async def asearch_definitions(
+    search: Optional[str] = None,
+    values: Optional[List[ID]] = None,
+    rath: Optional[KabinetRath] = None,
+) -> List[SearchDefinitionsQueryOptions]:
+    """SearchDefinitions
+
+
+     options: Nodes are abstraction of RPC Tasks. They provide a common API to deal with creating tasks.
+
+    See online Documentation
+
+
+    Arguments:
+        search (Optional[str], optional): search.
+        values (Optional[List[ID]], optional): values.
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        List[SearchDefinitionsQueryDefinitions]"""
+    return (
+        await aexecute(
+            SearchDefinitionsQuery, {"search": search, "values": values}, rath=rath
+        )
+    ).options
+
+
+def search_definitions(
+    search: Optional[str] = None,
+    values: Optional[List[ID]] = None,
+    rath: Optional[KabinetRath] = None,
+) -> List[SearchDefinitionsQueryOptions]:
+    """SearchDefinitions
+
+
+     options: Nodes are abstraction of RPC Tasks. They provide a common API to deal with creating tasks.
+
+    See online Documentation
+
+
+    Arguments:
+        search (Optional[str], optional): search.
+        values (Optional[List[ID]], optional): values.
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        List[SearchDefinitionsQueryDefinitions]"""
+    return execute(
+        SearchDefinitionsQuery, {"search": search, "values": values}, rath=rath
+    ).options
 
 
 async def amatch_flavour(
-    nodes: Optional[List[NodeHash]] = None,
+    nodes: Optional[List[ID]] = None,
     environment: Optional[EnvironmentInput] = None,
     rath: Optional[KabinetRath] = None,
 ) -> MatchFlavourQueryMatchflavour:
@@ -1132,7 +1196,7 @@ async def amatch_flavour(
 
 
     Arguments:
-        nodes (Optional[List[NodeHash]], optional): nodes.
+        nodes (Optional[List[ID]], optional): nodes.
         environment (Optional[EnvironmentInput], optional): environment.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
@@ -1146,7 +1210,7 @@ async def amatch_flavour(
 
 
 def match_flavour(
-    nodes: Optional[List[NodeHash]] = None,
+    nodes: Optional[List[ID]] = None,
     environment: Optional[EnvironmentInput] = None,
     rath: Optional[KabinetRath] = None,
 ) -> MatchFlavourQueryMatchflavour:
@@ -1157,7 +1221,7 @@ def match_flavour(
 
 
     Arguments:
-        nodes (Optional[List[NodeHash]], optional): nodes.
+        nodes (Optional[List[ID]], optional): nodes.
         environment (Optional[EnvironmentInput], optional): environment.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
@@ -1169,5 +1233,5 @@ def match_flavour(
 
 
 EnvironmentInput.update_forward_refs()
-ListReleaseFragment.update_forward_refs()
-PodFragmentDeployment.update_forward_refs()
+ListRelease.update_forward_refs()
+PodDeployment.update_forward_refs()
