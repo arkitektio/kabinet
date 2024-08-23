@@ -19,7 +19,9 @@ def init_services(service_builder_registry):
     class ArkitektNextKabinet(Kabinet):
         rath: KabinetRath
 
-    def build_arkitekt_next_fluss(fakts: Fakts, herre: Herre, params: Params, manifest: Manifest):
+    def build_arkitekt_next_fluss(
+        fakts: Fakts, herre: Herre, params: Params, manifest: Manifest
+    ):
         return ArkitektNextKabinet(
             rath=KabinetRath(
                 link=KabinetLinkComposition(
