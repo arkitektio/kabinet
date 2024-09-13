@@ -1,0 +1,24 @@
+query ListBackends(
+  $filters: BackendFilter
+  $pagination: OffsetPaginationInput
+) {
+  backends(filters: $filters, pagination: $pagination) {
+    ...ListBackend
+  }
+}
+
+query GetBackend($id: ID!) {
+  backend(id: $id) {
+    ...Backend
+  }
+}
+
+query SearchBackends($search: String, $values: [ID!]) {
+  options: backends(
+    filters: { search: $search, ids: $values }
+    pagination: { limit: 10 }
+  ) {
+    value: id
+    label: name
+  }
+}

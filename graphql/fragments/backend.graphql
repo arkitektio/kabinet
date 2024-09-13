@@ -1,0 +1,9 @@
+fragment Backend on Backend {
+  id
+  name
+}
+
+fragment ListBackend on Backend {
+  id
+  name
+}

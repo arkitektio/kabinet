@@ -9,3 +9,13 @@ query GetRelease($id: ID!) {
     ...Release
   }
 }
+
+query SearchReleases($search: String, $values: [ID!]) {
+  options: releases(
+    filters: { search: $search, ids: $values }
+    pagination: { limit: 10 }
+  ) {
+    value: id
+    label: name
+  }
+}

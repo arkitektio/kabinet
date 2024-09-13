@@ -28,10 +28,15 @@ mutation UpdatePod(
   }
 }
 
+mutation DeletePod($id: ID!) {
+  deletePod(input: { id: $id })
+}
 
 mutation DumpLogs($pod: ID!, $logs: String!) {
-  dumpLogs(input: { pod: $pod , logs: $logs }) {
-    pod {id}
+  dumpLogs(input: { pod: $pod, logs: $logs }) {
+    pod {
+      id
+    }
     logs
   }
 }

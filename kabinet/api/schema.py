@@ -1,10 +1,10 @@
-from kabinet.rath import KabinetRath
-from typing import Optional, Tuple, Any, Literal, List
+from rath.scalars import ID
+from typing import Tuple, Literal, Optional, List, Any
+from kabinet.funcs import execute, aexecute
 from datetime import datetime
 from pydantic import BaseModel, Field
-from rath.scalars import ID
-from kabinet.funcs import aexecute, execute
 from enum import Enum
+from kabinet.rath import KabinetRath
 
 
 class PodStatus(str, Enum):
@@ -23,6 +23,18 @@ class ContainerType(str, Enum):
 
     APPTAINER = "APPTAINER"
     DOCKER = "DOCKER"
+
+
+class OffsetPaginationInput(BaseModel):
+    offset: int
+    limit: int
+
+    class Config:
+        """A config class"""
+
+        frozen = True
+        extra = "forbid"
+        use_enum_values = True
 
 
 class EnvironmentInput(BaseModel):
@@ -44,6 +56,23 @@ class DeviceFeature(BaseModel):
 
     kind: str
     cpu_count: str = Field(alias="cpuCount")
+
+    class Config:
+        """A config class"""
+
+        frozen = True
+        extra = "forbid"
+        use_enum_values = True
+
+
+class BackendFilter(BaseModel):
+    """Filter for Dask Clusters"""
+
+    ids: Optional[Tuple[ID, ...]] = None
+    search: Optional[str] = None
+    and_: Optional["BackendFilter"] = Field(alias="AND", default=None)
+    or_: Optional["BackendFilter"] = Field(alias="OR", default=None)
+    not_: Optional["BackendFilter"] = Field(alias="NOT", default=None)
 
     class Config:
         """A config class"""
@@ -282,6 +311,28 @@ class Definition(BaseModel):
         frozen = True
 
 
+class Backend(BaseModel):
+    typename: Optional[Literal["Backend"]] = Field(alias="__typename", exclude=True)
+    id: ID
+    name: str
+
+    class Config:
+        """A config class"""
+
+        frozen = True
+
+
+class ListBackend(BaseModel):
+    typename: Optional[Literal["Backend"]] = Field(alias="__typename", exclude=True)
+    id: ID
+    name: str
+
+    class Config:
+        """A config class"""
+
+        frozen = True
+
+
 class CreateDeploymentMutation(BaseModel):
     create_deployment: Deployment = Field(alias="createDeployment")
     "Create a new dask cluster on a bridge server"
@@ -322,6 +373,17 @@ class UpdatePodMutation(BaseModel):
 
     class Meta:
         document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n  }\n}"
+
+
+class DeletePodMutation(BaseModel):
+    delete_pod: ID = Field(alias="deletePod")
+    "Create a new dask cluster on a bridge server"
+
+    class Arguments(BaseModel):
+        id: ID
+
+    class Meta:
+        document = "mutation DeletePod($id: ID!) {\n  deletePod(input: {id: $id})\n}"
 
 
 class DumpLogsMutationDumplogsPod(BaseModel):
@@ -375,23 +437,8 @@ class CreateGithubRepoMutation(BaseModel):
         document = "fragment GithubRepo on GithubRepo {\n  id\n  branch\n  user\n  repo\n  flavours {\n    definitions {\n      id\n      hash\n    }\n  }\n}\n\nmutation CreateGithubRepo($user: String!, $repo: String!, $branch: String!, $name: String!) {\n  createGithubRepo(\n    input: {user: $user, repo: $repo, branch: $branch, name: $name}\n  ) {\n    ...GithubRepo\n  }\n}"
 
 
-class DeclareBackendMutationDeclarebackend(BaseModel):
-    """A user of the bridge server. Maps to an authentikate user"""
-
-    typename: Optional[Literal["Backend"]] = Field(alias="__typename", exclude=True)
-    id: ID
-    name: str
-
-    class Config:
-        """A config class"""
-
-        frozen = True
-
-
 class DeclareBackendMutation(BaseModel):
-    declare_backend: DeclareBackendMutationDeclarebackend = Field(
-        alias="declareBackend"
-    )
+    declare_backend: Backend = Field(alias="declareBackend")
     "Create a new dask cluster on a bridge server"
 
     class Arguments(BaseModel):
@@ -400,7 +447,7 @@ class DeclareBackendMutation(BaseModel):
         name: str
 
     class Meta:
-        document = "mutation DeclareBackend($instanceId: String!, $kind: String!, $name: String!) {\n  declareBackend(input: {kind: $kind, instanceId: $instanceId, name: $name}) {\n    id\n    name\n  }\n}"
+        document = "fragment Backend on Backend {\n  id\n  name\n}\n\nmutation DeclareBackend($instanceId: String!, $kind: String!, $name: String!) {\n  declareBackend(input: {kind: $kind, instanceId: $instanceId, name: $name}) {\n    ...Backend\n  }\n}"
 
 
 class ListReleasesQuery(BaseModel):
@@ -424,6 +471,31 @@ class GetReleaseQuery(BaseModel):
         document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements\n  }\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n  }\n}"
 
 
+class SearchReleasesQueryOptions(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
+    typename: Optional[Literal["Release"]] = Field(alias="__typename", exclude=True)
+    value: ID
+    label: str
+    "Is this release deployed"
+
+    class Config:
+        """A config class"""
+
+        frozen = True
+
+
+class SearchReleasesQuery(BaseModel):
+    options: Tuple[SearchReleasesQueryOptions, ...]
+
+    class Arguments(BaseModel):
+        search: Optional[str] = Field(default=None)
+        values: Optional[List[ID]] = Field(default=None)
+
+    class Meta:
+        document = "query SearchReleases($search: String, $values: [ID!]) {\n  options: releases(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n  }\n}"
+
+
 class GetDeploymentQuery(BaseModel):
     deployment: Deployment
     "Return all dask clusters"
@@ -445,6 +517,30 @@ class ListDeploymentsQuery(BaseModel):
         document = "fragment ListDeployment on Deployment {\n  id\n  localId\n}\n\nquery ListDeployments {\n  deployments {\n    ...ListDeployment\n  }\n}"
 
 
+class SearchDeploymentsQueryOptions(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
+    typename: Optional[Literal["Deployment"]] = Field(alias="__typename", exclude=True)
+    value: ID
+    label: str
+
+    class Config:
+        """A config class"""
+
+        frozen = True
+
+
+class SearchDeploymentsQuery(BaseModel):
+    options: Tuple[SearchDeploymentsQueryOptions, ...]
+
+    class Arguments(BaseModel):
+        search: Optional[str] = Field(default=None)
+        values: Optional[List[ID]] = Field(default=None)
+
+    class Meta:
+        document = "query SearchDeployments($search: String, $values: [ID!]) {\n  options: deployments(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n  }\n}"
+
+
 class ListPodQuery(BaseModel):
     pods: Tuple[ListPod, ...]
 
@@ -464,6 +560,31 @@ class GetPodQuery(BaseModel):
 
     class Meta:
         document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery GetPod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
+
+
+class SearchPodsQueryOptions(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
+    typename: Optional[Literal["Pod"]] = Field(alias="__typename", exclude=True)
+    value: ID
+    label: str
+
+    class Config:
+        """A config class"""
+
+        frozen = True
+
+
+class SearchPodsQuery(BaseModel):
+    options: Tuple[SearchPodsQueryOptions, ...]
+
+    class Arguments(BaseModel):
+        search: Optional[str] = Field(default=None)
+        values: Optional[List[ID]] = Field(default=None)
+        backend: Optional[ID] = Field(default=None)
+
+    class Meta:
+        document = "query SearchPods($search: String, $values: [ID!], $backend: ID) {\n  options: pods(\n    filters: {search: $search, ids: $values, backend: $backend}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n  }\n}"
 
 
 class ListDefinitionsQuery(BaseModel):
@@ -537,6 +658,52 @@ class MatchFlavourQuery(BaseModel):
 
     class Meta:
         document = "query MatchFlavour($nodes: [NodeHash!], $environment: EnvironmentInput) {\n  matchFlavour(input: {nodes: $nodes, environment: $environment}) {\n    id\n    image\n  }\n}"
+
+
+class ListBackendsQuery(BaseModel):
+    backends: Tuple[ListBackend, ...]
+
+    class Arguments(BaseModel):
+        filters: Optional[BackendFilter] = Field(default=None)
+        pagination: Optional[OffsetPaginationInput] = Field(default=None)
+
+    class Meta:
+        document = "fragment ListBackend on Backend {\n  id\n  name\n}\n\nquery ListBackends($filters: BackendFilter, $pagination: OffsetPaginationInput) {\n  backends(filters: $filters, pagination: $pagination) {\n    ...ListBackend\n  }\n}"
+
+
+class GetBackendQuery(BaseModel):
+    backend: Backend
+    "Return all dask clusters"
+
+    class Arguments(BaseModel):
+        id: ID
+
+    class Meta:
+        document = "fragment Backend on Backend {\n  id\n  name\n}\n\nquery GetBackend($id: ID!) {\n  backend(id: $id) {\n    ...Backend\n  }\n}"
+
+
+class SearchBackendsQueryOptions(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
+    typename: Optional[Literal["Backend"]] = Field(alias="__typename", exclude=True)
+    value: ID
+    label: str
+
+    class Config:
+        """A config class"""
+
+        frozen = True
+
+
+class SearchBackendsQuery(BaseModel):
+    options: Tuple[SearchBackendsQueryOptions, ...]
+
+    class Arguments(BaseModel):
+        search: Optional[str] = Field(default=None)
+        values: Optional[List[ID]] = Field(default=None)
+
+    class Meta:
+        document = "query SearchBackends($search: String, $values: [ID!]) {\n  options: backends(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n  }\n}"
 
 
 async def acreate_deployment(
@@ -730,6 +897,38 @@ def update_pod(
     ).update_pod
 
 
+async def adelete_pod(id: ID, rath: Optional[KabinetRath] = None) -> ID:
+    """DeletePod
+
+
+     deletePod: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
+
+
+    Arguments:
+        id (ID): id
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        ID"""
+    return (await aexecute(DeletePodMutation, {"id": id}, rath=rath)).delete_pod
+
+
+def delete_pod(id: ID, rath: Optional[KabinetRath] = None) -> ID:
+    """DeletePod
+
+
+     deletePod: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
+
+
+    Arguments:
+        id (ID): id
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        ID"""
+    return execute(DeletePodMutation, {"id": id}, rath=rath).delete_pod
+
+
 async def adump_logs(
     pod: ID, logs: str, rath: Optional[KabinetRath] = None
 ) -> DumpLogsMutationDumplogs:
@@ -824,7 +1023,7 @@ def create_github_repo(
 
 async def adeclare_backend(
     instance_id: str, kind: str, name: str, rath: Optional[KabinetRath] = None
-) -> DeclareBackendMutationDeclarebackend:
+) -> Backend:
     """DeclareBackend
 
 
@@ -838,7 +1037,7 @@ async def adeclare_backend(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        DeclareBackendMutationDeclarebackend"""
+        Backend"""
     return (
         await aexecute(
             DeclareBackendMutation,
@@ -850,7 +1049,7 @@ async def adeclare_backend(
 
 def declare_backend(
     instance_id: str, kind: str, name: str, rath: Optional[KabinetRath] = None
-) -> DeclareBackendMutationDeclarebackend:
+) -> Backend:
     """DeclareBackend
 
 
@@ -864,7 +1063,7 @@ def declare_backend(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        DeclareBackendMutationDeclarebackend"""
+        Backend"""
     return execute(
         DeclareBackendMutation,
         {"instanceId": instance_id, "kind": kind, "name": name},
@@ -934,6 +1133,54 @@ def get_release(id: ID, rath: Optional[KabinetRath] = None) -> Release:
     return execute(GetReleaseQuery, {"id": id}, rath=rath).release
 
 
+async def asearch_releases(
+    search: Optional[str] = None,
+    values: Optional[List[ID]] = None,
+    rath: Optional[KabinetRath] = None,
+) -> List[SearchReleasesQueryOptions]:
+    """SearchReleases
+
+
+     options: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        search (Optional[str], optional): search.
+        values (Optional[List[ID]], optional): values.
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        List[SearchReleasesQueryReleases]"""
+    return (
+        await aexecute(
+            SearchReleasesQuery, {"search": search, "values": values}, rath=rath
+        )
+    ).options
+
+
+def search_releases(
+    search: Optional[str] = None,
+    values: Optional[List[ID]] = None,
+    rath: Optional[KabinetRath] = None,
+) -> List[SearchReleasesQueryOptions]:
+    """SearchReleases
+
+
+     options: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        search (Optional[str], optional): search.
+        values (Optional[List[ID]], optional): values.
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        List[SearchReleasesQueryReleases]"""
+    return execute(
+        SearchReleasesQuery, {"search": search, "values": values}, rath=rath
+    ).options
+
+
 async def aget_deployment(id: ID, rath: Optional[KabinetRath] = None) -> Deployment:
     """GetDeployment
 
@@ -996,6 +1243,54 @@ def list_deployments(rath: Optional[KabinetRath] = None) -> List[ListDeployment]
     return execute(ListDeploymentsQuery, {}, rath=rath).deployments
 
 
+async def asearch_deployments(
+    search: Optional[str] = None,
+    values: Optional[List[ID]] = None,
+    rath: Optional[KabinetRath] = None,
+) -> List[SearchDeploymentsQueryOptions]:
+    """SearchDeployments
+
+
+     options: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        search (Optional[str], optional): search.
+        values (Optional[List[ID]], optional): values.
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        List[SearchDeploymentsQueryDeployments]"""
+    return (
+        await aexecute(
+            SearchDeploymentsQuery, {"search": search, "values": values}, rath=rath
+        )
+    ).options
+
+
+def search_deployments(
+    search: Optional[str] = None,
+    values: Optional[List[ID]] = None,
+    rath: Optional[KabinetRath] = None,
+) -> List[SearchDeploymentsQueryOptions]:
+    """SearchDeployments
+
+
+     options: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        search (Optional[str], optional): search.
+        values (Optional[List[ID]], optional): values.
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        List[SearchDeploymentsQueryDeployments]"""
+    return execute(
+        SearchDeploymentsQuery, {"search": search, "values": values}, rath=rath
+    ).options
+
+
 async def alist_pod(rath: Optional[KabinetRath] = None) -> List[ListPod]:
     """ListPod
 
@@ -1056,6 +1351,62 @@ def get_pod(id: ID, rath: Optional[KabinetRath] = None) -> Pod:
     Returns:
         Pod"""
     return execute(GetPodQuery, {"id": id}, rath=rath).pod
+
+
+async def asearch_pods(
+    search: Optional[str] = None,
+    values: Optional[List[ID]] = None,
+    backend: Optional[ID] = None,
+    rath: Optional[KabinetRath] = None,
+) -> List[SearchPodsQueryOptions]:
+    """SearchPods
+
+
+     options: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        search (Optional[str], optional): search.
+        values (Optional[List[ID]], optional): values.
+        backend (Optional[ID], optional): backend.
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        List[SearchPodsQueryPods]"""
+    return (
+        await aexecute(
+            SearchPodsQuery,
+            {"search": search, "values": values, "backend": backend},
+            rath=rath,
+        )
+    ).options
+
+
+def search_pods(
+    search: Optional[str] = None,
+    values: Optional[List[ID]] = None,
+    backend: Optional[ID] = None,
+    rath: Optional[KabinetRath] = None,
+) -> List[SearchPodsQueryOptions]:
+    """SearchPods
+
+
+     options: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        search (Optional[str], optional): search.
+        values (Optional[List[ID]], optional): values.
+        backend (Optional[ID], optional): backend.
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        List[SearchPodsQueryPods]"""
+    return execute(
+        SearchPodsQuery,
+        {"search": search, "values": values, "backend": backend},
+        rath=rath,
+    ).options
 
 
 async def alist_definitions(rath: Optional[KabinetRath] = None) -> List[ListDefinition]:
@@ -1232,6 +1583,135 @@ def match_flavour(
     ).match_flavour
 
 
+async def alist_backends(
+    filters: Optional[BackendFilter] = None,
+    pagination: Optional[OffsetPaginationInput] = None,
+    rath: Optional[KabinetRath] = None,
+) -> List[ListBackend]:
+    """ListBackends
+
+
+     backends: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        filters (Optional[BackendFilter], optional): filters.
+        pagination (Optional[OffsetPaginationInput], optional): pagination.
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        List[ListBackend]"""
+    return (
+        await aexecute(
+            ListBackendsQuery, {"filters": filters, "pagination": pagination}, rath=rath
+        )
+    ).backends
+
+
+def list_backends(
+    filters: Optional[BackendFilter] = None,
+    pagination: Optional[OffsetPaginationInput] = None,
+    rath: Optional[KabinetRath] = None,
+) -> List[ListBackend]:
+    """ListBackends
+
+
+     backends: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        filters (Optional[BackendFilter], optional): filters.
+        pagination (Optional[OffsetPaginationInput], optional): pagination.
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        List[ListBackend]"""
+    return execute(
+        ListBackendsQuery, {"filters": filters, "pagination": pagination}, rath=rath
+    ).backends
+
+
+async def aget_backend(id: ID, rath: Optional[KabinetRath] = None) -> Backend:
+    """GetBackend
+
+
+     backend: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        id (ID): id
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        Backend"""
+    return (await aexecute(GetBackendQuery, {"id": id}, rath=rath)).backend
+
+
+def get_backend(id: ID, rath: Optional[KabinetRath] = None) -> Backend:
+    """GetBackend
+
+
+     backend: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        id (ID): id
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        Backend"""
+    return execute(GetBackendQuery, {"id": id}, rath=rath).backend
+
+
+async def asearch_backends(
+    search: Optional[str] = None,
+    values: Optional[List[ID]] = None,
+    rath: Optional[KabinetRath] = None,
+) -> List[SearchBackendsQueryOptions]:
+    """SearchBackends
+
+
+     options: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        search (Optional[str], optional): search.
+        values (Optional[List[ID]], optional): values.
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        List[SearchBackendsQueryBackends]"""
+    return (
+        await aexecute(
+            SearchBackendsQuery, {"search": search, "values": values}, rath=rath
+        )
+    ).options
+
+
+def search_backends(
+    search: Optional[str] = None,
+    values: Optional[List[ID]] = None,
+    rath: Optional[KabinetRath] = None,
+) -> List[SearchBackendsQueryOptions]:
+    """SearchBackends
+
+
+     options: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        search (Optional[str], optional): search.
+        values (Optional[List[ID]], optional): values.
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        List[SearchBackendsQueryBackends]"""
+    return execute(
+        SearchBackendsQuery, {"search": search, "values": values}, rath=rath
+    ).options
+
+
+BackendFilter.update_forward_refs()
 EnvironmentInput.update_forward_refs()
 ListRelease.update_forward_refs()
 PodDeployment.update_forward_refs()

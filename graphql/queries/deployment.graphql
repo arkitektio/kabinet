@@ -9,3 +9,13 @@ query ListDeployments {
     ...ListDeployment
   }
 }
+
+query SearchDeployments($search: String, $values: [ID!]) {
+  options: deployments(
+    filters: { search: $search, ids: $values }
+    pagination: { limit: 10 }
+  ) {
+    value: id
+    label: name
+  }
+}

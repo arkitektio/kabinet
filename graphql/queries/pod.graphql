@@ -9,3 +9,13 @@ query GetPod($id: ID!) {
     ...Pod
   }
 }
+
+query SearchPods($search: String, $values: [ID!], $backend: ID) {
+  options: pods(
+    filters: { search: $search, ids: $values, backend: $backend }
+    pagination: { limit: 10 }
+  ) {
+    value: id
+    label: name
+  }
+}
