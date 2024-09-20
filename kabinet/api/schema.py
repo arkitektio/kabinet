@@ -1,10 +1,10 @@
-from rath.scalars import ID
-from typing import Tuple, Literal, Optional, List, Any
-from kabinet.funcs import execute, aexecute
-from datetime import datetime
-from pydantic import BaseModel, Field
+from typing import Optional, Literal, Tuple, Any, List
 from enum import Enum
+from kabinet.funcs import execute, aexecute
 from kabinet.rath import KabinetRath
+from pydantic import Field, BaseModel, ConfigDict
+from rath.scalars import ID
+from datetime import datetime
 
 
 class PodStatus(str, Enum):
@@ -28,13 +28,7 @@ class ContainerType(str, Enum):
 class OffsetPaginationInput(BaseModel):
     offset: int
     limit: int
-
-    class Config:
-        """A config class"""
-
-        frozen = True
-        extra = "forbid"
-        use_enum_values = True
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
 
 class EnvironmentInput(BaseModel):
@@ -42,13 +36,7 @@ class EnvironmentInput(BaseModel):
 
     features: Optional[Tuple["DeviceFeature", ...]] = None
     container_type: ContainerType = Field(alias="containerType")
-
-    class Config:
-        """A config class"""
-
-        frozen = True
-        extra = "forbid"
-        use_enum_values = True
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
 
 class DeviceFeature(BaseModel):
@@ -56,13 +44,7 @@ class DeviceFeature(BaseModel):
 
     kind: str
     cpu_count: str = Field(alias="cpuCount")
-
-    class Config:
-        """A config class"""
-
-        frozen = True
-        extra = "forbid"
-        use_enum_values = True
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
 
 class BackendFilter(BaseModel):
@@ -73,35 +55,25 @@ class BackendFilter(BaseModel):
     and_: Optional["BackendFilter"] = Field(alias="AND", default=None)
     or_: Optional["BackendFilter"] = Field(alias="OR", default=None)
     not_: Optional["BackendFilter"] = Field(alias="NOT", default=None)
-
-    class Config:
-        """A config class"""
-
-        frozen = True
-        extra = "forbid"
-        use_enum_values = True
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
 
 class Deployment(BaseModel):
-    typename: Optional[Literal["Deployment"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Deployment"]] = Field(
+        alias="__typename", default="Deployment", exclude=True
+    )
     id: ID
     local_id: ID = Field(alias="localId")
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class ListDeployment(BaseModel):
-    typename: Optional[Literal["Deployment"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Deployment"]] = Field(
+        alias="__typename", default="Deployment", exclude=True
+    )
     id: ID
     local_id: ID = Field(alias="localId")
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class GithubRepoFlavoursDefinitions(BaseModel):
@@ -109,74 +81,66 @@ class GithubRepoFlavoursDefinitions(BaseModel):
 
     See online Documentation"""
 
-    typename: Optional[Literal["Definition"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Definition"]] = Field(
+        alias="__typename", default="Definition", exclude=True
+    )
     id: ID
     hash: ID
     "The hash of the Node (completely unique)"
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class GithubRepoFlavours(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Flavour"]] = Field(
+        alias="__typename", default="Flavour", exclude=True
+    )
     definitions: Tuple[GithubRepoFlavoursDefinitions, ...]
     "The flavours this Definition belongs to"
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class GithubRepo(BaseModel):
-    typename: Optional[Literal["GithubRepo"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["GithubRepo"]] = Field(
+        alias="__typename", default="GithubRepo", exclude=True
+    )
     id: ID
     branch: str
     user: str
     repo: str
     flavours: Tuple[GithubRepoFlavours, ...]
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class ReleaseApp(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["App"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["App"]] = Field(
+        alias="__typename", default="App", exclude=True
+    )
     identifier: str
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class ReleaseFlavours(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Flavour"]] = Field(
+        alias="__typename", default="Flavour", exclude=True
+    )
     id: ID
     name: str
     image: str
     manifest: Any
     requirements: Any
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class Release(BaseModel):
-    typename: Optional[Literal["Release"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Release"]] = Field(
+        alias="__typename", default="Release", exclude=True
+    )
     id: ID
     version: str
     app: ReleaseApp
@@ -186,27 +150,23 @@ class Release(BaseModel):
     description: str
     "Is this release deployed"
     flavours: Tuple[ReleaseFlavours, ...]
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class ListReleaseApp(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["App"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["App"]] = Field(
+        alias="__typename", default="App", exclude=True
+    )
     identifier: str
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class ListRelease(BaseModel):
-    typename: Optional[Literal["Release"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Release"]] = Field(
+        alias="__typename", default="Release", exclude=True
+    )
     id: ID
     version: str
     app: ListReleaseApp
@@ -218,119 +178,97 @@ class ListRelease(BaseModel):
     "Is this release deployed"
     description: str
     "Is this release deployed"
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class ListPod(BaseModel):
-    typename: Optional[Literal["Pod"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Pod"]] = Field(
+        alias="__typename", default="Pod", exclude=True
+    )
     id: ID
     pod_id: str = Field(alias="podId")
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class PodDeployment(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Deployment"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Deployment"]] = Field(
+        alias="__typename", default="Deployment", exclude=True
+    )
     flavour: "Flavour"
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class Pod(BaseModel):
-    typename: Optional[Literal["Pod"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Pod"]] = Field(
+        alias="__typename", default="Pod", exclude=True
+    )
     id: ID
     pod_id: str = Field(alias="podId")
     deployment: PodDeployment
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class ListFlavour(BaseModel):
-    typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Flavour"]] = Field(
+        alias="__typename", default="Flavour", exclude=True
+    )
     id: ID
     name: str
     manifest: Any
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class Flavour(BaseModel):
-    typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Flavour"]] = Field(
+        alias="__typename", default="Flavour", exclude=True
+    )
     release: Release
     manifest: Any
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class ListDefinition(BaseModel):
-    typename: Optional[Literal["Definition"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Definition"]] = Field(
+        alias="__typename", default="Definition", exclude=True
+    )
     id: ID
     name: str
     "The cleartext name of this Node"
     hash: ID
     "The hash of the Node (completely unique)"
-    description: Optional[str]
+    description: Optional[str] = Field(default=None)
     "A description for the Node"
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class Definition(BaseModel):
-    typename: Optional[Literal["Definition"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Definition"]] = Field(
+        alias="__typename", default="Definition", exclude=True
+    )
     id: ID
     name: str
     "The cleartext name of this Node"
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class Backend(BaseModel):
-    typename: Optional[Literal["Backend"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Backend"]] = Field(
+        alias="__typename", default="Backend", exclude=True
+    )
     id: ID
     name: str
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class ListBackend(BaseModel):
-    typename: Optional[Literal["Backend"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Backend"]] = Field(
+        alias="__typename", default="Backend", exclude=True
+    )
     id: ID
     name: str
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class CreateDeploymentMutation(BaseModel):
@@ -389,26 +327,22 @@ class DeletePodMutation(BaseModel):
 class DumpLogsMutationDumplogsPod(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Pod"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Pod"]] = Field(
+        alias="__typename", default="Pod", exclude=True
+    )
     id: ID
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class DumpLogsMutationDumplogs(BaseModel):
     """The logs of a pod"""
 
-    typename: Optional[Literal["LogDump"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["LogDump"]] = Field(
+        alias="__typename", default="LogDump", exclude=True
+    )
     pod: DumpLogsMutationDumplogsPod
     logs: str
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class DumpLogsMutation(BaseModel):
@@ -474,15 +408,13 @@ class GetReleaseQuery(BaseModel):
 class SearchReleasesQueryOptions(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Release"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Release"]] = Field(
+        alias="__typename", default="Release", exclude=True
+    )
     value: ID
     label: str
     "Is this release deployed"
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class SearchReleasesQuery(BaseModel):
@@ -520,14 +452,12 @@ class ListDeploymentsQuery(BaseModel):
 class SearchDeploymentsQueryOptions(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Deployment"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Deployment"]] = Field(
+        alias="__typename", default="Deployment", exclude=True
+    )
     value: ID
     label: str
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class SearchDeploymentsQuery(BaseModel):
@@ -565,14 +495,12 @@ class GetPodQuery(BaseModel):
 class SearchPodsQueryOptions(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Pod"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Pod"]] = Field(
+        alias="__typename", default="Pod", exclude=True
+    )
     value: ID
     label: str
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class SearchPodsQuery(BaseModel):
@@ -613,15 +541,13 @@ class SearchDefinitionsQueryOptions(BaseModel):
 
     See online Documentation"""
 
-    typename: Optional[Literal["Definition"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Definition"]] = Field(
+        alias="__typename", default="Definition", exclude=True
+    )
     value: ID
     label: str
     "The cleartext name of this Node"
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class SearchDefinitionsQuery(BaseModel):
@@ -638,14 +564,12 @@ class SearchDefinitionsQuery(BaseModel):
 class MatchFlavourQueryMatchflavour(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Flavour"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Flavour"]] = Field(
+        alias="__typename", default="Flavour", exclude=True
+    )
     id: ID
     image: str
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class MatchFlavourQuery(BaseModel):
@@ -685,14 +609,12 @@ class GetBackendQuery(BaseModel):
 class SearchBackendsQueryOptions(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Backend"]] = Field(alias="__typename", exclude=True)
+    typename: Optional[Literal["Backend"]] = Field(
+        alias="__typename", default="Backend", exclude=True
+    )
     value: ID
     label: str
-
-    class Config:
-        """A config class"""
-
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class SearchBackendsQuery(BaseModel):

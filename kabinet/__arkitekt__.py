@@ -1,20 +1,22 @@
+from kabinet.kabinet import Kabinet
+from kabinet.rath import KabinetLinkComposition, KabinetRath
+from rath.links.split import SplitLink
+from rath.contrib.fakts.links.aiohttp import FaktsAIOHttpLink
+from rath.contrib.fakts.links.graphql_ws import FaktsGraphQLWSLink
+from rath.contrib.herre.links.auth import HerreAuthLink
+from graphql import OperationType
+from herre import Herre
+from fakts import Fakts
+
+from arkitekt_next.model import Manifest
+
+from arkitekt_next.service_registry import (
+    Params,
+)
+from arkitekt_next.model import Requirement
+
 def init_services(service_builder_registry):
-    from .kabinet import Kabinet
-    from .rath import KabinetLinkComposition, KabinetRath
-    from rath.links.split import SplitLink
-    from rath.contrib.fakts.links.aiohttp import FaktsAIOHttpLink
-    from rath.contrib.fakts.links.graphql_ws import FaktsGraphQLWSLink
-    from rath.contrib.herre.links.auth import HerreAuthLink
-    from graphql import OperationType
-    from herre import Herre
-    from fakts import Fakts
-
-    from arkitekt_next.model import Manifest
-
-    from arkitekt_next.service_registry import (
-        Params,
-    )
-    from arkitekt_next.model import Requirement
+   
 
     class ArkitektNextKabinet(Kabinet):
         rath: KabinetRath
@@ -27,8 +29,14 @@ def init_services(service_builder_registry):
                 link=KabinetLinkComposition(
                     auth=HerreAuthLink(herre=herre),
                     split=SplitLink(
-                        left=FaktsAIOHttpLink(fakts_group="kabinet", fakts=fakts),
-                        right=FaktsGraphQLWSLink(fakts_group="kabinet", fakts=fakts),
+                        left=FaktsAIOHttpLink(
+                            fakts_group="kabinet", fakts=fakts, endpoint_url="FAKE_URL"
+                        ),
+                        right=FaktsGraphQLWSLink(
+                            fakts_group="kabinet",
+                            fakts=fakts,
+                            ws_endpoint_url="FAKE_URL",
+                        ),
                         split=lambda o: o.node.operation != OperationType.SUBSCRIPTION,
                     ),
                 )

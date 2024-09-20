@@ -82,4 +82,3 @@ def register_structures(structure_reg):
         ),
     )
 
-    print("Registered structures , kabinet")
