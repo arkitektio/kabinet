@@ -1,0 +1,17 @@
+mutation DeclareResource(
+  $instanceId: String!
+  $name: String!
+  $resourceId: String!
+  $qualifiers: UntypedParams
+) {
+  declareResource(
+    input: {
+      instanceId: $instanceId
+      name: $name
+      resourceId: $resourceId
+      qualifiers: $qualifiers
+    }
+  ) {
+    ...Resource
+  }
+}

@@ -1,0 +1,24 @@
+query ListResources(
+  $filters: ResourceFilter
+  $pagination: OffsetPaginationInput
+) {
+  resources(filters: $filters, pagination: $pagination) {
+    ...ListResource
+  }
+}
+
+query GeResource($id: ID!) {
+  resource(id: $id) {
+    ...Resource
+  }
+}
+
+query SearchResources($search: String, $values: [ID!]) {
+  options: resources(
+    filters: { search: $search, ids: $values }
+    pagination: { limit: 10 }
+  ) {
+    value: id
+    label: name
+  }
+}

@@ -8,15 +8,15 @@ from graphql import OperationType
 from herre import Herre
 from fakts import Fakts
 
-from arkitekt_next.model import Manifest
+from arkitekt_next.base_models import Manifest
 
 from arkitekt_next.service_registry import (
     Params,
 )
-from arkitekt_next.model import Requirement
+from arkitekt_next.base_models import Requirement
+
 
 def init_services(service_builder_registry):
-   
 
     class ArkitektNextKabinet(Kabinet):
         rath: KabinetRath
