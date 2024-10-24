@@ -1,0 +1,5 @@
+mutation CreateAppImage($input: AppImageInput!) {
+  createAppImage(input: $input) {
+    ...Release
+  }
+}

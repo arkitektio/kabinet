@@ -12,7 +12,12 @@ fragment Release on Release {
     name
     image
     manifest
-    requirements
+    requirements {
+      key
+      service
+      description
+      optional
+    }
   }
 }
 

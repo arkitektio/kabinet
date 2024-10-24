@@ -1,10 +1,43 @@
+from rekuest_next.scalars import Identifier, NodeHash, ValidatorFunction, SearchQuery
+from typing import Union, Annotated, Literal, Optional, Any, Tuple, List
+from pydantic import Field, ConfigDict, BaseModel
 from kabinet.funcs import execute, aexecute
-from typing import List, Any, Optional, Tuple, Literal
 from rath.scalars import ID
-from pydantic import Field, BaseModel, ConfigDict
+from kabinet.rath import KabinetRath
 from enum import Enum
 from datetime import datetime
-from kabinet.rath import KabinetRath
+
+
+class AssignWidgetKind(str, Enum):
+    SEARCH = "SEARCH"
+    CHOICE = "CHOICE"
+    SLIDER = "SLIDER"
+    CUSTOM = "CUSTOM"
+    STRING = "STRING"
+    STATE_CHOICE = "STATE_CHOICE"
+
+
+class ContainerType(str, Enum):
+    """The state of a dask cluster"""
+
+    APPTAINER = "APPTAINER"
+    DOCKER = "DOCKER"
+
+
+class EffectKind(str, Enum):
+    MESSAGE = "MESSAGE"
+    CUSTOM = "CUSTOM"
+
+
+class LogicalCondition(str, Enum):
+    IS = "IS"
+    IS_NOT = "IS_NOT"
+    IN = "IN"
+
+
+class NodeKind(str, Enum):
+    FUNCTION = "FUNCTION"
+    GENERATOR = "GENERATOR"
 
 
 class PodStatus(str, Enum):
@@ -18,24 +51,152 @@ class PodStatus(str, Enum):
     UNKOWN = "UNKOWN"
 
 
-class ContainerType(str, Enum):
-    """The state of a dask cluster"""
+class PortKind(str, Enum):
+    INT = "INT"
+    STRING = "STRING"
+    STRUCTURE = "STRUCTURE"
+    LIST = "LIST"
+    BOOL = "BOOL"
+    DICT = "DICT"
+    FLOAT = "FLOAT"
+    DATE = "DATE"
+    UNION = "UNION"
+    MODEL = "MODEL"
 
-    APPTAINER = "APPTAINER"
-    DOCKER = "DOCKER"
+
+class PortScope(str, Enum):
+    GLOBAL = "GLOBAL"
+    LOCAL = "LOCAL"
 
 
-class OffsetPaginationInput(BaseModel):
-    offset: int
-    limit: int
+class ReturnWidgetKind(str, Enum):
+    CHOICE = "CHOICE"
+    CUSTOM = "CUSTOM"
+
+
+class CpuSelector(BaseModel):
+    kind: Literal["cpu"] = Field(default="cpu")
+    frequency: int
+    "The frequency in MHz"
+    memory: int
+    "The memory in MB"
     model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
 
-class EnvironmentInput(BaseModel):
-    """Which environment do you want to match against?"""
+class CudaSelectorInput(BaseModel):
+    kind: Literal["cuda"] = Field(default="cuda")
+    cuda_version: str = Field(alias="cudaVersion")
+    "The minimum cuda version"
+    cuda_cores: int = Field(alias="cudaCores")
+    "The cuda cores"
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
-    features: Optional[Tuple["DeviceFeature", ...]] = None
-    container_type: ContainerType = Field(alias="containerType")
+
+class RocmSelectorInput(BaseModel):
+    kind: Literal["rocm"] = Field(default="rocm")
+    api_version: str = Field(alias="apiVersion")
+    "The api version of the selector"
+    api_thing: str = Field(alias="apiThing")
+    "The api thing of the selector"
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class AppImageInput(BaseModel):
+    """Create a new Github repository input"""
+
+    flavour_name: Optional[str] = Field(alias="flavourName", default=None)
+    manifest: "ManifestInput"
+    selectors: Tuple["SelectorInput", ...]
+    app_image_id: str = Field(alias="appImageId")
+    inspection: "InspectionInput"
+    image: "DockerImageInput"
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class AssignWidgetInput(BaseModel):
+    as_paragraph: Optional[bool] = Field(alias="asParagraph", default=None)
+    kind: AssignWidgetKind
+    query: Optional[SearchQuery] = None
+    choices: Optional[Tuple["ChoiceInput", ...]] = None
+    state_choices: Optional[str] = Field(alias="stateChoices", default=None)
+    follow_value: Optional[str] = Field(alias="followValue", default=None)
+    min: Optional[int] = None
+    max: Optional[int] = None
+    step: Optional[int] = None
+    placeholder: Optional[str] = None
+    hook: Optional[str] = None
+    ward: Optional[str] = None
+    fallback: Optional["AssignWidgetInput"] = None
+    filters: Optional[Tuple["ChildPortInput", ...]] = None
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class BackendFilter(BaseModel):
+    """Filter for Resources"""
+
+    ids: Optional[Tuple[ID, ...]] = None
+    search: Optional[str] = None
+    and_: Optional["BackendFilter"] = Field(alias="AND", default=None)
+    or_: Optional["BackendFilter"] = Field(alias="OR", default=None)
+    not_: Optional["BackendFilter"] = Field(alias="NOT", default=None)
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class BindsInput(BaseModel):
+    templates: Optional[Tuple[str, ...]] = None
+    clients: Optional[Tuple[str, ...]] = None
+    desired_instances: int = Field(alias="desiredInstances")
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class ChildPortInput(BaseModel):
+    default: Optional[Any] = None
+    key: str
+    label: Optional[str] = None
+    kind: PortKind
+    scope: PortScope
+    description: Optional[str] = None
+    identifier: Optional[Identifier] = None
+    nullable: bool
+    children: Optional[Tuple["ChildPortInput", ...]] = None
+    effects: Optional[Tuple["EffectInput", ...]] = None
+    assign_widget: Optional[AssignWidgetInput] = Field(
+        alias="assignWidget", default=None
+    )
+    return_widget: Optional["ReturnWidgetInput"] = Field(
+        alias="returnWidget", default=None
+    )
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class ChoiceInput(BaseModel):
+    value: Any
+    label: str
+    description: Optional[str] = None
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class DefinitionInput(BaseModel):
+    description: Optional[str] = None
+    collections: Tuple[str, ...]
+    name: str
+    stateful: bool
+    port_groups: Tuple["PortGroupInput", ...] = Field(alias="portGroups")
+    args: Tuple["PortInput", ...]
+    returns: Tuple["PortInput", ...]
+    kind: NodeKind
+    is_test_for: Tuple[str, ...] = Field(alias="isTestFor")
+    interfaces: Tuple[str, ...]
+    is_dev: bool = Field(alias="isDev")
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class DependencyInput(BaseModel):
+    hash: Optional[NodeHash] = None
+    reference: Optional[str] = None
+    binds: Optional[BindsInput] = None
+    optional: bool
+    viable_instances: Optional[int] = Field(alias="viableInstances", default=None)
     model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
 
@@ -44,6 +205,95 @@ class DeviceFeature(BaseModel):
 
     kind: str
     cpu_count: str = Field(alias="cpuCount")
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class DockerImageInput(BaseModel):
+    image_string: str = Field(alias="imageString")
+    build_at: datetime = Field(alias="buildAt")
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class EffectDependencyInput(BaseModel):
+    key: str
+    condition: LogicalCondition
+    value: Any
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class EffectInput(BaseModel):
+    label: str
+    description: Optional[str] = None
+    dependencies: Tuple[EffectDependencyInput, ...]
+    kind: EffectKind
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class EnvironmentInput(BaseModel):
+    """Which environment do you want to match against?"""
+
+    features: Optional[Tuple[DeviceFeature, ...]] = None
+    container_type: ContainerType = Field(alias="containerType")
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class InspectionInput(BaseModel):
+    size: Optional[int] = None
+    templates: Tuple["TemplateInput", ...]
+    requirements: Tuple["RequirementInput", ...]
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class ManifestInput(BaseModel):
+    entrypoint: Optional[str] = None
+    "The entrypoint of the app, defaults to 'app'"
+    identifier: str
+    version: str
+    author: str
+    logo: Optional[str] = None
+    scopes: Tuple[str, ...]
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class OffsetPaginationInput(BaseModel):
+    offset: int
+    limit: int
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class PortGroupInput(BaseModel):
+    key: str
+    hidden: bool
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class PortInput(BaseModel):
+    validators: Optional[Tuple["ValidatorInput", ...]] = None
+    key: str
+    scope: PortScope
+    label: Optional[str] = None
+    kind: PortKind
+    description: Optional[str] = None
+    identifier: Optional[str] = None
+    nullable: bool
+    effects: Optional[Tuple[EffectInput, ...]] = None
+    default: Optional[Any] = None
+    children: Optional[Tuple[ChildPortInput, ...]] = None
+    assign_widget: Optional[AssignWidgetInput] = Field(
+        alias="assignWidget", default=None
+    )
+    return_widget: Optional["ReturnWidgetInput"] = Field(
+        alias="returnWidget", default=None
+    )
+    groups: Optional[Tuple[str, ...]] = None
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class RequirementInput(BaseModel):
+    key: str
+    service: str
+    optional: bool
+    description: Optional[str] = None
     model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
 
@@ -58,14 +308,40 @@ class ResourceFilter(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
 
-class BackendFilter(BaseModel):
-    """Filter for Resources"""
+class ReturnWidgetInput(BaseModel):
+    kind: ReturnWidgetKind
+    query: Optional[SearchQuery] = None
+    choices: Optional[Tuple[ChoiceInput, ...]] = None
+    min: Optional[int] = None
+    max: Optional[int] = None
+    step: Optional[int] = None
+    placeholder: Optional[str] = None
+    hook: Optional[str] = None
+    ward: Optional[str] = None
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
-    ids: Optional[Tuple[ID, ...]] = None
-    search: Optional[str] = None
-    and_: Optional["BackendFilter"] = Field(alias="AND", default=None)
-    or_: Optional["BackendFilter"] = Field(alias="OR", default=None)
-    not_: Optional["BackendFilter"] = Field(alias="NOT", default=None)
+
+SelectorInput = Annotated[
+    Union[CpuSelector, CudaSelectorInput, RocmSelectorInput],
+    Field(discriminator="kind"),
+]
+
+
+class TemplateInput(BaseModel):
+    definition: DefinitionInput
+    dependencies: Tuple[DependencyInput, ...]
+    interface: str
+    params: Optional[Any] = None
+    dynamic: bool
+    logo: Optional[str] = None
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class ValidatorInput(BaseModel):
+    function: ValidatorFunction
+    dependencies: Optional[Tuple[str, ...]] = None
+    label: Optional[str] = None
+    error_message: Optional[str] = Field(alias="errorMessage", default=None)
     model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
 
@@ -96,7 +372,7 @@ class GithubRepoFlavoursDefinitions(BaseModel):
         alias="__typename", default="Definition", exclude=True
     )
     id: ID
-    hash: ID
+    hash: NodeHash
     "The hash of the Node (completely unique)"
     model_config = ConfigDict(frozen=True)
 
@@ -134,6 +410,19 @@ class ReleaseApp(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class ReleaseFlavoursRequirements(BaseModel):
+    """A requirement"""
+
+    typename: Optional[Literal["Requirement"]] = Field(
+        alias="__typename", default="Requirement", exclude=True
+    )
+    key: str
+    service: str
+    description: Optional[str] = Field(default=None)
+    optional: bool
+    model_config = ConfigDict(frozen=True)
+
+
 class ReleaseFlavours(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
@@ -144,7 +433,7 @@ class ReleaseFlavours(BaseModel):
     name: str
     image: str
     manifest: Any
-    requirements: Any
+    requirements: Tuple[ReleaseFlavoursRequirements, ...]
     model_config = ConfigDict(frozen=True)
 
 
@@ -303,7 +592,7 @@ class ListDefinition(BaseModel):
     id: ID
     name: str
     "The cleartext name of this Node"
-    hash: ID
+    hash: NodeHash
     "The hash of the Node (completely unique)"
     description: Optional[str] = Field(default=None)
     "A description for the Node"
@@ -365,7 +654,7 @@ class CreatePodMutation(BaseModel):
         client_id: Optional[str] = Field(alias="clientId", default=None)
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!, $resource: ID, $clientId: String) {\n  createPod(\n    input: {deployment: $deployment, instanceId: $instanceId, localId: $localId, resource: $resource, clientId: $clientId}\n  ) {\n    ...Pod\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!, $resource: ID, $clientId: String) {\n  createPod(\n    input: {deployment: $deployment, instanceId: $instanceId, localId: $localId, resource: $resource, clientId: $clientId}\n  ) {\n    ...Pod\n  }\n}"
 
 
 class UpdatePodMutation(BaseModel):
@@ -379,7 +668,7 @@ class UpdatePodMutation(BaseModel):
         local_id: Optional[ID] = Field(alias="localId", default=None)
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n  }\n}"
 
 
 class DeletePodMutation(BaseModel):
@@ -424,6 +713,17 @@ class DumpLogsMutation(BaseModel):
 
     class Meta:
         document = "mutation DumpLogs($pod: ID!, $logs: String!) {\n  dumpLogs(input: {pod: $pod, logs: $logs}) {\n    pod {\n      id\n    }\n    logs\n  }\n}"
+
+
+class CreateAppImageMutation(BaseModel):
+    create_app_image: Release = Field(alias="createAppImage")
+    "Create a new release"
+
+    class Arguments(BaseModel):
+        input: AppImageInput
+
+    class Meta:
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n  }\n}"
 
 
 class CreateGithubRepoMutation(BaseModel):
@@ -485,7 +785,7 @@ class GetReleaseQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements\n  }\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n  }\n}"
 
 
 class SearchReleasesQueryOptions(BaseModel):
@@ -572,7 +872,7 @@ class GetPodQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery GetPod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery GetPod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
 
 
 class SearchPodsQueryOptions(BaseModel):
@@ -613,7 +913,7 @@ class GetDefinitionQuery(BaseModel):
     "Return all dask clusters"
 
     class Arguments(BaseModel):
-        hash: Optional[ID] = Field(default=None)
+        hash: Optional[NodeHash] = Field(default=None)
 
     class Meta:
         document = "fragment Definition on Definition {\n  id\n  name\n}\n\nquery GetDefinition($hash: NodeHash) {\n  definition(hash: $hash) {\n    ...Definition\n  }\n}"
@@ -660,7 +960,7 @@ class MatchFlavourQuery(BaseModel):
     "Return the currently logged in user"
 
     class Arguments(BaseModel):
-        nodes: Optional[List[ID]] = Field(default=None)
+        nodes: Optional[List[NodeHash]] = Field(default=None)
         environment: Optional[EnvironmentInput] = Field(default=None)
 
     class Meta:
@@ -1042,6 +1342,44 @@ def dump_logs(
     Returns:
         DumpLogsMutationDumplogs"""
     return execute(DumpLogsMutation, {"pod": pod, "logs": logs}, rath=rath).dump_logs
+
+
+async def acreate_app_image(
+    input: AppImageInput, rath: Optional[KabinetRath] = None
+) -> Release:
+    """CreateAppImage
+
+
+     createAppImage: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        input (AppImageInput): input
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        Release"""
+    return (
+        await aexecute(CreateAppImageMutation, {"input": input}, rath=rath)
+    ).create_app_image
+
+
+def create_app_image(
+    input: AppImageInput, rath: Optional[KabinetRath] = None
+) -> Release:
+    """CreateAppImage
+
+
+     createAppImage: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        input (AppImageInput): input
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        Release"""
+    return execute(CreateAppImageMutation, {"input": input}, rath=rath).create_app_image
 
 
 async def acreate_github_repo(
@@ -1589,7 +1927,7 @@ def list_definitions(rath: Optional[KabinetRath] = None) -> List[ListDefinition]
 
 
 async def aget_definition(
-    hash: Optional[ID] = None, rath: Optional[KabinetRath] = None
+    hash: Optional[NodeHash] = None, rath: Optional[KabinetRath] = None
 ) -> Definition:
     """GetDefinition
 
@@ -1600,7 +1938,7 @@ async def aget_definition(
 
 
     Arguments:
-        hash (Optional[ID], optional): hash.
+        hash (Optional[NodeHash], optional): hash.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -1609,7 +1947,7 @@ async def aget_definition(
 
 
 def get_definition(
-    hash: Optional[ID] = None, rath: Optional[KabinetRath] = None
+    hash: Optional[NodeHash] = None, rath: Optional[KabinetRath] = None
 ) -> Definition:
     """GetDefinition
 
@@ -1620,7 +1958,7 @@ def get_definition(
 
 
     Arguments:
-        hash (Optional[ID], optional): hash.
+        hash (Optional[NodeHash], optional): hash.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -1681,7 +2019,7 @@ def search_definitions(
 
 
 async def amatch_flavour(
-    nodes: Optional[List[ID]] = None,
+    nodes: Optional[List[NodeHash]] = None,
     environment: Optional[EnvironmentInput] = None,
     rath: Optional[KabinetRath] = None,
 ) -> MatchFlavourQueryMatchflavour:
@@ -1692,7 +2030,7 @@ async def amatch_flavour(
 
 
     Arguments:
-        nodes (Optional[List[ID]], optional): nodes.
+        nodes (Optional[List[NodeHash]], optional): nodes.
         environment (Optional[EnvironmentInput], optional): environment.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
@@ -1706,7 +2044,7 @@ async def amatch_flavour(
 
 
 def match_flavour(
-    nodes: Optional[List[ID]] = None,
+    nodes: Optional[List[NodeHash]] = None,
     environment: Optional[EnvironmentInput] = None,
     rath: Optional[KabinetRath] = None,
 ) -> MatchFlavourQueryMatchflavour:
@@ -1717,7 +2055,7 @@ def match_flavour(
 
 
     Arguments:
-        nodes (Optional[List[ID]], optional): nodes.
+        nodes (Optional[List[NodeHash]], optional): nodes.
         environment (Optional[EnvironmentInput], optional): environment.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
@@ -1986,8 +2324,13 @@ def search_backends(
     ).options
 
 
+AppImageInput.model_rebuild()
+AssignWidgetInput.model_rebuild()
 BackendFilter.model_rebuild()
-EnvironmentInput.model_rebuild()
+ChildPortInput.model_rebuild()
+DefinitionInput.model_rebuild()
+InspectionInput.model_rebuild()
 ListRelease.model_rebuild()
 PodDeployment.model_rebuild()
+PortInput.model_rebuild()
 ResourceFilter.model_rebuild()

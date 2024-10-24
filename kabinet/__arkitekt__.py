@@ -47,6 +47,7 @@ def init_services(service_builder_registry):
         "kabinet",
         build_arkitekt_next_fluss,
         Requirement(
+            key="kabinet",
             service="live.arkitekt.kabinet",
             description="An instance of ArkitektNext Kabinet to retrieve nodes from",
         ),
