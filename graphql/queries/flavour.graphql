@@ -1,12 +1,9 @@
-
-
-query MatchFlavour($nodes: [NodeHash!], $environment: EnvironmentInput){
-    matchFlavour(input: {
-        nodes: $nodes,
-        environment: $environment
-    }) {
-        id
-        image
+query MatchFlavour($nodes: [NodeHash!], $environment: EnvironmentInput) {
+  matchFlavour(input: { nodes: $nodes, environment: $environment }) {
+    id
+    image {
+      imageString
+      buildAt
     }
-
+  }
 }

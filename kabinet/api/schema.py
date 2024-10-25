@@ -1,11 +1,11 @@
-from rekuest_next.scalars import Identifier, NodeHash, ValidatorFunction, SearchQuery
-from typing import Union, Annotated, Literal, Optional, Any, Tuple, List
-from pydantic import Field, ConfigDict, BaseModel
-from kabinet.funcs import execute, aexecute
+from typing import Union, Any, List, Tuple, Literal, Annotated, Optional
+from kabinet.funcs import aexecute, execute
 from rath.scalars import ID
-from kabinet.rath import KabinetRath
+from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 from datetime import datetime
+from rekuest_next.scalars import SearchQuery, NodeHash, Identifier, ValidatorFunction
+from kabinet.rath import KabinetRath
 
 
 class AssignWidgetKind(str, Enum):
@@ -410,6 +410,17 @@ class ReleaseApp(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class ReleaseFlavoursImage(BaseModel):
+    """A docker image descriptor"""
+
+    typename: Optional[Literal["DockerImage"]] = Field(
+        alias="__typename", default="DockerImage", exclude=True
+    )
+    image_string: str = Field(alias="imageString")
+    build_at: datetime = Field(alias="buildAt")
+    model_config = ConfigDict(frozen=True)
+
+
 class ReleaseFlavoursRequirements(BaseModel):
     """A requirement"""
 
@@ -431,7 +442,7 @@ class ReleaseFlavours(BaseModel):
     )
     id: ID
     name: str
-    image: str
+    image: ReleaseFlavoursImage
     manifest: Any
     requirements: Tuple[ReleaseFlavoursRequirements, ...]
     model_config = ConfigDict(frozen=True)
@@ -510,6 +521,17 @@ class Pod(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class ListFlavourImage(BaseModel):
+    """A docker image descriptor"""
+
+    typename: Optional[Literal["DockerImage"]] = Field(
+        alias="__typename", default="DockerImage", exclude=True
+    )
+    image_string: str = Field(alias="imageString")
+    build_at: datetime = Field(alias="buildAt")
+    model_config = ConfigDict(frozen=True)
+
+
 class ListFlavour(BaseModel):
     typename: Optional[Literal["Flavour"]] = Field(
         alias="__typename", default="Flavour", exclude=True
@@ -517,6 +539,7 @@ class ListFlavour(BaseModel):
     id: ID
     name: str
     manifest: Any
+    image: ListFlavourImage
     model_config = ConfigDict(frozen=True)
 
 
@@ -654,7 +677,7 @@ class CreatePodMutation(BaseModel):
         client_id: Optional[str] = Field(alias="clientId", default=None)
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!, $resource: ID, $clientId: String) {\n  createPod(\n    input: {deployment: $deployment, instanceId: $instanceId, localId: $localId, resource: $resource, clientId: $clientId}\n  ) {\n    ...Pod\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image {\n      imageString\n      buildAt\n    }\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!, $resource: ID, $clientId: String) {\n  createPod(\n    input: {deployment: $deployment, instanceId: $instanceId, localId: $localId, resource: $resource, clientId: $clientId}\n  ) {\n    ...Pod\n  }\n}"
 
 
 class UpdatePodMutation(BaseModel):
@@ -668,7 +691,7 @@ class UpdatePodMutation(BaseModel):
         local_id: Optional[ID] = Field(alias="localId", default=None)
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image {\n      imageString\n      buildAt\n    }\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n  }\n}"
 
 
 class DeletePodMutation(BaseModel):
@@ -723,7 +746,7 @@ class CreateAppImageMutation(BaseModel):
         input: AppImageInput
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image {\n      imageString\n      buildAt\n    }\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n  }\n}"
 
 
 class CreateGithubRepoMutation(BaseModel):
@@ -774,7 +797,7 @@ class ListReleasesQuery(BaseModel):
         pass
 
     class Meta:
-        document = "fragment ListFlavour on Flavour {\n  id\n  name\n  manifest\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  installed\n  scopes\n  flavours {\n    ...ListFlavour\n  }\n  colour\n  description\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n  }\n}"
+        document = "fragment ListFlavour on Flavour {\n  id\n  name\n  manifest\n  image {\n    imageString\n    buildAt\n  }\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  installed\n  scopes\n  flavours {\n    ...ListFlavour\n  }\n  colour\n  description\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n  }\n}"
 
 
 class GetReleaseQuery(BaseModel):
@@ -785,7 +808,7 @@ class GetReleaseQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image {\n      imageString\n      buildAt\n    }\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n  }\n}"
 
 
 class SearchReleasesQueryOptions(BaseModel):
@@ -872,7 +895,7 @@ class GetPodQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery GetPod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image {\n      imageString\n      buildAt\n    }\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery GetPod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
 
 
 class SearchPodsQueryOptions(BaseModel):
@@ -944,6 +967,17 @@ class SearchDefinitionsQuery(BaseModel):
         document = "query SearchDefinitions($search: String, $values: [ID!]) {\n  options: definitions(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n  }\n}"
 
 
+class MatchFlavourQueryMatchflavourImage(BaseModel):
+    """A docker image descriptor"""
+
+    typename: Optional[Literal["DockerImage"]] = Field(
+        alias="__typename", default="DockerImage", exclude=True
+    )
+    image_string: str = Field(alias="imageString")
+    build_at: datetime = Field(alias="buildAt")
+    model_config = ConfigDict(frozen=True)
+
+
 class MatchFlavourQueryMatchflavour(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
@@ -951,7 +985,7 @@ class MatchFlavourQueryMatchflavour(BaseModel):
         alias="__typename", default="Flavour", exclude=True
     )
     id: ID
-    image: str
+    image: MatchFlavourQueryMatchflavourImage
     model_config = ConfigDict(frozen=True)
 
 
@@ -964,7 +998,7 @@ class MatchFlavourQuery(BaseModel):
         environment: Optional[EnvironmentInput] = Field(default=None)
 
     class Meta:
-        document = "query MatchFlavour($nodes: [NodeHash!], $environment: EnvironmentInput) {\n  matchFlavour(input: {nodes: $nodes, environment: $environment}) {\n    id\n    image\n  }\n}"
+        document = "query MatchFlavour($nodes: [NodeHash!], $environment: EnvironmentInput) {\n  matchFlavour(input: {nodes: $nodes, environment: $environment}) {\n    id\n    image {\n      imageString\n      buildAt\n    }\n  }\n}"
 
 
 class ListResourcesQuery(BaseModel):

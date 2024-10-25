@@ -2,12 +2,15 @@ fragment ListFlavour on Flavour {
   id
   name
   manifest
+  image {
+    imageString
+    buildAt
+  }
 }
 
 fragment Flavour on Flavour {
   release {
     ...Release
   }
-
   manifest
 }

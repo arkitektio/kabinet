@@ -10,7 +10,10 @@ fragment Release on Release {
   flavours {
     id
     name
-    image
+    image {
+      imageString
+      buildAt
+    }
     manifest
     requirements {
       key
