@@ -10,11 +10,25 @@ fragment ListFlavour on Flavour {
 
 fragment Flavour on Flavour {
   release {
-    ...Release
+    id
+    version
+    app {
+      identifier
+    }
+    scopes
+    colour
+    description
   }
   manifest
   image {
     imageString
     buildAt
+  }
+  manifest
+  requirements {
+    key
+    service
+    description
+    optional
   }
 }
