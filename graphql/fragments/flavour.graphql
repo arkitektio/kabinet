@@ -13,4 +13,8 @@ fragment Flavour on Flavour {
     ...Release
   }
   manifest
+  image {
+    imageString
+    buildAt
+  }
 }

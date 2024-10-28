@@ -1,11 +1,11 @@
-from rath.scalars import ID
-from kabinet.rath import KabinetRath
-from datetime import datetime
 from pydantic import Field, ConfigDict, BaseModel
-from typing import Union, Optional, Any, List, Annotated, Tuple, Literal
-from kabinet.funcs import aexecute, execute
-from rekuest_next.scalars import Identifier, ValidatorFunction, NodeHash, SearchQuery
+from kabinet.funcs import execute, aexecute
+from rekuest_next.scalars import Identifier, SearchQuery, NodeHash, ValidatorFunction
+from typing import Literal, List, Annotated, Tuple, Any, Optional, Union
+from datetime import datetime
 from enum import Enum
+from kabinet.rath import KabinetRath
+from rath.scalars import ID
 
 
 class AssignWidgetKind(str, Enum):
@@ -551,12 +551,24 @@ class ListFlavour(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class FlavourImage(BaseModel):
+    """A docker image descriptor"""
+
+    typename: Optional[Literal["DockerImage"]] = Field(
+        alias="__typename", default="DockerImage", exclude=True
+    )
+    image_string: str = Field(alias="imageString")
+    build_at: datetime = Field(alias="buildAt")
+    model_config = ConfigDict(frozen=True)
+
+
 class Flavour(BaseModel):
     typename: Optional[Literal["Flavour"]] = Field(
         alias="__typename", default="Flavour", exclude=True
     )
     release: Release
     manifest: Any
+    image: FlavourImage
     model_config = ConfigDict(frozen=True)
 
 
@@ -685,7 +697,7 @@ class CreatePodMutation(BaseModel):
         client_id: Optional[str] = Field(alias="clientId", default=None)
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image {\n      imageString\n      buildAt\n    }\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!, $resource: ID, $clientId: String) {\n  createPod(\n    input: {deployment: $deployment, instanceId: $instanceId, localId: $localId, resource: $resource, clientId: $clientId}\n  ) {\n    ...Pod\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image {\n      imageString\n      buildAt\n    }\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n  image {\n    imageString\n    buildAt\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!, $resource: ID, $clientId: String) {\n  createPod(\n    input: {deployment: $deployment, instanceId: $instanceId, localId: $localId, resource: $resource, clientId: $clientId}\n  ) {\n    ...Pod\n  }\n}"
 
 
 class UpdatePodMutation(BaseModel):
@@ -699,7 +711,7 @@ class UpdatePodMutation(BaseModel):
         local_id: Optional[ID] = Field(alias="localId", default=None)
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image {\n      imageString\n      buildAt\n    }\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image {\n      imageString\n      buildAt\n    }\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n  image {\n    imageString\n    buildAt\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n  }\n}"
 
 
 class DeletePodMutation(BaseModel):
@@ -903,7 +915,7 @@ class GetPodQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image {\n      imageString\n      buildAt\n    }\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery GetPod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image {\n      imageString\n      buildAt\n    }\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n  image {\n    imageString\n    buildAt\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery GetPod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
 
 
 class SearchPodsQueryOptions(BaseModel):
@@ -1007,6 +1019,39 @@ class MatchFlavourQuery(BaseModel):
 
     class Meta:
         document = "query MatchFlavour($nodes: [NodeHash!], $environment: EnvironmentInput) {\n  matchFlavour(input: {nodes: $nodes, environment: $environment}) {\n    id\n    image {\n      imageString\n      buildAt\n    }\n  }\n}"
+
+
+class GetFlavourQuery(BaseModel):
+    flavour: Flavour
+    "Return all dask clusters"
+
+    class Arguments(BaseModel):
+        id: ID
+
+    class Meta:
+        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image {\n      imageString\n      buildAt\n    }\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nfragment Flavour on Flavour {\n  release {\n    ...Release\n  }\n  manifest\n  image {\n    imageString\n    buildAt\n  }\n}\n\nquery GetFlavour($id: ID!) {\n  flavour(id: $id) {\n    ...Flavour\n  }\n}"
+
+
+class SearchFlavoursQueryOptions(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
+    typename: Optional[Literal["Flavour"]] = Field(
+        alias="__typename", default="Flavour", exclude=True
+    )
+    value: ID
+    label: str
+    model_config = ConfigDict(frozen=True)
+
+
+class SearchFlavoursQuery(BaseModel):
+    options: Tuple[SearchFlavoursQueryOptions, ...]
+
+    class Arguments(BaseModel):
+        search: Optional[str] = Field(default=None)
+        values: Optional[List[ID]] = Field(default=None)
+
+    class Meta:
+        document = "query SearchFlavours($search: String, $values: [ID!]) {\n  options: flavours(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n  }\n}"
 
 
 class ListResourcesQuery(BaseModel):
@@ -2106,6 +2151,86 @@ def match_flavour(
     return execute(
         MatchFlavourQuery, {"nodes": nodes, "environment": environment}, rath=rath
     ).match_flavour
+
+
+async def aget_flavour(id: ID, rath: Optional[KabinetRath] = None) -> Flavour:
+    """GetFlavour
+
+
+     flavour: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        id (ID): id
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        Flavour"""
+    return (await aexecute(GetFlavourQuery, {"id": id}, rath=rath)).flavour
+
+
+def get_flavour(id: ID, rath: Optional[KabinetRath] = None) -> Flavour:
+    """GetFlavour
+
+
+     flavour: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        id (ID): id
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        Flavour"""
+    return execute(GetFlavourQuery, {"id": id}, rath=rath).flavour
+
+
+async def asearch_flavours(
+    search: Optional[str] = None,
+    values: Optional[List[ID]] = None,
+    rath: Optional[KabinetRath] = None,
+) -> List[SearchFlavoursQueryOptions]:
+    """SearchFlavours
+
+
+     options: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        search (Optional[str], optional): search.
+        values (Optional[List[ID]], optional): values.
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        List[SearchFlavoursQueryFlavours]"""
+    return (
+        await aexecute(
+            SearchFlavoursQuery, {"search": search, "values": values}, rath=rath
+        )
+    ).options
+
+
+def search_flavours(
+    search: Optional[str] = None,
+    values: Optional[List[ID]] = None,
+    rath: Optional[KabinetRath] = None,
+) -> List[SearchFlavoursQueryOptions]:
+    """SearchFlavours
+
+
+     options: A user of the bridge server. Maps to an authentikate user
+
+
+    Arguments:
+        search (Optional[str], optional): search.
+        values (Optional[List[ID]], optional): values.
+        rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        List[SearchFlavoursQueryFlavours]"""
+    return execute(
+        SearchFlavoursQuery, {"search": search, "values": values}, rath=rath
+    ).options
 
 
 async def alist_resources(

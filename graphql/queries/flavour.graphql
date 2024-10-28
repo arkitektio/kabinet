@@ -7,3 +7,19 @@ query MatchFlavour($nodes: [NodeHash!], $environment: EnvironmentInput) {
     }
   }
 }
+
+query GetFlavour($id: ID!) {
+  flavour(id: $id) {
+    ...Flavour
+  }
+}
+
+query SearchFlavours($search: String, $values: [ID!]) {
+  options: flavours(
+    filters: { search: $search, ids: $values }
+    pagination: { limit: 10 }
+  ) {
+    value: id
+    label: name
+  }
+}

@@ -10,6 +10,8 @@ def register_structures(structure_reg):
     from kabinet.api.schema import (
         Pod,
         aget_pod,
+        Flavour,
+        aget_flavour,
         Deployment,
         aget_deployment,
         Release,
@@ -21,6 +23,7 @@ def register_structures(structure_reg):
         SearchDeploymentsQuery,
         SearchReleasesQuery,
         SearchBackendsQuery,
+        SearchFlavoursQuery,
     )
 
     structure_reg.register_as_structure(
@@ -81,3 +84,16 @@ def register_structures(structure_reg):
             ward="kabinet",
         ),
     )
+
+    structure_reg.register_as_structure(
+        Flavour,
+        identifier="@kabinet/flavour",
+        scope=PortScope.GLOBAL,
+        aexpand=aget_flavour,
+        ashrink=id_shrink,
+        default_widget=SearchWidget(
+            query=SearchFlavoursQuery.Meta.document,
+            ward="kabinet",
+        ),
+    )
+
