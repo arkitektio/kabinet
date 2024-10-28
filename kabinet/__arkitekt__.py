@@ -5,8 +5,8 @@ from fakts_next.contrib.rath.aiohttp import FaktsAIOHttpLink
 from fakts_next.contrib.rath.graphql_ws import FaktsGraphQLWSLink
 from herre_next.contrib.rath.auth_link import HerreAuthLink
 from graphql import OperationType
-from herre import Herre
-from fakts import Fakts
+from herre_next import Herre
+from fakts_next import Fakts
 
 from arkitekt_next.base_models import Manifest
 

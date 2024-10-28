@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "kabinet"
-version = "0.1.30"
+version = "0.1.32"
 description = ""
 authors = ["jhnnsrs <jhnnsrs@gmail.com>"]
 packages = [{include = "kabinet"}]
