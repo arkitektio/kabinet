@@ -1,11 +1,11 @@
-from typing import Union, Any, List, Tuple, Literal, Annotated, Optional
-from kabinet.funcs import aexecute, execute
 from rath.scalars import ID
-from pydantic import BaseModel, Field, ConfigDict
-from enum import Enum
-from datetime import datetime
-from rekuest_next.scalars import SearchQuery, NodeHash, Identifier, ValidatorFunction
 from kabinet.rath import KabinetRath
+from datetime import datetime
+from pydantic import Field, ConfigDict, BaseModel
+from typing import Union, Optional, Any, List, Annotated, Tuple, Literal
+from kabinet.funcs import aexecute, execute
+from rekuest_next.scalars import Identifier, ValidatorFunction, NodeHash, SearchQuery
+from enum import Enum
 
 
 class AssignWidgetKind(str, Enum):
@@ -286,6 +286,14 @@ class PortInput(BaseModel):
         alias="returnWidget", default=None
     )
     groups: Optional[Tuple[str, ...]] = None
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class QualifierInput(BaseModel):
+    """A qualifier that describes some property of the node"""
+
+    key: str
+    value: str
     model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
 
@@ -768,13 +776,13 @@ class DeclareResourceMutation(BaseModel):
     "Create a new resource for your backend"
 
     class Arguments(BaseModel):
-        instance_id: str = Field(alias="instanceId")
+        backend: ID
         name: str
-        resource_id: str = Field(alias="resourceId")
-        qualifiers: Optional[Any] = Field(default=None)
+        local_id: str = Field(alias="localId")
+        qualifiers: Optional[List[QualifierInput]] = Field(default=None)
 
     class Meta:
-        document = "fragment Resource on Resource {\n  id\n  name\n  qualifiers\n  backend {\n    id\n    name\n  }\n  pods {\n    id\n    podId\n  }\n}\n\nmutation DeclareResource($instanceId: String!, $name: String!, $resourceId: String!, $qualifiers: UntypedParams) {\n  declareResource(\n    input: {instanceId: $instanceId, name: $name, resourceId: $resourceId, qualifiers: $qualifiers}\n  ) {\n    ...Resource\n  }\n}"
+        document = "fragment Resource on Resource {\n  id\n  name\n  qualifiers\n  backend {\n    id\n    name\n  }\n  pods {\n    id\n    podId\n  }\n}\n\nmutation DeclareResource($backend: ID!, $name: String!, $localId: String!, $qualifiers: [QualifierInput!]) {\n  declareResource(\n    input: {backend: $backend, name: $name, localId: $localId, qualifiers: $qualifiers}\n  ) {\n    ...Resource\n  }\n}"
 
 
 class DeclareBackendMutation(BaseModel):
@@ -1469,10 +1477,10 @@ def create_github_repo(
 
 
 async def adeclare_resource(
-    instance_id: str,
+    backend: ID,
     name: str,
-    resource_id: str,
-    qualifiers: Optional[Any] = None,
+    local_id: str,
+    qualifiers: Optional[List[QualifierInput]] = None,
     rath: Optional[KabinetRath] = None,
 ) -> Resource:
     """DeclareResource
@@ -1482,10 +1490,10 @@ async def adeclare_resource(
 
 
     Arguments:
-        instance_id (str): instanceId
+        backend (ID): backend
         name (str): name
-        resource_id (str): resourceId
-        qualifiers (Optional[Any], optional): qualifiers.
+        local_id (str): localId
+        qualifiers (Optional[List[QualifierInput]], optional): qualifiers.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -1494,9 +1502,9 @@ async def adeclare_resource(
         await aexecute(
             DeclareResourceMutation,
             {
-                "instanceId": instance_id,
+                "backend": backend,
                 "name": name,
-                "resourceId": resource_id,
+                "localId": local_id,
                 "qualifiers": qualifiers,
             },
             rath=rath,
@@ -1505,10 +1513,10 @@ async def adeclare_resource(
 
 
 def declare_resource(
-    instance_id: str,
+    backend: ID,
     name: str,
-    resource_id: str,
-    qualifiers: Optional[Any] = None,
+    local_id: str,
+    qualifiers: Optional[List[QualifierInput]] = None,
     rath: Optional[KabinetRath] = None,
 ) -> Resource:
     """DeclareResource
@@ -1518,10 +1526,10 @@ def declare_resource(
 
 
     Arguments:
-        instance_id (str): instanceId
+        backend (ID): backend
         name (str): name
-        resource_id (str): resourceId
-        qualifiers (Optional[Any], optional): qualifiers.
+        local_id (str): localId
+        qualifiers (Optional[List[QualifierInput]], optional): qualifiers.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -1529,9 +1537,9 @@ def declare_resource(
     return execute(
         DeclareResourceMutation,
         {
-            "instanceId": instance_id,
+            "backend": backend,
             "name": name,
-            "resourceId": resource_id,
+            "localId": local_id,
             "qualifiers": qualifiers,
         },
         rath=rath,

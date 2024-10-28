@@ -1,14 +1,14 @@
 mutation DeclareResource(
-  $instanceId: String!
+  $backend: ID!
   $name: String!
-  $resourceId: String!
-  $qualifiers: UntypedParams
+  $localId: String!
+  $qualifiers: [QualifierInput!]
 ) {
   declareResource(
     input: {
-      instanceId: $instanceId
+      backend: $backend
       name: $name
-      resourceId: $resourceId
+      localId: $localId
       qualifiers: $qualifiers
     }
   ) {
