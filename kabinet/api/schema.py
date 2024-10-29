@@ -1,10 +1,10 @@
-from rekuest_next.scalars import NodeHash, Identifier, ValidatorFunction, SearchQuery
-from typing import List, Tuple, Optional, Annotated, Any, Literal, Union
-from pydantic import Field, ConfigDict, BaseModel
+from typing import Annotated, Optional, Union, List, Literal, Tuple, Any
+from pydantic import ConfigDict, Field, BaseModel
+from rekuest_next.scalars import Identifier, SearchQuery, NodeHash, ValidatorFunction
+from datetime import datetime
+from kabinet.funcs import aexecute, execute
 from enum import Enum
 from kabinet.rath import KabinetRath
-from datetime import datetime
-from kabinet.funcs import execute, aexecute
 from rath.scalars import ID
 
 
@@ -507,7 +507,7 @@ class RocmSelector(BaseModel):
         alias="__typename", default="RocmSelector", exclude=True
     )
     api_version: str = Field(alias="apiVersion")
-    api_thing: int = Field(alias="apiThing")
+    api_thing: str = Field(alias="apiThing")
     model_config = ConfigDict(frozen=True)
 
 
@@ -738,7 +738,7 @@ class CreatePodMutation(BaseModel):
         client_id: Optional[str] = Field(alias="clientId", default=None)
 
     class Meta:
-        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!, $resource: ID, $clientId: String) {\n  createPod(\n    input: {deployment: $deployment, instanceId: $instanceId, localId: $localId, resource: $resource, clientId: $clientId}\n  ) {\n    ...Pod\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!, $resource: ID, $clientId: String) {\n  createPod(\n    input: {deployment: $deployment, instanceId: $instanceId, localId: $localId, resource: $resource, clientId: $clientId}\n  ) {\n    ...Pod\n  }\n}"
 
 
 class UpdatePodMutation(BaseModel):
@@ -752,7 +752,7 @@ class UpdatePodMutation(BaseModel):
         local_id: Optional[ID] = Field(alias="localId", default=None)
 
     class Meta:
-        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n  }\n}"
 
 
 class DeletePodMutation(BaseModel):
@@ -807,7 +807,7 @@ class CreateAppImageMutation(BaseModel):
         input: AppImageInput
 
     class Meta:
-        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    ...ListFlavour\n  }\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    ...ListFlavour\n  }\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n  }\n}"
 
 
 class CreateGithubRepoMutation(BaseModel):
@@ -858,7 +858,7 @@ class ListReleasesQuery(BaseModel):
         pass
 
     class Meta:
-        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  installed\n  scopes\n  flavours {\n    ...ListFlavour\n  }\n  colour\n  description\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  installed\n  scopes\n  flavours {\n    ...ListFlavour\n  }\n  colour\n  description\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n  }\n}"
 
 
 class GetReleaseQuery(BaseModel):
@@ -869,7 +869,7 @@ class GetReleaseQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    ...ListFlavour\n  }\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    ...ListFlavour\n  }\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n  }\n}"
 
 
 class SearchReleasesQueryOptions(BaseModel):
@@ -956,7 +956,7 @@ class GetPodQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery GetPod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery GetPod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
 
 
 class SearchPodsQueryOptions(BaseModel):
@@ -1070,7 +1070,7 @@ class GetFlavourQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n}\n\nquery GetFlavour($id: ID!) {\n  flavour(id: $id) {\n    ...Flavour\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n}\n\nquery GetFlavour($id: ID!) {\n  flavour(id: $id) {\n    ...Flavour\n  }\n}"
 
 
 class SearchFlavoursQueryOptions(BaseModel):
