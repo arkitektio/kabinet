@@ -1,10 +1,10 @@
-from typing import Annotated, Optional, Union, List, Literal, Tuple, Any
-from pydantic import ConfigDict, Field, BaseModel
-from rekuest_next.scalars import Identifier, SearchQuery, NodeHash, ValidatorFunction
-from datetime import datetime
-from kabinet.funcs import aexecute, execute
-from enum import Enum
 from kabinet.rath import KabinetRath
+from datetime import datetime
+from typing import List, Any, Annotated, Union, Optional, Tuple, Literal
+from rekuest_next.scalars import Identifier, NodeHash, ValidatorFunction, SearchQuery
+from pydantic import BaseModel, Field, ConfigDict
+from kabinet.funcs import execute, aexecute
+from enum import Enum
 from rath.scalars import ID
 
 
@@ -74,29 +74,29 @@ class ReturnWidgetKind(str, Enum):
     CUSTOM = "CUSTOM"
 
 
-class CpuSelector(BaseModel):
+class CpuSelectorInput(BaseModel):
     kind: Literal["cpu"] = Field(default="cpu")
-    frequency: int
+    frequency: Optional[int] = None
     "The frequency in MHz"
-    memory: int
+    memory: Optional[int] = None
     "The memory in MB"
     model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
 
 class CudaSelectorInput(BaseModel):
     kind: Literal["cuda"] = Field(default="cuda")
-    cuda_version: str = Field(alias="cudaVersion")
+    cuda_version: Optional[str] = Field(alias="cudaVersion", default=None)
     "The minimum cuda version"
-    cuda_cores: int = Field(alias="cudaCores")
+    cuda_cores: Optional[int] = Field(alias="cudaCores", default=None)
     "The cuda cores"
     model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
 
 class RocmSelectorInput(BaseModel):
     kind: Literal["rocm"] = Field(default="rocm")
-    api_version: str = Field(alias="apiVersion")
+    api_version: Optional[str] = Field(alias="apiVersion", default=None)
     "The api version of the selector"
-    api_thing: str = Field(alias="apiThing")
+    api_thing: Optional[str] = Field(alias="apiThing", default=None)
     "The api thing of the selector"
     model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
@@ -330,7 +330,7 @@ class ReturnWidgetInput(BaseModel):
 
 
 SelectorInput = Annotated[
-    Union[CpuSelector, CudaSelectorInput, RocmSelectorInput],
+    Union[CpuSelectorInput, CudaSelectorInput, RocmSelectorInput],
     Field(discriminator="kind"),
 ]
 
@@ -495,9 +495,9 @@ class CudaSelector(BaseModel):
     typename: Optional[Literal["CudaSelector"]] = Field(
         alias="__typename", default="CudaSelector", exclude=True
     )
-    cuda_version: str = Field(alias="cudaVersion")
+    cuda_version: Optional[str] = Field(default=None, alias="cudaVersion")
     "The minimum cuda version"
-    cuda_cores: int = Field(alias="cudaCores")
+    cuda_cores: Optional[int] = Field(default=None, alias="cudaCores")
     "The number of cuda cores"
     model_config = ConfigDict(frozen=True)
 
@@ -506,8 +506,8 @@ class RocmSelector(BaseModel):
     typename: Optional[Literal["RocmSelector"]] = Field(
         alias="__typename", default="RocmSelector", exclude=True
     )
-    api_version: str = Field(alias="apiVersion")
-    api_thing: str = Field(alias="apiThing")
+    api_version: Optional[str] = Field(default=None, alias="apiVersion")
+    api_thing: Optional[str] = Field(default=None, alias="apiThing")
     model_config = ConfigDict(frozen=True)
 
 
@@ -807,7 +807,7 @@ class CreateAppImageMutation(BaseModel):
         input: AppImageInput
 
     class Meta:
-        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    ...ListFlavour\n  }\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n  }\n}"
+        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    ...ListFlavour\n  }\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n  }\n}"
 
 
 class CreateGithubRepoMutation(BaseModel):
@@ -858,7 +858,7 @@ class ListReleasesQuery(BaseModel):
         pass
 
     class Meta:
-        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  installed\n  scopes\n  flavours {\n    ...ListFlavour\n  }\n  colour\n  description\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n  }\n}"
+        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  installed\n  scopes\n  flavours {\n    ...ListFlavour\n  }\n  colour\n  description\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n  }\n}"
 
 
 class GetReleaseQuery(BaseModel):
@@ -869,7 +869,7 @@ class GetReleaseQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    ...ListFlavour\n  }\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n  }\n}"
+        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    ...ListFlavour\n  }\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n  }\n}"
 
 
 class SearchReleasesQueryOptions(BaseModel):
@@ -1070,7 +1070,7 @@ class GetFlavourQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n}\n\nquery GetFlavour($id: ID!) {\n  flavour(id: $id) {\n    ...Flavour\n  }\n}"
+        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n}\n\nquery GetFlavour($id: ID!) {\n  flavour(id: $id) {\n    ...Flavour\n  }\n}"
 
 
 class SearchFlavoursQueryOptions(BaseModel):
