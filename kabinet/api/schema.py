@@ -1,11 +1,11 @@
-from typing import Tuple, Optional, Annotated, Union, Any, List, Literal
+from rekuest_next.scalars import NodeHash, Identifier, ValidatorFunction, SearchQuery
+from typing import List, Tuple, Optional, Annotated, Any, Literal, Union
+from pydantic import Field, ConfigDict, BaseModel
 from enum import Enum
-from rekuest_next.scalars import SearchQuery, Identifier, NodeHash, ValidatorFunction
-from kabinet.funcs import aexecute, execute
 from kabinet.rath import KabinetRath
-from rath.scalars import ID
-from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
+from kabinet.funcs import execute, aexecute
+from rath.scalars import ID
 
 
 class AssignWidgetKind(str, Enum):
@@ -418,44 +418,6 @@ class ReleaseApp(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
-class ReleaseFlavoursImage(BaseModel):
-    """A docker image descriptor"""
-
-    typename: Optional[Literal["DockerImage"]] = Field(
-        alias="__typename", default="DockerImage", exclude=True
-    )
-    image_string: str = Field(alias="imageString")
-    build_at: datetime = Field(alias="buildAt")
-    model_config = ConfigDict(frozen=True)
-
-
-class ReleaseFlavoursRequirements(BaseModel):
-    """A requirement"""
-
-    typename: Optional[Literal["Requirement"]] = Field(
-        alias="__typename", default="Requirement", exclude=True
-    )
-    key: str
-    service: str
-    description: Optional[str] = Field(default=None)
-    optional: bool
-    model_config = ConfigDict(frozen=True)
-
-
-class ReleaseFlavours(BaseModel):
-    """A user of the bridge server. Maps to an authentikate user"""
-
-    typename: Optional[Literal["Flavour"]] = Field(
-        alias="__typename", default="Flavour", exclude=True
-    )
-    id: ID
-    name: str
-    image: ReleaseFlavoursImage
-    manifest: Any
-    requirements: Tuple[ReleaseFlavoursRequirements, ...]
-    model_config = ConfigDict(frozen=True)
-
-
 class Release(BaseModel):
     typename: Optional[Literal["Release"]] = Field(
         alias="__typename", default="Release", exclude=True
@@ -468,7 +430,7 @@ class Release(BaseModel):
     "Is this release deployed"
     description: str
     "Is this release deployed"
-    flavours: Tuple[ReleaseFlavours, ...]
+    flavours: Tuple["ListFlavour", ...]
     model_config = ConfigDict(frozen=True)
 
 
@@ -529,6 +491,26 @@ class Pod(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class CudaSelector(BaseModel):
+    typename: Optional[Literal["CudaSelector"]] = Field(
+        alias="__typename", default="CudaSelector", exclude=True
+    )
+    cuda_version: str = Field(alias="cudaVersion")
+    "The minimum cuda version"
+    cuda_cores: int = Field(alias="cudaCores")
+    "The number of cuda cores"
+    model_config = ConfigDict(frozen=True)
+
+
+class RocmSelector(BaseModel):
+    typename: Optional[Literal["RocmSelector"]] = Field(
+        alias="__typename", default="RocmSelector", exclude=True
+    )
+    api_version: str = Field(alias="apiVersion")
+    api_thing: int = Field(alias="apiThing")
+    model_config = ConfigDict(frozen=True)
+
+
 class ListFlavourImage(BaseModel):
     """A docker image descriptor"""
 
@@ -540,14 +522,59 @@ class ListFlavourImage(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class ListFlavourRequirements(BaseModel):
+    """A requirement"""
+
+    typename: Optional[Literal["Requirement"]] = Field(
+        alias="__typename", default="Requirement", exclude=True
+    )
+    key: str
+    service: str
+    description: Optional[str] = Field(default=None)
+    optional: bool
+    model_config = ConfigDict(frozen=True)
+
+
+class ListFlavourImage(BaseModel):
+    """A docker image descriptor"""
+
+    typename: Optional[Literal["DockerImage"]] = Field(
+        alias="__typename", default="DockerImage", exclude=True
+    )
+    image_string: str = Field(alias="imageString")
+    build_at: datetime = Field(alias="buildAt")
+    model_config = ConfigDict(frozen=True)
+
+
+class ListFlavourSelectorsBase(BaseModel):
+    """A selector is a way to select a release"""
+
+    model_config = ConfigDict(frozen=True)
+
+
+class ListFlavourSelectorsCudaSelector(ListFlavourSelectorsBase, CudaSelector):
+    pass
+    model_config = ConfigDict(frozen=True)
+
+
+class ListFlavourSelectorsRocmSelector(ListFlavourSelectorsBase, RocmSelector):
+    pass
+    model_config = ConfigDict(frozen=True)
+
+
 class ListFlavour(BaseModel):
     typename: Optional[Literal["Flavour"]] = Field(
         alias="__typename", default="Flavour", exclude=True
     )
     id: ID
     name: str
-    manifest: Any
     image: ListFlavourImage
+    manifest: Any
+    requirements: Tuple[ListFlavourRequirements, ...]
+    image: ListFlavourImage
+    selectors: Tuple[
+        Union[ListFlavourSelectorsCudaSelector, ListFlavourSelectorsRocmSelector], ...
+    ]
     model_config = ConfigDict(frozen=True)
 
 
@@ -578,39 +605,11 @@ class FlavourRelease(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
-class FlavourImage(BaseModel):
-    """A docker image descriptor"""
-
-    typename: Optional[Literal["DockerImage"]] = Field(
-        alias="__typename", default="DockerImage", exclude=True
-    )
-    image_string: str = Field(alias="imageString")
-    build_at: datetime = Field(alias="buildAt")
-    model_config = ConfigDict(frozen=True)
-
-
-class FlavourRequirements(BaseModel):
-    """A requirement"""
-
-    typename: Optional[Literal["Requirement"]] = Field(
-        alias="__typename", default="Requirement", exclude=True
-    )
-    key: str
-    service: str
-    description: Optional[str] = Field(default=None)
-    optional: bool
-    model_config = ConfigDict(frozen=True)
-
-
-class Flavour(BaseModel):
+class Flavour(ListFlavour, BaseModel):
     typename: Optional[Literal["Flavour"]] = Field(
         alias="__typename", default="Flavour", exclude=True
     )
     release: FlavourRelease
-    manifest: Any
-    image: FlavourImage
-    manifest: Any
-    requirements: Tuple[FlavourRequirements, ...]
     model_config = ConfigDict(frozen=True)
 
 
@@ -739,7 +738,7 @@ class CreatePodMutation(BaseModel):
         client_id: Optional[str] = Field(alias="clientId", default=None)
 
     class Meta:
-        document = "fragment Flavour on Flavour {\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n  manifest\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!, $resource: ID, $clientId: String) {\n  createPod(\n    input: {deployment: $deployment, instanceId: $instanceId, localId: $localId, resource: $resource, clientId: $clientId}\n  ) {\n    ...Pod\n  }\n}"
+        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!, $resource: ID, $clientId: String) {\n  createPod(\n    input: {deployment: $deployment, instanceId: $instanceId, localId: $localId, resource: $resource, clientId: $clientId}\n  ) {\n    ...Pod\n  }\n}"
 
 
 class UpdatePodMutation(BaseModel):
@@ -753,7 +752,7 @@ class UpdatePodMutation(BaseModel):
         local_id: Optional[ID] = Field(alias="localId", default=None)
 
     class Meta:
-        document = "fragment Flavour on Flavour {\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n  manifest\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n  }\n}"
+        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n  }\n}"
 
 
 class DeletePodMutation(BaseModel):
@@ -808,7 +807,7 @@ class CreateAppImageMutation(BaseModel):
         input: AppImageInput
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image {\n      imageString\n      buildAt\n    }\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n  }\n}"
+        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    ...ListFlavour\n  }\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n  }\n}"
 
 
 class CreateGithubRepoMutation(BaseModel):
@@ -859,7 +858,7 @@ class ListReleasesQuery(BaseModel):
         pass
 
     class Meta:
-        document = "fragment ListFlavour on Flavour {\n  id\n  name\n  manifest\n  image {\n    imageString\n    buildAt\n  }\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  installed\n  scopes\n  flavours {\n    ...ListFlavour\n  }\n  colour\n  description\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n  }\n}"
+        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  installed\n  scopes\n  flavours {\n    ...ListFlavour\n  }\n  colour\n  description\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n  }\n}"
 
 
 class GetReleaseQuery(BaseModel):
@@ -870,7 +869,7 @@ class GetReleaseQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    id\n    name\n    image {\n      imageString\n      buildAt\n    }\n    manifest\n    requirements {\n      key\n      service\n      description\n      optional\n    }\n  }\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n  }\n}"
+        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    ...ListFlavour\n  }\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n  }\n}"
 
 
 class SearchReleasesQueryOptions(BaseModel):
@@ -957,7 +956,7 @@ class GetPodQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment Flavour on Flavour {\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n  manifest\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery GetPod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
+        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery GetPod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
 
 
 class SearchPodsQueryOptions(BaseModel):
@@ -1071,7 +1070,7 @@ class GetFlavourQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment Flavour on Flavour {\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n  manifest\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n}\n\nquery GetFlavour($id: ID!) {\n  flavour(id: $id) {\n    ...Flavour\n  }\n}"
+        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n}\n\nquery GetFlavour($id: ID!) {\n  flavour(id: $id) {\n    ...Flavour\n  }\n}"
 
 
 class SearchFlavoursQueryOptions(BaseModel):
@@ -2542,4 +2541,5 @@ InspectionInput.model_rebuild()
 ListRelease.model_rebuild()
 PodDeployment.model_rebuild()
 PortInput.model_rebuild()
+Release.model_rebuild()
 ResourceFilter.model_rebuild()

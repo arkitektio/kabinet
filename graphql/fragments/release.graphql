@@ -8,19 +8,7 @@ fragment Release on Release {
   colour
   description
   flavours {
-    id
-    name
-    image {
-      imageString
-      buildAt
-    }
-    manifest
-    requirements {
-      key
-      service
-      description
-      optional
-    }
+    ...ListFlavour
   }
 }
 
