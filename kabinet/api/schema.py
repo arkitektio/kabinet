@@ -1,11 +1,11 @@
-from pydantic import Field, ConfigDict, BaseModel
-from kabinet.funcs import execute, aexecute
-from enum import Enum
-from rekuest_next.scalars import ValidatorFunction, SearchQuery, Identifier, NodeHash
+from typing import Optional, List, Annotated, Union, Tuple, Any, Literal
 from datetime import datetime
-from typing import Tuple, Optional, Any, Union, Annotated, Literal, List
+from kabinet.funcs import execute, aexecute
+from rekuest_next.scalars import Identifier, NodeHash, ValidatorFunction, SearchQuery
 from kabinet.rath import KabinetRath
+from pydantic import ConfigDict, Field, BaseModel
 from rath.scalars import ID
+from enum import Enum
 
 
 class AssignWidgetKind(str, Enum):
@@ -95,7 +95,7 @@ class CudaSelectorInput(BaseModel):
 class OneApiSelectorInput(BaseModel):
     kind: Literal["oneapi"] = Field(default="oneapi")
     oneapi_version: Optional[str] = Field(alias="oneapiVersion", default=None)
-    "The api version of the selector"
+    "The api versison of the selector"
     model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
 
@@ -361,7 +361,7 @@ class ValidatorInput(BaseModel):
 
 
 class Deployment(BaseModel):
-    typename: Optional[Literal["Deployment"]] = Field(
+    typename: Literal["Deployment"] = Field(
         alias="__typename", default="Deployment", exclude=True
     )
     id: ID
@@ -370,7 +370,7 @@ class Deployment(BaseModel):
 
 
 class ListDeployment(BaseModel):
-    typename: Optional[Literal["Deployment"]] = Field(
+    typename: Literal["Deployment"] = Field(
         alias="__typename", default="Deployment", exclude=True
     )
     id: ID
@@ -383,7 +383,7 @@ class GithubRepoFlavoursDefinitions(BaseModel):
 
     See online Documentation"""
 
-    typename: Optional[Literal["Definition"]] = Field(
+    typename: Literal["Definition"] = Field(
         alias="__typename", default="Definition", exclude=True
     )
     id: ID
@@ -395,7 +395,7 @@ class GithubRepoFlavoursDefinitions(BaseModel):
 class GithubRepoFlavours(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Flavour"]] = Field(
+    typename: Literal["Flavour"] = Field(
         alias="__typename", default="Flavour", exclude=True
     )
     definitions: Tuple[GithubRepoFlavoursDefinitions, ...]
@@ -404,7 +404,7 @@ class GithubRepoFlavours(BaseModel):
 
 
 class GithubRepo(BaseModel):
-    typename: Optional[Literal["GithubRepo"]] = Field(
+    typename: Literal["GithubRepo"] = Field(
         alias="__typename", default="GithubRepo", exclude=True
     )
     id: ID
@@ -415,91 +415,15 @@ class GithubRepo(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
-class ReleaseApp(BaseModel):
-    """A user of the bridge server. Maps to an authentikate user"""
-
-    typename: Optional[Literal["App"]] = Field(
-        alias="__typename", default="App", exclude=True
-    )
-    identifier: str
-    model_config = ConfigDict(frozen=True)
-
-
-class Release(BaseModel):
-    typename: Optional[Literal["Release"]] = Field(
-        alias="__typename", default="Release", exclude=True
-    )
-    id: ID
-    version: str
-    app: ReleaseApp
-    scopes: Tuple[str, ...]
-    colour: str
-    "Is this release deployed"
-    description: str
-    "Is this release deployed"
-    flavours: Tuple["ListFlavour", ...]
-    model_config = ConfigDict(frozen=True)
-
-
-class ListReleaseApp(BaseModel):
-    """A user of the bridge server. Maps to an authentikate user"""
-
-    typename: Optional[Literal["App"]] = Field(
-        alias="__typename", default="App", exclude=True
-    )
-    identifier: str
-    model_config = ConfigDict(frozen=True)
-
-
-class ListRelease(BaseModel):
-    typename: Optional[Literal["Release"]] = Field(
-        alias="__typename", default="Release", exclude=True
-    )
-    id: ID
-    version: str
-    app: ListReleaseApp
-    installed: bool
-    "Is this release deployed"
-    scopes: Tuple[str, ...]
-    flavours: Tuple["ListFlavour", ...]
-    colour: str
-    "Is this release deployed"
-    description: str
-    "Is this release deployed"
-    model_config = ConfigDict(frozen=True)
-
-
 class ListPod(BaseModel):
-    typename: Optional[Literal["Pod"]] = Field(
-        alias="__typename", default="Pod", exclude=True
-    )
+    typename: Literal["Pod"] = Field(alias="__typename", default="Pod", exclude=True)
     id: ID
     pod_id: str = Field(alias="podId")
-    model_config = ConfigDict(frozen=True)
-
-
-class PodDeployment(BaseModel):
-    """A user of the bridge server. Maps to an authentikate user"""
-
-    typename: Optional[Literal["Deployment"]] = Field(
-        alias="__typename", default="Deployment", exclude=True
-    )
-    flavour: "Flavour"
-    model_config = ConfigDict(frozen=True)
-
-
-class Pod(BaseModel):
-    typename: Optional[Literal["Pod"]] = Field(
-        alias="__typename", default="Pod", exclude=True
-    )
-    id: ID
-    pod_id: str = Field(alias="podId")
-    deployment: PodDeployment
     model_config = ConfigDict(frozen=True)
 
 
 class CudaSelector(BaseModel):
-    typename: Optional[Literal["CudaSelector"]] = Field(
+    typename: Literal["CudaSelector"] = Field(
         alias="__typename", default="CudaSelector", exclude=True
     )
     cuda_version: Optional[str] = Field(default=None, alias="cudaVersion")
@@ -510,7 +434,7 @@ class CudaSelector(BaseModel):
 
 
 class RocmSelector(BaseModel):
-    typename: Optional[Literal["RocmSelector"]] = Field(
+    typename: Literal["RocmSelector"] = Field(
         alias="__typename", default="RocmSelector", exclude=True
     )
     api_version: Optional[str] = Field(default=None, alias="apiVersion")
@@ -518,10 +442,106 @@ class RocmSelector(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class ResourceBackend(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
+    typename: Literal["Backend"] = Field(
+        alias="__typename", default="Backend", exclude=True
+    )
+    id: ID
+    name: str
+    model_config = ConfigDict(frozen=True)
+
+
+class ResourcePods(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
+    typename: Literal["Pod"] = Field(alias="__typename", default="Pod", exclude=True)
+    id: ID
+    pod_id: str = Field(alias="podId")
+    model_config = ConfigDict(frozen=True)
+
+
+class Resource(BaseModel):
+    typename: Literal["Resource"] = Field(
+        alias="__typename", default="Resource", exclude=True
+    )
+    id: ID
+    name: str
+    qualifiers: Optional[Any] = Field(default=None)
+    backend: ResourceBackend
+    pods: Tuple[ResourcePods, ...]
+    model_config = ConfigDict(frozen=True)
+
+
+class ListResourceBackend(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
+    typename: Literal["Backend"] = Field(
+        alias="__typename", default="Backend", exclude=True
+    )
+    id: ID
+    name: str
+    model_config = ConfigDict(frozen=True)
+
+
+class ListResource(BaseModel):
+    typename: Literal["Resource"] = Field(
+        alias="__typename", default="Resource", exclude=True
+    )
+    id: ID
+    name: str
+    qualifiers: Optional[Any] = Field(default=None)
+    backend: ListResourceBackend
+    model_config = ConfigDict(frozen=True)
+
+
+class ListDefinition(BaseModel):
+    typename: Literal["Definition"] = Field(
+        alias="__typename", default="Definition", exclude=True
+    )
+    id: ID
+    name: str
+    "The cleartext name of this Node"
+    hash: NodeHash
+    "The hash of the Node (completely unique)"
+    description: Optional[str] = Field(default=None)
+    "A description for the Node"
+    model_config = ConfigDict(frozen=True)
+
+
+class Definition(BaseModel):
+    typename: Literal["Definition"] = Field(
+        alias="__typename", default="Definition", exclude=True
+    )
+    id: ID
+    name: str
+    "The cleartext name of this Node"
+    model_config = ConfigDict(frozen=True)
+
+
+class Backend(BaseModel):
+    typename: Literal["Backend"] = Field(
+        alias="__typename", default="Backend", exclude=True
+    )
+    id: ID
+    name: str
+    model_config = ConfigDict(frozen=True)
+
+
+class ListBackend(BaseModel):
+    typename: Literal["Backend"] = Field(
+        alias="__typename", default="Backend", exclude=True
+    )
+    id: ID
+    name: str
+    model_config = ConfigDict(frozen=True)
+
+
 class ListFlavourImage(BaseModel):
     """A docker image descriptor"""
 
-    typename: Optional[Literal["DockerImage"]] = Field(
+    typename: Literal["DockerImage"] = Field(
         alias="__typename", default="DockerImage", exclude=True
     )
     image_string: str = Field(alias="imageString")
@@ -532,7 +552,7 @@ class ListFlavourImage(BaseModel):
 class ListFlavourRequirements(BaseModel):
     """A requirement"""
 
-    typename: Optional[Literal["Requirement"]] = Field(
+    typename: Literal["Requirement"] = Field(
         alias="__typename", default="Requirement", exclude=True
     )
     key: str
@@ -545,7 +565,7 @@ class ListFlavourRequirements(BaseModel):
 class ListFlavourImage(BaseModel):
     """A docker image descriptor"""
 
-    typename: Optional[Literal["DockerImage"]] = Field(
+    typename: Literal["DockerImage"] = Field(
         alias="__typename", default="DockerImage", exclude=True
     )
     image_string: str = Field(alias="imageString")
@@ -559,18 +579,30 @@ class ListFlavourSelectorsBase(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
-class ListFlavourSelectorsCudaSelector(ListFlavourSelectorsBase, CudaSelector):
-    pass
-    model_config = ConfigDict(frozen=True)
+class ListFlavourSelectorsBaseCPUSelector(ListFlavourSelectorsBase, BaseModel):
+    typename: Literal["CPUSelector"] = Field(
+        alias="__typename", default="CPUSelector", exclude=True
+    )
 
 
-class ListFlavourSelectorsRocmSelector(ListFlavourSelectorsBase, RocmSelector):
-    pass
-    model_config = ConfigDict(frozen=True)
+class ListFlavourSelectorsBaseCudaSelector(
+    CudaSelector, ListFlavourSelectorsBase, BaseModel
+):
+    typename: Literal["CudaSelector"] = Field(
+        alias="__typename", default="CudaSelector", exclude=True
+    )
+
+
+class ListFlavourSelectorsBaseRocmSelector(
+    RocmSelector, ListFlavourSelectorsBase, BaseModel
+):
+    typename: Literal["RocmSelector"] = Field(
+        alias="__typename", default="RocmSelector", exclude=True
+    )
 
 
 class ListFlavour(BaseModel):
-    typename: Optional[Literal["Flavour"]] = Field(
+    typename: Literal["Flavour"] = Field(
         alias="__typename", default="Flavour", exclude=True
     )
     id: ID
@@ -580,17 +612,73 @@ class ListFlavour(BaseModel):
     requirements: Tuple[ListFlavourRequirements, ...]
     image: ListFlavourImage
     selectors: Tuple[
-        Union[ListFlavourSelectorsCudaSelector, ListFlavourSelectorsRocmSelector], ...
+        Annotated[
+            Union[
+                ListFlavourSelectorsBaseCPUSelector,
+                ListFlavourSelectorsBaseCudaSelector,
+                ListFlavourSelectorsBaseRocmSelector,
+            ],
+            Field(discriminator="typename"),
+        ],
+        ...,
     ]
+    model_config = ConfigDict(frozen=True)
+
+
+class ReleaseApp(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
+    typename: Literal["App"] = Field(alias="__typename", default="App", exclude=True)
+    identifier: str
+    model_config = ConfigDict(frozen=True)
+
+
+class Release(BaseModel):
+    typename: Literal["Release"] = Field(
+        alias="__typename", default="Release", exclude=True
+    )
+    id: ID
+    version: str
+    app: ReleaseApp
+    scopes: Tuple[str, ...]
+    colour: str
+    "Is this release deployed"
+    description: str
+    "Is this release deployed"
+    flavours: Tuple[ListFlavour, ...]
+    model_config = ConfigDict(frozen=True)
+
+
+class ListReleaseApp(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
+    typename: Literal["App"] = Field(alias="__typename", default="App", exclude=True)
+    identifier: str
+    model_config = ConfigDict(frozen=True)
+
+
+class ListRelease(BaseModel):
+    typename: Literal["Release"] = Field(
+        alias="__typename", default="Release", exclude=True
+    )
+    id: ID
+    version: str
+    app: ListReleaseApp
+    installed: bool
+    "Is this release deployed"
+    scopes: Tuple[str, ...]
+    flavours: Tuple[ListFlavour, ...]
+    colour: str
+    "Is this release deployed"
+    description: str
+    "Is this release deployed"
     model_config = ConfigDict(frozen=True)
 
 
 class FlavourReleaseApp(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["App"]] = Field(
-        alias="__typename", default="App", exclude=True
-    )
+    typename: Literal["App"] = Field(alias="__typename", default="App", exclude=True)
     identifier: str
     model_config = ConfigDict(frozen=True)
 
@@ -598,7 +686,7 @@ class FlavourReleaseApp(BaseModel):
 class FlavourRelease(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Release"]] = Field(
+    typename: Literal["Release"] = Field(
         alias="__typename", default="Release", exclude=True
     )
     id: ID
@@ -613,108 +701,28 @@ class FlavourRelease(BaseModel):
 
 
 class Flavour(ListFlavour, BaseModel):
-    typename: Optional[Literal["Flavour"]] = Field(
+    typename: Literal["Flavour"] = Field(
         alias="__typename", default="Flavour", exclude=True
     )
     release: FlavourRelease
     model_config = ConfigDict(frozen=True)
 
 
-class ResourceBackend(BaseModel):
+class PodDeployment(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Backend"]] = Field(
-        alias="__typename", default="Backend", exclude=True
+    typename: Literal["Deployment"] = Field(
+        alias="__typename", default="Deployment", exclude=True
     )
-    id: ID
-    name: str
+    flavour: Flavour
     model_config = ConfigDict(frozen=True)
 
 
-class ResourcePods(BaseModel):
-    """A user of the bridge server. Maps to an authentikate user"""
-
-    typename: Optional[Literal["Pod"]] = Field(
-        alias="__typename", default="Pod", exclude=True
-    )
+class Pod(BaseModel):
+    typename: Literal["Pod"] = Field(alias="__typename", default="Pod", exclude=True)
     id: ID
     pod_id: str = Field(alias="podId")
-    model_config = ConfigDict(frozen=True)
-
-
-class Resource(BaseModel):
-    typename: Optional[Literal["Resource"]] = Field(
-        alias="__typename", default="Resource", exclude=True
-    )
-    id: ID
-    name: str
-    qualifiers: Optional[Any] = Field(default=None)
-    backend: ResourceBackend
-    pods: Tuple[ResourcePods, ...]
-    model_config = ConfigDict(frozen=True)
-
-
-class ListResourceBackend(BaseModel):
-    """A user of the bridge server. Maps to an authentikate user"""
-
-    typename: Optional[Literal["Backend"]] = Field(
-        alias="__typename", default="Backend", exclude=True
-    )
-    id: ID
-    name: str
-    model_config = ConfigDict(frozen=True)
-
-
-class ListResource(BaseModel):
-    typename: Optional[Literal["Resource"]] = Field(
-        alias="__typename", default="Resource", exclude=True
-    )
-    id: ID
-    name: str
-    qualifiers: Optional[Any] = Field(default=None)
-    backend: ListResourceBackend
-    model_config = ConfigDict(frozen=True)
-
-
-class ListDefinition(BaseModel):
-    typename: Optional[Literal["Definition"]] = Field(
-        alias="__typename", default="Definition", exclude=True
-    )
-    id: ID
-    name: str
-    "The cleartext name of this Node"
-    hash: NodeHash
-    "The hash of the Node (completely unique)"
-    description: Optional[str] = Field(default=None)
-    "A description for the Node"
-    model_config = ConfigDict(frozen=True)
-
-
-class Definition(BaseModel):
-    typename: Optional[Literal["Definition"]] = Field(
-        alias="__typename", default="Definition", exclude=True
-    )
-    id: ID
-    name: str
-    "The cleartext name of this Node"
-    model_config = ConfigDict(frozen=True)
-
-
-class Backend(BaseModel):
-    typename: Optional[Literal["Backend"]] = Field(
-        alias="__typename", default="Backend", exclude=True
-    )
-    id: ID
-    name: str
-    model_config = ConfigDict(frozen=True)
-
-
-class ListBackend(BaseModel):
-    typename: Optional[Literal["Backend"]] = Field(
-        alias="__typename", default="Backend", exclude=True
-    )
-    id: ID
-    name: str
+    deployment: PodDeployment
     model_config = ConfigDict(frozen=True)
 
 
@@ -730,7 +738,7 @@ class CreateDeploymentMutation(BaseModel):
         secret_params: Optional[Any] = Field(alias="secretParams", default=None)
 
     class Meta:
-        document = "fragment Deployment on Deployment {\n  id\n  localId\n}\n\nmutation CreateDeployment($flavour: ID!, $instanceId: String!, $localId: ID!, $lastPulled: DateTime, $secretParams: UntypedParams) {\n  createDeployment(\n    input: {flavour: $flavour, lastPulled: $lastPulled, secretParams: $secretParams, instanceId: $instanceId, localId: $localId}\n  ) {\n    ...Deployment\n  }\n}"
+        document = "fragment Deployment on Deployment {\n  id\n  localId\n  __typename\n}\n\nmutation CreateDeployment($flavour: ID!, $instanceId: String!, $localId: ID!, $lastPulled: DateTime, $secretParams: UntypedParams) {\n  createDeployment(\n    input: {flavour: $flavour, lastPulled: $lastPulled, secretParams: $secretParams, instanceId: $instanceId, localId: $localId}\n  ) {\n    ...Deployment\n    __typename\n  }\n}"
 
 
 class CreatePodMutation(BaseModel):
@@ -745,7 +753,7 @@ class CreatePodMutation(BaseModel):
         client_id: Optional[str] = Field(alias="clientId", default=None)
 
     class Meta:
-        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!, $resource: ID, $clientId: String) {\n  createPod(\n    input: {deployment: $deployment, instanceId: $instanceId, localId: $localId, resource: $resource, clientId: $clientId}\n  ) {\n    ...Pod\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n      __typename\n    }\n    scopes\n    colour\n    description\n    __typename\n  }\n  __typename\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!, $resource: ID, $clientId: String) {\n  createPod(\n    input: {deployment: $deployment, instanceId: $instanceId, localId: $localId, resource: $resource, clientId: $clientId}\n  ) {\n    ...Pod\n    __typename\n  }\n}"
 
 
 class UpdatePodMutation(BaseModel):
@@ -759,7 +767,7 @@ class UpdatePodMutation(BaseModel):
         local_id: Optional[ID] = Field(alias="localId", default=None)
 
     class Meta:
-        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n      __typename\n    }\n    scopes\n    colour\n    description\n    __typename\n  }\n  __typename\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n    __typename\n  }\n}"
 
 
 class DeletePodMutation(BaseModel):
@@ -776,9 +784,7 @@ class DeletePodMutation(BaseModel):
 class DumpLogsMutationDumplogsPod(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Pod"]] = Field(
-        alias="__typename", default="Pod", exclude=True
-    )
+    typename: Literal["Pod"] = Field(alias="__typename", default="Pod", exclude=True)
     id: ID
     model_config = ConfigDict(frozen=True)
 
@@ -786,7 +792,7 @@ class DumpLogsMutationDumplogsPod(BaseModel):
 class DumpLogsMutationDumplogs(BaseModel):
     """The logs of a pod"""
 
-    typename: Optional[Literal["LogDump"]] = Field(
+    typename: Literal["LogDump"] = Field(
         alias="__typename", default="LogDump", exclude=True
     )
     pod: DumpLogsMutationDumplogsPod
@@ -803,7 +809,7 @@ class DumpLogsMutation(BaseModel):
         logs: str
 
     class Meta:
-        document = "mutation DumpLogs($pod: ID!, $logs: String!) {\n  dumpLogs(input: {pod: $pod, logs: $logs}) {\n    pod {\n      id\n    }\n    logs\n  }\n}"
+        document = "mutation DumpLogs($pod: ID!, $logs: String!) {\n  dumpLogs(input: {pod: $pod, logs: $logs}) {\n    pod {\n      id\n      __typename\n    }\n    logs\n    __typename\n  }\n}"
 
 
 class CreateAppImageMutation(BaseModel):
@@ -814,7 +820,7 @@ class CreateAppImageMutation(BaseModel):
         input: AppImageInput
 
     class Meta:
-        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    ...ListFlavour\n  }\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  colour\n  description\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n    __typename\n  }\n}"
 
 
 class CreateGithubRepoMutation(BaseModel):
@@ -828,7 +834,7 @@ class CreateGithubRepoMutation(BaseModel):
         name: str
 
     class Meta:
-        document = "fragment GithubRepo on GithubRepo {\n  id\n  branch\n  user\n  repo\n  flavours {\n    definitions {\n      id\n      hash\n    }\n  }\n}\n\nmutation CreateGithubRepo($user: String!, $repo: String!, $branch: String!, $name: String!) {\n  createGithubRepo(\n    input: {user: $user, repo: $repo, branch: $branch, name: $name}\n  ) {\n    ...GithubRepo\n  }\n}"
+        document = "fragment GithubRepo on GithubRepo {\n  id\n  branch\n  user\n  repo\n  flavours {\n    definitions {\n      id\n      hash\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n\nmutation CreateGithubRepo($user: String!, $repo: String!, $branch: String!, $name: String!) {\n  createGithubRepo(\n    input: {user: $user, repo: $repo, branch: $branch, name: $name}\n  ) {\n    ...GithubRepo\n    __typename\n  }\n}"
 
 
 class DeclareResourceMutation(BaseModel):
@@ -842,7 +848,7 @@ class DeclareResourceMutation(BaseModel):
         qualifiers: Optional[List[QualifierInput]] = Field(default=None)
 
     class Meta:
-        document = "fragment Resource on Resource {\n  id\n  name\n  qualifiers\n  backend {\n    id\n    name\n  }\n  pods {\n    id\n    podId\n  }\n}\n\nmutation DeclareResource($backend: ID!, $name: String!, $localId: String!, $qualifiers: [QualifierInput!]) {\n  declareResource(\n    input: {backend: $backend, name: $name, localId: $localId, qualifiers: $qualifiers}\n  ) {\n    ...Resource\n  }\n}"
+        document = "fragment Resource on Resource {\n  id\n  name\n  qualifiers\n  backend {\n    id\n    name\n    __typename\n  }\n  pods {\n    id\n    podId\n    __typename\n  }\n  __typename\n}\n\nmutation DeclareResource($backend: ID!, $name: String!, $localId: String!, $qualifiers: [QualifierInput!]) {\n  declareResource(\n    input: {backend: $backend, name: $name, localId: $localId, qualifiers: $qualifiers}\n  ) {\n    ...Resource\n    __typename\n  }\n}"
 
 
 class DeclareBackendMutation(BaseModel):
@@ -855,7 +861,7 @@ class DeclareBackendMutation(BaseModel):
         name: str
 
     class Meta:
-        document = "fragment Backend on Backend {\n  id\n  name\n}\n\nmutation DeclareBackend($instanceId: String!, $kind: String!, $name: String!) {\n  declareBackend(input: {kind: $kind, instanceId: $instanceId, name: $name}) {\n    ...Backend\n  }\n}"
+        document = "fragment Backend on Backend {\n  id\n  name\n  __typename\n}\n\nmutation DeclareBackend($instanceId: String!, $kind: String!, $name: String!) {\n  declareBackend(input: {kind: $kind, instanceId: $instanceId, name: $name}) {\n    ...Backend\n    __typename\n  }\n}"
 
 
 class ListReleasesQuery(BaseModel):
@@ -865,7 +871,7 @@ class ListReleasesQuery(BaseModel):
         pass
 
     class Meta:
-        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  installed\n  scopes\n  flavours {\n    ...ListFlavour\n  }\n  colour\n  description\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  installed\n  scopes\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  colour\n  description\n  __typename\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n    __typename\n  }\n}"
 
 
 class GetReleaseQuery(BaseModel):
@@ -876,13 +882,13 @@ class GetReleaseQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n  }\n  scopes\n  colour\n  description\n  flavours {\n    ...ListFlavour\n  }\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  colour\n  description\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n    __typename\n  }\n}"
 
 
 class SearchReleasesQueryOptions(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Release"]] = Field(
+    typename: Literal["Release"] = Field(
         alias="__typename", default="Release", exclude=True
     )
     value: ID
@@ -899,7 +905,7 @@ class SearchReleasesQuery(BaseModel):
         values: Optional[List[ID]] = Field(default=None)
 
     class Meta:
-        document = "query SearchReleases($search: String, $values: [ID!]) {\n  options: releases(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n  }\n}"
+        document = "query SearchReleases($search: String, $values: [ID!]) {\n  options: releases(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n    __typename\n  }\n}"
 
 
 class GetDeploymentQuery(BaseModel):
@@ -910,7 +916,7 @@ class GetDeploymentQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment Deployment on Deployment {\n  id\n  localId\n}\n\nquery GetDeployment($id: ID!) {\n  deployment(id: $id) {\n    ...Deployment\n  }\n}"
+        document = "fragment Deployment on Deployment {\n  id\n  localId\n  __typename\n}\n\nquery GetDeployment($id: ID!) {\n  deployment(id: $id) {\n    ...Deployment\n    __typename\n  }\n}"
 
 
 class ListDeploymentsQuery(BaseModel):
@@ -920,13 +926,13 @@ class ListDeploymentsQuery(BaseModel):
         pass
 
     class Meta:
-        document = "fragment ListDeployment on Deployment {\n  id\n  localId\n}\n\nquery ListDeployments {\n  deployments {\n    ...ListDeployment\n  }\n}"
+        document = "fragment ListDeployment on Deployment {\n  id\n  localId\n  __typename\n}\n\nquery ListDeployments {\n  deployments {\n    ...ListDeployment\n    __typename\n  }\n}"
 
 
 class SearchDeploymentsQueryOptions(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Deployment"]] = Field(
+    typename: Literal["Deployment"] = Field(
         alias="__typename", default="Deployment", exclude=True
     )
     value: ID
@@ -942,7 +948,7 @@ class SearchDeploymentsQuery(BaseModel):
         values: Optional[List[ID]] = Field(default=None)
 
     class Meta:
-        document = "query SearchDeployments($search: String, $values: [ID!]) {\n  options: deployments(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n  }\n}"
+        document = "query SearchDeployments($search: String, $values: [ID!]) {\n  options: deployments(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n    __typename\n  }\n}"
 
 
 class ListPodQuery(BaseModel):
@@ -952,7 +958,7 @@ class ListPodQuery(BaseModel):
         pass
 
     class Meta:
-        document = "fragment ListPod on Pod {\n  id\n  podId\n}\n\nquery ListPod {\n  pods {\n    ...ListPod\n  }\n}"
+        document = "fragment ListPod on Pod {\n  id\n  podId\n  __typename\n}\n\nquery ListPod {\n  pods {\n    ...ListPod\n    __typename\n  }\n}"
 
 
 class GetPodQuery(BaseModel):
@@ -963,15 +969,13 @@ class GetPodQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n    }\n  }\n}\n\nquery GetPod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n      __typename\n    }\n    scopes\n    colour\n    description\n    __typename\n  }\n  __typename\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n\nquery GetPod($id: ID!) {\n  pod(id: $id) {\n    ...Pod\n    __typename\n  }\n}"
 
 
 class SearchPodsQueryOptions(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Pod"]] = Field(
-        alias="__typename", default="Pod", exclude=True
-    )
+    typename: Literal["Pod"] = Field(alias="__typename", default="Pod", exclude=True)
     value: ID
     label: str
     model_config = ConfigDict(frozen=True)
@@ -986,7 +990,7 @@ class SearchPodsQuery(BaseModel):
         backend: Optional[ID] = Field(default=None)
 
     class Meta:
-        document = "query SearchPods($search: String, $values: [ID!], $backend: ID) {\n  options: pods(\n    filters: {search: $search, ids: $values, backend: $backend}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n  }\n}"
+        document = "query SearchPods($search: String, $values: [ID!], $backend: ID) {\n  options: pods(\n    filters: {search: $search, ids: $values, backend: $backend}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n    __typename\n  }\n}"
 
 
 class ListDefinitionsQuery(BaseModel):
@@ -996,7 +1000,7 @@ class ListDefinitionsQuery(BaseModel):
         pass
 
     class Meta:
-        document = "fragment ListDefinition on Definition {\n  id\n  name\n  hash\n  description\n}\n\nquery ListDefinitions {\n  definitions {\n    ...ListDefinition\n  }\n}"
+        document = "fragment ListDefinition on Definition {\n  id\n  name\n  hash\n  description\n  __typename\n}\n\nquery ListDefinitions {\n  definitions {\n    ...ListDefinition\n    __typename\n  }\n}"
 
 
 class GetDefinitionQuery(BaseModel):
@@ -1007,7 +1011,7 @@ class GetDefinitionQuery(BaseModel):
         hash: Optional[NodeHash] = Field(default=None)
 
     class Meta:
-        document = "fragment Definition on Definition {\n  id\n  name\n}\n\nquery GetDefinition($hash: NodeHash) {\n  definition(hash: $hash) {\n    ...Definition\n  }\n}"
+        document = "fragment Definition on Definition {\n  id\n  name\n  __typename\n}\n\nquery GetDefinition($hash: NodeHash) {\n  definition(hash: $hash) {\n    ...Definition\n    __typename\n  }\n}"
 
 
 class SearchDefinitionsQueryOptions(BaseModel):
@@ -1015,7 +1019,7 @@ class SearchDefinitionsQueryOptions(BaseModel):
 
     See online Documentation"""
 
-    typename: Optional[Literal["Definition"]] = Field(
+    typename: Literal["Definition"] = Field(
         alias="__typename", default="Definition", exclude=True
     )
     value: ID
@@ -1032,13 +1036,13 @@ class SearchDefinitionsQuery(BaseModel):
         values: Optional[List[ID]] = Field(default=None)
 
     class Meta:
-        document = "query SearchDefinitions($search: String, $values: [ID!]) {\n  options: definitions(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n  }\n}"
+        document = "query SearchDefinitions($search: String, $values: [ID!]) {\n  options: definitions(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n    __typename\n  }\n}"
 
 
 class MatchFlavourQueryMatchflavourImage(BaseModel):
     """A docker image descriptor"""
 
-    typename: Optional[Literal["DockerImage"]] = Field(
+    typename: Literal["DockerImage"] = Field(
         alias="__typename", default="DockerImage", exclude=True
     )
     image_string: str = Field(alias="imageString")
@@ -1049,7 +1053,7 @@ class MatchFlavourQueryMatchflavourImage(BaseModel):
 class MatchFlavourQueryMatchflavour(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Flavour"]] = Field(
+    typename: Literal["Flavour"] = Field(
         alias="__typename", default="Flavour", exclude=True
     )
     id: ID
@@ -1066,7 +1070,7 @@ class MatchFlavourQuery(BaseModel):
         environment: Optional[EnvironmentInput] = Field(default=None)
 
     class Meta:
-        document = "query MatchFlavour($nodes: [NodeHash!], $environment: EnvironmentInput) {\n  matchFlavour(input: {nodes: $nodes, environment: $environment}) {\n    id\n    image {\n      imageString\n      buildAt\n    }\n  }\n}"
+        document = "query MatchFlavour($nodes: [NodeHash!], $environment: EnvironmentInput) {\n  matchFlavour(input: {nodes: $nodes, environment: $environment}) {\n    id\n    image {\n      imageString\n      buildAt\n      __typename\n    }\n    __typename\n  }\n}"
 
 
 class GetFlavourQuery(BaseModel):
@@ -1077,13 +1081,13 @@ class GetFlavourQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n  }\n  image {\n    imageString\n    buildAt\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n  }\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n    }\n    scopes\n    colour\n    description\n  }\n}\n\nquery GetFlavour($id: ID!) {\n  flavour(id: $id) {\n    ...Flavour\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n      __typename\n    }\n    scopes\n    colour\n    description\n    __typename\n  }\n  __typename\n}\n\nquery GetFlavour($id: ID!) {\n  flavour(id: $id) {\n    ...Flavour\n    __typename\n  }\n}"
 
 
 class SearchFlavoursQueryOptions(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Flavour"]] = Field(
+    typename: Literal["Flavour"] = Field(
         alias="__typename", default="Flavour", exclude=True
     )
     value: ID
@@ -1099,7 +1103,7 @@ class SearchFlavoursQuery(BaseModel):
         values: Optional[List[ID]] = Field(default=None)
 
     class Meta:
-        document = "query SearchFlavours($search: String, $values: [ID!]) {\n  options: flavours(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n  }\n}"
+        document = "query SearchFlavours($search: String, $values: [ID!]) {\n  options: flavours(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n    __typename\n  }\n}"
 
 
 class ListResourcesQuery(BaseModel):
@@ -1110,7 +1114,7 @@ class ListResourcesQuery(BaseModel):
         pagination: Optional[OffsetPaginationInput] = Field(default=None)
 
     class Meta:
-        document = "fragment ListResource on Resource {\n  id\n  name\n  qualifiers\n  backend {\n    id\n    name\n  }\n}\n\nquery ListResources($filters: ResourceFilter, $pagination: OffsetPaginationInput) {\n  resources(filters: $filters, pagination: $pagination) {\n    ...ListResource\n  }\n}"
+        document = "fragment ListResource on Resource {\n  id\n  name\n  qualifiers\n  backend {\n    id\n    name\n    __typename\n  }\n  __typename\n}\n\nquery ListResources($filters: ResourceFilter, $pagination: OffsetPaginationInput) {\n  resources(filters: $filters, pagination: $pagination) {\n    ...ListResource\n    __typename\n  }\n}"
 
 
 class GeResourceQuery(BaseModel):
@@ -1121,13 +1125,13 @@ class GeResourceQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment Resource on Resource {\n  id\n  name\n  qualifiers\n  backend {\n    id\n    name\n  }\n  pods {\n    id\n    podId\n  }\n}\n\nquery GeResource($id: ID!) {\n  resource(id: $id) {\n    ...Resource\n  }\n}"
+        document = "fragment Resource on Resource {\n  id\n  name\n  qualifiers\n  backend {\n    id\n    name\n    __typename\n  }\n  pods {\n    id\n    podId\n    __typename\n  }\n  __typename\n}\n\nquery GeResource($id: ID!) {\n  resource(id: $id) {\n    ...Resource\n    __typename\n  }\n}"
 
 
 class SearchResourcesQueryOptions(BaseModel):
     """A resource on a backend. Resource define allocated resources on a backend. E.g a computational node"""
 
-    typename: Optional[Literal["Resource"]] = Field(
+    typename: Literal["Resource"] = Field(
         alias="__typename", default="Resource", exclude=True
     )
     value: ID
@@ -1143,7 +1147,7 @@ class SearchResourcesQuery(BaseModel):
         values: Optional[List[ID]] = Field(default=None)
 
     class Meta:
-        document = "query SearchResources($search: String, $values: [ID!]) {\n  options: resources(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n  }\n}"
+        document = "query SearchResources($search: String, $values: [ID!]) {\n  options: resources(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n    __typename\n  }\n}"
 
 
 class ListBackendsQuery(BaseModel):
@@ -1154,7 +1158,7 @@ class ListBackendsQuery(BaseModel):
         pagination: Optional[OffsetPaginationInput] = Field(default=None)
 
     class Meta:
-        document = "fragment ListBackend on Backend {\n  id\n  name\n}\n\nquery ListBackends($filters: BackendFilter, $pagination: OffsetPaginationInput) {\n  backends(filters: $filters, pagination: $pagination) {\n    ...ListBackend\n  }\n}"
+        document = "fragment ListBackend on Backend {\n  id\n  name\n  __typename\n}\n\nquery ListBackends($filters: BackendFilter, $pagination: OffsetPaginationInput) {\n  backends(filters: $filters, pagination: $pagination) {\n    ...ListBackend\n    __typename\n  }\n}"
 
 
 class GetBackendQuery(BaseModel):
@@ -1165,13 +1169,13 @@ class GetBackendQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment Backend on Backend {\n  id\n  name\n}\n\nquery GetBackend($id: ID!) {\n  backend(id: $id) {\n    ...Backend\n  }\n}"
+        document = "fragment Backend on Backend {\n  id\n  name\n  __typename\n}\n\nquery GetBackend($id: ID!) {\n  backend(id: $id) {\n    ...Backend\n    __typename\n  }\n}"
 
 
 class SearchBackendsQueryOptions(BaseModel):
     """A user of the bridge server. Maps to an authentikate user"""
 
-    typename: Optional[Literal["Backend"]] = Field(
+    typename: Literal["Backend"] = Field(
         alias="__typename", default="Backend", exclude=True
     )
     value: ID
@@ -1187,7 +1191,7 @@ class SearchBackendsQuery(BaseModel):
         values: Optional[List[ID]] = Field(default=None)
 
     class Meta:
-        document = "query SearchBackends($search: String, $values: [ID!]) {\n  options: backends(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n  }\n}"
+        document = "query SearchBackends($search: String, $values: [ID!]) {\n  options: backends(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n    __typename\n  }\n}"
 
 
 async def acreate_deployment(
@@ -1213,7 +1217,7 @@ async def acreate_deployment(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Deployment"""
+        CreateDeploymentMutationCreatedeployment"""
     return (
         await aexecute(
             CreateDeploymentMutation,
@@ -1252,7 +1256,7 @@ def create_deployment(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Deployment"""
+        CreateDeploymentMutationCreatedeployment"""
     return execute(
         CreateDeploymentMutation,
         {
@@ -1289,7 +1293,7 @@ async def acreate_pod(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Pod"""
+        CreatePodMutationCreatepod"""
     return (
         await aexecute(
             CreatePodMutation,
@@ -1328,7 +1332,7 @@ def create_pod(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Pod"""
+        CreatePodMutationCreatepod"""
     return execute(
         CreatePodMutation,
         {
@@ -1363,7 +1367,7 @@ async def aupdate_pod(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Pod"""
+        UpdatePodMutationUpdatepod"""
     return (
         await aexecute(
             UpdatePodMutation,
@@ -1399,7 +1403,7 @@ def update_pod(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Pod"""
+        UpdatePodMutationUpdatepod"""
     return execute(
         UpdatePodMutation,
         {"status": status, "instanceId": instance_id, "pod": pod, "localId": local_id},
@@ -1493,7 +1497,7 @@ async def acreate_app_image(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Release"""
+        CreateAppImageMutationCreateappimage"""
     return (
         await aexecute(CreateAppImageMutation, {"input": input}, rath=rath)
     ).create_app_image
@@ -1513,7 +1517,7 @@ def create_app_image(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Release"""
+        CreateAppImageMutationCreateappimage"""
     return execute(CreateAppImageMutation, {"input": input}, rath=rath).create_app_image
 
 
@@ -1534,7 +1538,7 @@ async def acreate_github_repo(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GithubRepo"""
+        CreateGithubRepoMutationCreategithubrepo"""
     return (
         await aexecute(
             CreateGithubRepoMutation,
@@ -1561,7 +1565,7 @@ def create_github_repo(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GithubRepo"""
+        CreateGithubRepoMutationCreategithubrepo"""
     return execute(
         CreateGithubRepoMutation,
         {"user": user, "repo": repo, "branch": branch, "name": name},
@@ -1590,7 +1594,7 @@ async def adeclare_resource(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Resource"""
+        DeclareResourceMutationDeclareresource"""
     return (
         await aexecute(
             DeclareResourceMutation,
@@ -1626,7 +1630,7 @@ def declare_resource(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Resource"""
+        DeclareResourceMutationDeclareresource"""
     return execute(
         DeclareResourceMutation,
         {
@@ -1655,7 +1659,7 @@ async def adeclare_backend(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Backend"""
+        DeclareBackendMutationDeclarebackend"""
     return (
         await aexecute(
             DeclareBackendMutation,
@@ -1681,7 +1685,7 @@ def declare_backend(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Backend"""
+        DeclareBackendMutationDeclarebackend"""
     return execute(
         DeclareBackendMutation,
         {"instanceId": instance_id, "kind": kind, "name": name},
@@ -1700,7 +1704,7 @@ async def alist_releases(rath: Optional[KabinetRath] = None) -> List[ListRelease
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListRelease]"""
+        List[ListReleasesQueryReleases]"""
     return (await aexecute(ListReleasesQuery, {}, rath=rath)).releases
 
 
@@ -1715,7 +1719,7 @@ def list_releases(rath: Optional[KabinetRath] = None) -> List[ListRelease]:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListRelease]"""
+        List[ListReleasesQueryReleases]"""
     return execute(ListReleasesQuery, {}, rath=rath).releases
 
 
@@ -1731,7 +1735,7 @@ async def aget_release(id: ID, rath: Optional[KabinetRath] = None) -> Release:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Release"""
+        GetReleaseQueryRelease"""
     return (await aexecute(GetReleaseQuery, {"id": id}, rath=rath)).release
 
 
@@ -1747,7 +1751,7 @@ def get_release(id: ID, rath: Optional[KabinetRath] = None) -> Release:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Release"""
+        GetReleaseQueryRelease"""
     return execute(GetReleaseQuery, {"id": id}, rath=rath).release
 
 
@@ -1811,7 +1815,7 @@ async def aget_deployment(id: ID, rath: Optional[KabinetRath] = None) -> Deploym
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Deployment"""
+        GetDeploymentQueryDeployment"""
     return (await aexecute(GetDeploymentQuery, {"id": id}, rath=rath)).deployment
 
 
@@ -1827,7 +1831,7 @@ def get_deployment(id: ID, rath: Optional[KabinetRath] = None) -> Deployment:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Deployment"""
+        GetDeploymentQueryDeployment"""
     return execute(GetDeploymentQuery, {"id": id}, rath=rath).deployment
 
 
@@ -1842,7 +1846,7 @@ async def alist_deployments(rath: Optional[KabinetRath] = None) -> List[ListDepl
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListDeployment]"""
+        List[ListDeploymentsQueryDeployments]"""
     return (await aexecute(ListDeploymentsQuery, {}, rath=rath)).deployments
 
 
@@ -1857,7 +1861,7 @@ def list_deployments(rath: Optional[KabinetRath] = None) -> List[ListDeployment]
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListDeployment]"""
+        List[ListDeploymentsQueryDeployments]"""
     return execute(ListDeploymentsQuery, {}, rath=rath).deployments
 
 
@@ -1920,7 +1924,7 @@ async def alist_pod(rath: Optional[KabinetRath] = None) -> List[ListPod]:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListPod]"""
+        List[ListPodQueryPods]"""
     return (await aexecute(ListPodQuery, {}, rath=rath)).pods
 
 
@@ -1935,7 +1939,7 @@ def list_pod(rath: Optional[KabinetRath] = None) -> List[ListPod]:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListPod]"""
+        List[ListPodQueryPods]"""
     return execute(ListPodQuery, {}, rath=rath).pods
 
 
@@ -1951,7 +1955,7 @@ async def aget_pod(id: ID, rath: Optional[KabinetRath] = None) -> Pod:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Pod"""
+        GetPodQueryPod"""
     return (await aexecute(GetPodQuery, {"id": id}, rath=rath)).pod
 
 
@@ -1967,7 +1971,7 @@ def get_pod(id: ID, rath: Optional[KabinetRath] = None) -> Pod:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Pod"""
+        GetPodQueryPod"""
     return execute(GetPodQuery, {"id": id}, rath=rath).pod
 
 
@@ -2040,7 +2044,7 @@ async def alist_definitions(rath: Optional[KabinetRath] = None) -> List[ListDefi
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListDefinition]"""
+        List[ListDefinitionsQueryDefinitions]"""
     return (await aexecute(ListDefinitionsQuery, {}, rath=rath)).definitions
 
 
@@ -2057,7 +2061,7 @@ def list_definitions(rath: Optional[KabinetRath] = None) -> List[ListDefinition]
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListDefinition]"""
+        List[ListDefinitionsQueryDefinitions]"""
     return execute(ListDefinitionsQuery, {}, rath=rath).definitions
 
 
@@ -2077,7 +2081,7 @@ async def aget_definition(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Definition"""
+        GetDefinitionQueryDefinition"""
     return (await aexecute(GetDefinitionQuery, {"hash": hash}, rath=rath)).definition
 
 
@@ -2097,7 +2101,7 @@ def get_definition(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Definition"""
+        GetDefinitionQueryDefinition"""
     return execute(GetDefinitionQuery, {"hash": hash}, rath=rath).definition
 
 
@@ -2213,7 +2217,7 @@ async def aget_flavour(id: ID, rath: Optional[KabinetRath] = None) -> Flavour:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Flavour"""
+        GetFlavourQueryFlavour"""
     return (await aexecute(GetFlavourQuery, {"id": id}, rath=rath)).flavour
 
 
@@ -2229,7 +2233,7 @@ def get_flavour(id: ID, rath: Optional[KabinetRath] = None) -> Flavour:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Flavour"""
+        GetFlavourQueryFlavour"""
     return execute(GetFlavourQuery, {"id": id}, rath=rath).flavour
 
 
@@ -2298,7 +2302,7 @@ async def alist_resources(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListResource]"""
+        List[ListResourcesQueryResources]"""
     return (
         await aexecute(
             ListResourcesQuery,
@@ -2325,7 +2329,7 @@ def list_resources(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListResource]"""
+        List[ListResourcesQueryResources]"""
     return execute(
         ListResourcesQuery, {"filters": filters, "pagination": pagination}, rath=rath
     ).resources
@@ -2343,7 +2347,7 @@ async def age_resource(id: ID, rath: Optional[KabinetRath] = None) -> Resource:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Resource"""
+        GeResourceQueryResource"""
     return (await aexecute(GeResourceQuery, {"id": id}, rath=rath)).resource
 
 
@@ -2359,7 +2363,7 @@ def ge_resource(id: ID, rath: Optional[KabinetRath] = None) -> Resource:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Resource"""
+        GeResourceQueryResource"""
     return execute(GeResourceQuery, {"id": id}, rath=rath).resource
 
 
@@ -2428,7 +2432,7 @@ async def alist_backends(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListBackend]"""
+        List[ListBackendsQueryBackends]"""
     return (
         await aexecute(
             ListBackendsQuery, {"filters": filters, "pagination": pagination}, rath=rath
@@ -2453,7 +2457,7 @@ def list_backends(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListBackend]"""
+        List[ListBackendsQueryBackends]"""
     return execute(
         ListBackendsQuery, {"filters": filters, "pagination": pagination}, rath=rath
     ).backends
@@ -2471,7 +2475,7 @@ async def aget_backend(id: ID, rath: Optional[KabinetRath] = None) -> Backend:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Backend"""
+        GetBackendQueryBackend"""
     return (await aexecute(GetBackendQuery, {"id": id}, rath=rath)).backend
 
 
@@ -2487,7 +2491,7 @@ def get_backend(id: ID, rath: Optional[KabinetRath] = None) -> Backend:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Backend"""
+        GetBackendQueryBackend"""
     return execute(GetBackendQuery, {"id": id}, rath=rath).backend
 
 
@@ -2545,8 +2549,5 @@ BackendFilter.model_rebuild()
 ChildPortInput.model_rebuild()
 DefinitionInput.model_rebuild()
 InspectionInput.model_rebuild()
-ListRelease.model_rebuild()
-PodDeployment.model_rebuild()
 PortInput.model_rebuild()
-Release.model_rebuild()
 ResourceFilter.model_rebuild()

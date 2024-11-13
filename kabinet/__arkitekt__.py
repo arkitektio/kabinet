@@ -1,3 +1,5 @@
+import json
+import os
 from kabinet.kabinet import Kabinet
 from kabinet.rath import KabinetLinkComposition, KabinetRath
 from rath.links.split import SplitLink
@@ -11,19 +13,29 @@ from fakts_next import Fakts
 from arkitekt_next.base_models import Manifest
 
 from arkitekt_next.service_registry import (
+    BaseArkitektService,
     Params,
 )
 from arkitekt_next.base_models import Requirement
 
 
-def init_services(service_builder_registry):
-
-    class ArkitektNextKabinet(Kabinet):
+class ArkitektNextKabinet(Kabinet):
         rath: KabinetRath
 
-    def build_arkitekt_next_fluss(
-        fakts: Fakts, herre: Herre, params: Params, manifest: Manifest
-    ):
+
+
+def build_relative_path(*path: str) -> str:
+    return os.path.join(os.path.dirname(__file__), *path)
+
+
+
+class KabinetService(BaseArkitektService):
+
+
+    def get_service_name(self):
+        return "kabinet"
+
+    def build_service(self, fakts: Fakts, herre: Herre, params: Params, manifest: Manifest):
         return ArkitektNextKabinet(
             rath=KabinetRath(
                 link=KabinetLinkComposition(
@@ -43,12 +55,27 @@ def init_services(service_builder_registry):
             )
         )
 
-    service_builder_registry.register(
-        "kabinet",
-        build_arkitekt_next_fluss,
-        Requirement(
-            key="kabinet",
-            service="live.arkitekt.kabinet",
-            description="An instance of ArkitektNext Kabinet to retrieve nodes from",
+    def get_requirements(self):
+        return [
+            Requirement(
+            key="kraph",
+            service="live.arkitekt.kraph",
+            description="An instance of ArkitektNext kraph to relate entities",
         ),
-    )
+        ]
+
+    def get_graphql_schema(self):
+        schema_graphql_path = build_relative_path("api", "schema.graphql")
+        with open(schema_graphql_path) as f:
+            return f.read()
+        
+    def get_turms_project(self):
+        turms_prject = build_relative_path("api", "project.json")
+        with open(turms_prject) as f:
+            return json.loads(f.read())
+
+
+
+
+def build_services():
+    return [KabinetService()]
