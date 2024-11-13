@@ -58,9 +58,9 @@ class KabinetService(BaseArkitektService):
     def get_requirements(self):
         return [
             Requirement(
-            key="kraph",
-            service="live.arkitekt.kraph",
-            description="An instance of ArkitektNext kraph to relate entities",
+            key="kabinet",
+            service="live.arkitekt.kabinet",
+            description="An instance of ArkitektNext kabinet to relate entities",
         ),
         ]
 
