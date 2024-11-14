@@ -1,17 +1,5 @@
-mutation DeclareResource(
-  $backend: ID!
-  $name: String!
-  $localId: String!
-  $qualifiers: [QualifierInput!]
-) {
-  declareResource(
-    input: {
-      backend: $backend
-      name: $name
-      localId: $localId
-      qualifiers: $qualifiers
-    }
-  ) {
+mutation DeclareResource($input: DeclareResourceInput!) {
+  declareResource(input: $input) {
     ...Resource
   }
 }

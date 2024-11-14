@@ -190,7 +190,7 @@ input CreateDeploymentInput {
 }
 
 """Create a new Github repository input"""
-input CreateGithupRepoInput {
+input CreateGithubRepoInput {
   name: String = null
   user: String = null
   branch: String = null
@@ -542,7 +542,7 @@ type Mutation {
   createAppImage(input: AppImageInput!): Release!
 
   """Create a new Github repository on a bridge server"""
-  createGithubRepo(input: CreateGithupRepoInput!): GithubRepo!
+  createGithubRepo(input: CreateGithubRepoInput!): GithubRepo!
 
   """Create a new dask cluster on a bridge server"""
   createDeployment(input: CreateDeploymentInput!): Deployment!

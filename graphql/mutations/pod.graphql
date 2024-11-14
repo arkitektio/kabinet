@@ -1,47 +1,21 @@
-mutation CreatePod(
-  $deployment: ID!
-  $instanceId: String!
-  $localId: ID!
-  $resource: ID
-  $clientId: String
-) {
-  createPod(
-    input: {
-      deployment: $deployment
-      instanceId: $instanceId
-      localId: $localId
-      resource: $resource
-      clientId: $clientId
-    }
-  ) {
+mutation CreatePod($input: CreatePodInput!) {
+  createPod(input: $input) {
     ...Pod
   }
 }
 
-mutation UpdatePod(
-  $status: PodStatus!
-  $instanceId: String!
-  $pod: ID
-  $localId: ID
-) {
-  updatePod(
-    input: {
-      pod: $pod
-      localId: $localId
-      status: $status
-      instanceId: $instanceId
-    }
-  ) {
+mutation UpdatePod($input: UpdatePodInput!) {
+  updatePod(input: $input) {
     ...Pod
   }
 }
 
-mutation DeletePod($id: ID!) {
-  deletePod(input: { id: $id })
+mutation DeletePod($input: DeletePodInput!) {
+  deletePod(input: $input)
 }
 
-mutation DumpLogs($pod: ID!, $logs: String!) {
-  dumpLogs(input: { pod: $pod, logs: $logs }) {
+mutation DumpLogs($input: DumpLogsInput!) {
+  dumpLogs(input: $input) {
     pod {
       id
     }

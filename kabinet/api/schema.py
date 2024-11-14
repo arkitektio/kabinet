@@ -1,11 +1,11 @@
-from typing import Optional, List, Annotated, Union, Tuple, Any, Literal
+from pydantic import ConfigDict, BaseModel, Field
+from typing import Optional, List, Union, Literal, Tuple, Any, Annotated, Iterable
 from datetime import datetime
-from kabinet.funcs import execute, aexecute
-from rekuest_next.scalars import Identifier, NodeHash, ValidatorFunction, SearchQuery
-from kabinet.rath import KabinetRath
-from pydantic import ConfigDict, Field, BaseModel
-from rath.scalars import ID
+from rekuest_next.scalars import Identifier, ValidatorFunction, NodeHash, SearchQuery
+from kabinet.funcs import aexecute, execute
 from enum import Enum
+from kabinet.rath import KabinetRath
+from rath.scalars import ID
 
 
 class AssignWidgetKind(str, Enum):
@@ -183,6 +183,59 @@ class ChoiceInput(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
 
+class CreateDeploymentInput(BaseModel):
+    """Create a new Github repository input"""
+
+    instance_id: str = Field(alias="instanceId")
+    local_id: ID = Field(alias="localId")
+    flavour: ID
+    last_pulled: Optional[datetime] = Field(alias="lastPulled", default=None)
+    secret_params: Optional[Any] = Field(alias="secretParams", default=None)
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class CreateGithubRepoInput(BaseModel):
+    """Create a new Github repository input"""
+
+    name: Optional[str] = None
+    user: Optional[str] = None
+    branch: Optional[str] = None
+    repo: Optional[str] = None
+    identifier: Optional[str] = None
+    auto_scan: Optional[bool] = Field(alias="autoScan", default=None)
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class CreatePodInput(BaseModel):
+    """Create a new Github repository input"""
+
+    deployment: ID
+    local_id: ID = Field(alias="localId")
+    resource: Optional[ID] = None
+    instance_id: str = Field(alias="instanceId")
+    client_id: Optional[str] = Field(alias="clientId", default=None)
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class DeclareBackendInput(BaseModel):
+    """Create a new Github repository input"""
+
+    instance_id: str = Field(alias="instanceId")
+    name: str
+    kind: str
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class DeclareResourceInput(BaseModel):
+    """Create a resource"""
+
+    backend: ID
+    name: Optional[str] = None
+    local_id: str = Field(alias="localId")
+    qualifiers: Optional[Tuple["QualifierInput", ...]] = None
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
 class DefinitionInput(BaseModel):
     description: Optional[str] = None
     collections: Tuple[str, ...]
@@ -195,6 +248,11 @@ class DefinitionInput(BaseModel):
     is_test_for: Tuple[str, ...] = Field(alias="isTestFor")
     interfaces: Tuple[str, ...]
     is_dev: bool = Field(alias="isDev")
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class DeletePodInput(BaseModel):
+    id: ID
     model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
 
@@ -218,6 +276,14 @@ class DeviceFeature(BaseModel):
 class DockerImageInput(BaseModel):
     image_string: str = Field(alias="imageString")
     build_at: datetime = Field(alias="buildAt")
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
+class DumpLogsInput(BaseModel):
+    """Create a new Github repository input"""
+
+    pod: ID
+    logs: str
     model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
 
@@ -352,6 +418,16 @@ class TemplateInput(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
 
 
+class UpdatePodInput(BaseModel):
+    """Create a new Github repository input"""
+
+    pod: Optional[ID] = None
+    local_id: Optional[ID] = Field(alias="localId", default=None)
+    status: PodStatus
+    instance_id: str = Field(alias="instanceId")
+    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+
+
 class ValidatorInput(BaseModel):
     function: ValidatorFunction
     dependencies: Optional[Tuple[str, ...]] = None
@@ -361,6 +437,8 @@ class ValidatorInput(BaseModel):
 
 
 class Deployment(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
     typename: Literal["Deployment"] = Field(
         alias="__typename", default="Deployment", exclude=True
     )
@@ -370,6 +448,8 @@ class Deployment(BaseModel):
 
 
 class ListDeployment(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
     typename: Literal["Deployment"] = Field(
         alias="__typename", default="Deployment", exclude=True
     )
@@ -404,6 +484,8 @@ class GithubRepoFlavours(BaseModel):
 
 
 class GithubRepo(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
     typename: Literal["GithubRepo"] = Field(
         alias="__typename", default="GithubRepo", exclude=True
     )
@@ -416,6 +498,8 @@ class GithubRepo(BaseModel):
 
 
 class ListPod(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
     typename: Literal["Pod"] = Field(alias="__typename", default="Pod", exclude=True)
     id: ID
     pod_id: str = Field(alias="podId")
@@ -423,6 +507,8 @@ class ListPod(BaseModel):
 
 
 class CudaSelector(BaseModel):
+    """A selector is a way to select a release"""
+
     typename: Literal["CudaSelector"] = Field(
         alias="__typename", default="CudaSelector", exclude=True
     )
@@ -434,6 +520,8 @@ class CudaSelector(BaseModel):
 
 
 class RocmSelector(BaseModel):
+    """A selector is a way to select a release"""
+
     typename: Literal["RocmSelector"] = Field(
         alias="__typename", default="RocmSelector", exclude=True
     )
@@ -463,6 +551,8 @@ class ResourcePods(BaseModel):
 
 
 class Resource(BaseModel):
+    """A resource on a backend. Resource define allocated resources on a backend. E.g a computational node"""
+
     typename: Literal["Resource"] = Field(
         alias="__typename", default="Resource", exclude=True
     )
@@ -486,6 +576,8 @@ class ListResourceBackend(BaseModel):
 
 
 class ListResource(BaseModel):
+    """A resource on a backend. Resource define allocated resources on a backend. E.g a computational node"""
+
     typename: Literal["Resource"] = Field(
         alias="__typename", default="Resource", exclude=True
     )
@@ -497,6 +589,10 @@ class ListResource(BaseModel):
 
 
 class ListDefinition(BaseModel):
+    """Nodes are abstraction of RPC Tasks. They provide a common API to deal with creating tasks.
+
+    See online Documentation"""
+
     typename: Literal["Definition"] = Field(
         alias="__typename", default="Definition", exclude=True
     )
@@ -511,6 +607,10 @@ class ListDefinition(BaseModel):
 
 
 class Definition(BaseModel):
+    """Nodes are abstraction of RPC Tasks. They provide a common API to deal with creating tasks.
+
+    See online Documentation"""
+
     typename: Literal["Definition"] = Field(
         alias="__typename", default="Definition", exclude=True
     )
@@ -521,6 +621,8 @@ class Definition(BaseModel):
 
 
 class Backend(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
     typename: Literal["Backend"] = Field(
         alias="__typename", default="Backend", exclude=True
     )
@@ -530,6 +632,8 @@ class Backend(BaseModel):
 
 
 class ListBackend(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
     typename: Literal["Backend"] = Field(
         alias="__typename", default="Backend", exclude=True
     )
@@ -602,6 +706,8 @@ class ListFlavourSelectorsBaseRocmSelector(
 
 
 class ListFlavour(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
     typename: Literal["Flavour"] = Field(
         alias="__typename", default="Flavour", exclude=True
     )
@@ -634,6 +740,8 @@ class ReleaseApp(BaseModel):
 
 
 class Release(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
     typename: Literal["Release"] = Field(
         alias="__typename", default="Release", exclude=True
     )
@@ -658,6 +766,8 @@ class ListReleaseApp(BaseModel):
 
 
 class ListRelease(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
     typename: Literal["Release"] = Field(
         alias="__typename", default="Release", exclude=True
     )
@@ -701,6 +811,8 @@ class FlavourRelease(BaseModel):
 
 
 class Flavour(ListFlavour, BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
     typename: Literal["Flavour"] = Field(
         alias="__typename", default="Flavour", exclude=True
     )
@@ -719,6 +831,8 @@ class PodDeployment(BaseModel):
 
 
 class Pod(BaseModel):
+    """A user of the bridge server. Maps to an authentikate user"""
+
     typename: Literal["Pod"] = Field(alias="__typename", default="Pod", exclude=True)
     id: ID
     pod_id: str = Field(alias="podId")
@@ -731,14 +845,10 @@ class CreateDeploymentMutation(BaseModel):
     "Create a new dask cluster on a bridge server"
 
     class Arguments(BaseModel):
-        flavour: ID
-        instance_id: str = Field(alias="instanceId")
-        local_id: ID = Field(alias="localId")
-        last_pulled: Optional[datetime] = Field(alias="lastPulled", default=None)
-        secret_params: Optional[Any] = Field(alias="secretParams", default=None)
+        input: CreateDeploymentInput
 
     class Meta:
-        document = "fragment Deployment on Deployment {\n  id\n  localId\n  __typename\n}\n\nmutation CreateDeployment($flavour: ID!, $instanceId: String!, $localId: ID!, $lastPulled: DateTime, $secretParams: UntypedParams) {\n  createDeployment(\n    input: {flavour: $flavour, lastPulled: $lastPulled, secretParams: $secretParams, instanceId: $instanceId, localId: $localId}\n  ) {\n    ...Deployment\n    __typename\n  }\n}"
+        document = "fragment Deployment on Deployment {\n  id\n  localId\n  __typename\n}\n\nmutation CreateDeployment($input: CreateDeploymentInput!) {\n  createDeployment(input: $input) {\n    ...Deployment\n    __typename\n  }\n}"
 
 
 class CreatePodMutation(BaseModel):
@@ -746,14 +856,10 @@ class CreatePodMutation(BaseModel):
     "Create a new dask cluster on a bridge server"
 
     class Arguments(BaseModel):
-        deployment: ID
-        instance_id: str = Field(alias="instanceId")
-        local_id: ID = Field(alias="localId")
-        resource: Optional[ID] = Field(default=None)
-        client_id: Optional[str] = Field(alias="clientId", default=None)
+        input: CreatePodInput
 
     class Meta:
-        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n      __typename\n    }\n    scopes\n    colour\n    description\n    __typename\n  }\n  __typename\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n\nmutation CreatePod($deployment: ID!, $instanceId: String!, $localId: ID!, $resource: ID, $clientId: String) {\n  createPod(\n    input: {deployment: $deployment, instanceId: $instanceId, localId: $localId, resource: $resource, clientId: $clientId}\n  ) {\n    ...Pod\n    __typename\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n      __typename\n    }\n    scopes\n    colour\n    description\n    __typename\n  }\n  __typename\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n\nmutation CreatePod($input: CreatePodInput!) {\n  createPod(input: $input) {\n    ...Pod\n    __typename\n  }\n}"
 
 
 class UpdatePodMutation(BaseModel):
@@ -761,13 +867,10 @@ class UpdatePodMutation(BaseModel):
     "Create a new dask cluster on a bridge server"
 
     class Arguments(BaseModel):
-        status: PodStatus
-        instance_id: str = Field(alias="instanceId")
-        pod: Optional[ID] = Field(default=None)
-        local_id: Optional[ID] = Field(alias="localId", default=None)
+        input: UpdatePodInput
 
     class Meta:
-        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n      __typename\n    }\n    scopes\n    colour\n    description\n    __typename\n  }\n  __typename\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n\nmutation UpdatePod($status: PodStatus!, $instanceId: String!, $pod: ID, $localId: ID) {\n  updatePod(\n    input: {pod: $pod, localId: $localId, status: $status, instanceId: $instanceId}\n  ) {\n    ...Pod\n    __typename\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n      __typename\n    }\n    scopes\n    colour\n    description\n    __typename\n  }\n  __typename\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  deployment {\n    flavour {\n      ...Flavour\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n\nmutation UpdatePod($input: UpdatePodInput!) {\n  updatePod(input: $input) {\n    ...Pod\n    __typename\n  }\n}"
 
 
 class DeletePodMutation(BaseModel):
@@ -775,10 +878,10 @@ class DeletePodMutation(BaseModel):
     "Create a new dask cluster on a bridge server"
 
     class Arguments(BaseModel):
-        id: ID
+        input: DeletePodInput
 
     class Meta:
-        document = "mutation DeletePod($id: ID!) {\n  deletePod(input: {id: $id})\n}"
+        document = "mutation DeletePod($input: DeletePodInput!) {\n  deletePod(input: $input)\n}"
 
 
 class DumpLogsMutationDumplogsPod(BaseModel):
@@ -805,11 +908,10 @@ class DumpLogsMutation(BaseModel):
     "Create a new dask cluster on a bridge server"
 
     class Arguments(BaseModel):
-        pod: ID
-        logs: str
+        input: DumpLogsInput
 
     class Meta:
-        document = "mutation DumpLogs($pod: ID!, $logs: String!) {\n  dumpLogs(input: {pod: $pod, logs: $logs}) {\n    pod {\n      id\n      __typename\n    }\n    logs\n    __typename\n  }\n}"
+        document = "mutation DumpLogs($input: DumpLogsInput!) {\n  dumpLogs(input: $input) {\n    pod {\n      id\n      __typename\n    }\n    logs\n    __typename\n  }\n}"
 
 
 class CreateAppImageMutation(BaseModel):
@@ -828,13 +930,10 @@ class CreateGithubRepoMutation(BaseModel):
     "Create a new Github repository on a bridge server"
 
     class Arguments(BaseModel):
-        user: str
-        repo: str
-        branch: str
-        name: str
+        input: CreateGithubRepoInput
 
     class Meta:
-        document = "fragment GithubRepo on GithubRepo {\n  id\n  branch\n  user\n  repo\n  flavours {\n    definitions {\n      id\n      hash\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n\nmutation CreateGithubRepo($user: String!, $repo: String!, $branch: String!, $name: String!) {\n  createGithubRepo(\n    input: {user: $user, repo: $repo, branch: $branch, name: $name}\n  ) {\n    ...GithubRepo\n    __typename\n  }\n}"
+        document = "fragment GithubRepo on GithubRepo {\n  id\n  branch\n  user\n  repo\n  flavours {\n    definitions {\n      id\n      hash\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n\nmutation CreateGithubRepo($input: CreateGithubRepoInput!) {\n  createGithubRepo(input: $input) {\n    ...GithubRepo\n    __typename\n  }\n}"
 
 
 class DeclareResourceMutation(BaseModel):
@@ -842,13 +941,10 @@ class DeclareResourceMutation(BaseModel):
     "Create a new resource for your backend"
 
     class Arguments(BaseModel):
-        backend: ID
-        name: str
-        local_id: str = Field(alias="localId")
-        qualifiers: Optional[List[QualifierInput]] = Field(default=None)
+        input: DeclareResourceInput
 
     class Meta:
-        document = "fragment Resource on Resource {\n  id\n  name\n  qualifiers\n  backend {\n    id\n    name\n    __typename\n  }\n  pods {\n    id\n    podId\n    __typename\n  }\n  __typename\n}\n\nmutation DeclareResource($backend: ID!, $name: String!, $localId: String!, $qualifiers: [QualifierInput!]) {\n  declareResource(\n    input: {backend: $backend, name: $name, localId: $localId, qualifiers: $qualifiers}\n  ) {\n    ...Resource\n    __typename\n  }\n}"
+        document = "fragment Resource on Resource {\n  id\n  name\n  qualifiers\n  backend {\n    id\n    name\n    __typename\n  }\n  pods {\n    id\n    podId\n    __typename\n  }\n  __typename\n}\n\nmutation DeclareResource($input: DeclareResourceInput!) {\n  declareResource(input: $input) {\n    ...Resource\n    __typename\n  }\n}"
 
 
 class DeclareBackendMutation(BaseModel):
@@ -856,12 +952,10 @@ class DeclareBackendMutation(BaseModel):
     "Create a new dask cluster on a bridge server"
 
     class Arguments(BaseModel):
-        instance_id: str = Field(alias="instanceId")
-        kind: str
-        name: str
+        input: DeclareBackendInput
 
     class Meta:
-        document = "fragment Backend on Backend {\n  id\n  name\n  __typename\n}\n\nmutation DeclareBackend($instanceId: String!, $kind: String!, $name: String!) {\n  declareBackend(input: {kind: $kind, instanceId: $instanceId, name: $name}) {\n    ...Backend\n    __typename\n  }\n}"
+        document = "fragment Backend on Backend {\n  id\n  name\n  __typename\n}\n\nmutation DeclareBackend($input: DeclareBackendInput!) {\n  declareBackend(input: $input) {\n    ...Backend\n    __typename\n  }\n}"
 
 
 class ListReleasesQuery(BaseModel):
@@ -1195,38 +1289,38 @@ class SearchBackendsQuery(BaseModel):
 
 
 async def acreate_deployment(
-    flavour: ID,
     instance_id: str,
     local_id: ID,
+    flavour: ID,
     last_pulled: Optional[datetime] = None,
     secret_params: Optional[Any] = None,
     rath: Optional[KabinetRath] = None,
 ) -> Deployment:
     """CreateDeployment
 
-
-     createDeployment: A user of the bridge server. Maps to an authentikate user
-
+    Create a new dask cluster on a bridge server
 
     Arguments:
-        flavour (ID): flavour
-        instance_id (str): instanceId
-        local_id (ID): localId
-        last_pulled (Optional[datetime], optional): lastPulled.
-        secret_params (Optional[Any], optional): secretParams.
+        instance_id: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
+        local_id: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
+        flavour: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
+        last_pulled: Date with time (isoformat)
+        secret_params: UntypedParams represents an untyped options object returned by the Dask Gateway API.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        CreateDeploymentMutationCreatedeployment"""
+        Deployment"""
     return (
         await aexecute(
             CreateDeploymentMutation,
             {
-                "flavour": flavour,
-                "instanceId": instance_id,
-                "localId": local_id,
-                "lastPulled": last_pulled,
-                "secretParams": secret_params,
+                "input": {
+                    "instance_id": instance_id,
+                    "local_id": local_id,
+                    "flavour": flavour,
+                    "last_pulled": last_pulled,
+                    "secret_params": secret_params,
+                }
             },
             rath=rath,
         )
@@ -1234,37 +1328,37 @@ async def acreate_deployment(
 
 
 def create_deployment(
-    flavour: ID,
     instance_id: str,
     local_id: ID,
+    flavour: ID,
     last_pulled: Optional[datetime] = None,
     secret_params: Optional[Any] = None,
     rath: Optional[KabinetRath] = None,
 ) -> Deployment:
     """CreateDeployment
 
-
-     createDeployment: A user of the bridge server. Maps to an authentikate user
-
+    Create a new dask cluster on a bridge server
 
     Arguments:
-        flavour (ID): flavour
-        instance_id (str): instanceId
-        local_id (ID): localId
-        last_pulled (Optional[datetime], optional): lastPulled.
-        secret_params (Optional[Any], optional): secretParams.
+        instance_id: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
+        local_id: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
+        flavour: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
+        last_pulled: Date with time (isoformat)
+        secret_params: UntypedParams represents an untyped options object returned by the Dask Gateway API.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        CreateDeploymentMutationCreatedeployment"""
+        Deployment"""
     return execute(
         CreateDeploymentMutation,
         {
-            "flavour": flavour,
-            "instanceId": instance_id,
-            "localId": local_id,
-            "lastPulled": last_pulled,
-            "secretParams": secret_params,
+            "input": {
+                "instance_id": instance_id,
+                "local_id": local_id,
+                "flavour": flavour,
+                "last_pulled": last_pulled,
+                "secret_params": secret_params,
+            }
         },
         rath=rath,
     ).create_deployment
@@ -1272,37 +1366,37 @@ def create_deployment(
 
 async def acreate_pod(
     deployment: ID,
-    instance_id: str,
     local_id: ID,
+    instance_id: str,
     resource: Optional[ID] = None,
     client_id: Optional[str] = None,
     rath: Optional[KabinetRath] = None,
 ) -> Pod:
     """CreatePod
 
-
-     createPod: A user of the bridge server. Maps to an authentikate user
-
+    Create a new dask cluster on a bridge server
 
     Arguments:
-        deployment (ID): deployment
-        instance_id (str): instanceId
-        local_id (ID): localId
-        resource (Optional[ID], optional): resource.
-        client_id (Optional[str], optional): clientId.
+        deployment: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
+        local_id: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
+        resource: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
+        instance_id: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
+        client_id: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        CreatePodMutationCreatepod"""
+        Pod"""
     return (
         await aexecute(
             CreatePodMutation,
             {
-                "deployment": deployment,
-                "instanceId": instance_id,
-                "localId": local_id,
-                "resource": resource,
-                "clientId": client_id,
+                "input": {
+                    "deployment": deployment,
+                    "local_id": local_id,
+                    "resource": resource,
+                    "instance_id": instance_id,
+                    "client_id": client_id,
+                }
             },
             rath=rath,
         )
@@ -1311,36 +1405,36 @@ async def acreate_pod(
 
 def create_pod(
     deployment: ID,
-    instance_id: str,
     local_id: ID,
+    instance_id: str,
     resource: Optional[ID] = None,
     client_id: Optional[str] = None,
     rath: Optional[KabinetRath] = None,
 ) -> Pod:
     """CreatePod
 
-
-     createPod: A user of the bridge server. Maps to an authentikate user
-
+    Create a new dask cluster on a bridge server
 
     Arguments:
-        deployment (ID): deployment
-        instance_id (str): instanceId
-        local_id (ID): localId
-        resource (Optional[ID], optional): resource.
-        client_id (Optional[str], optional): clientId.
+        deployment: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
+        local_id: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
+        resource: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
+        instance_id: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
+        client_id: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        CreatePodMutationCreatepod"""
+        Pod"""
     return execute(
         CreatePodMutation,
         {
-            "deployment": deployment,
-            "instanceId": instance_id,
-            "localId": local_id,
-            "resource": resource,
-            "clientId": client_id,
+            "input": {
+                "deployment": deployment,
+                "local_id": local_id,
+                "resource": resource,
+                "instance_id": instance_id,
+                "client_id": client_id,
+            }
         },
         rath=rath,
     ).create_pod
@@ -1355,27 +1449,27 @@ async def aupdate_pod(
 ) -> Pod:
     """UpdatePod
 
-
-     updatePod: A user of the bridge server. Maps to an authentikate user
-
+    Create a new dask cluster on a bridge server
 
     Arguments:
-        status (PodStatus): status
-        instance_id (str): instanceId
-        pod (Optional[ID], optional): pod.
-        local_id (Optional[ID], optional): localId.
+        pod: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
+        local_id: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
+        status: PodStatus (required)
+        instance_id: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        UpdatePodMutationUpdatepod"""
+        Pod"""
     return (
         await aexecute(
             UpdatePodMutation,
             {
-                "status": status,
-                "instanceId": instance_id,
-                "pod": pod,
-                "localId": local_id,
+                "input": {
+                    "pod": pod,
+                    "local_id": local_id,
+                    "status": status,
+                    "instance_id": instance_id,
+                }
             },
             rath=rath,
         )
@@ -1391,22 +1485,27 @@ def update_pod(
 ) -> Pod:
     """UpdatePod
 
-
-     updatePod: A user of the bridge server. Maps to an authentikate user
-
+    Create a new dask cluster on a bridge server
 
     Arguments:
-        status (PodStatus): status
-        instance_id (str): instanceId
-        pod (Optional[ID], optional): pod.
-        local_id (Optional[ID], optional): localId.
+        pod: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
+        local_id: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
+        status: PodStatus (required)
+        instance_id: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        UpdatePodMutationUpdatepod"""
+        Pod"""
     return execute(
         UpdatePodMutation,
-        {"status": status, "instanceId": instance_id, "pod": pod, "localId": local_id},
+        {
+            "input": {
+                "pod": pod,
+                "local_id": local_id,
+                "status": status,
+                "instance_id": instance_id,
+            }
+        },
         rath=rath,
     ).update_pod
 
@@ -1414,33 +1513,31 @@ def update_pod(
 async def adelete_pod(id: ID, rath: Optional[KabinetRath] = None) -> ID:
     """DeletePod
 
-
-     deletePod: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
-
+    Create a new dask cluster on a bridge server
 
     Arguments:
-        id (ID): id
+        id: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
         ID"""
-    return (await aexecute(DeletePodMutation, {"id": id}, rath=rath)).delete_pod
+    return (
+        await aexecute(DeletePodMutation, {"input": {"id": id}}, rath=rath)
+    ).delete_pod
 
 
 def delete_pod(id: ID, rath: Optional[KabinetRath] = None) -> ID:
     """DeletePod
 
-
-     deletePod: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
-
+    Create a new dask cluster on a bridge server
 
     Arguments:
-        id (ID): id
+        id: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
         ID"""
-    return execute(DeletePodMutation, {"id": id}, rath=rath).delete_pod
+    return execute(DeletePodMutation, {"input": {"id": id}}, rath=rath).delete_pod
 
 
 async def adump_logs(
@@ -1448,19 +1545,19 @@ async def adump_logs(
 ) -> DumpLogsMutationDumplogs:
     """DumpLogs
 
-
-     dumpLogs: The logs of a pod
-
+    Create a new dask cluster on a bridge server
 
     Arguments:
-        pod (ID): pod
-        logs (str): logs
+        pod: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
+        logs: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
         DumpLogsMutationDumplogs"""
     return (
-        await aexecute(DumpLogsMutation, {"pod": pod, "logs": logs}, rath=rath)
+        await aexecute(
+            DumpLogsMutation, {"input": {"pod": pod, "logs": logs}}, rath=rath
+        )
     ).dump_logs
 
 
@@ -1469,140 +1566,214 @@ def dump_logs(
 ) -> DumpLogsMutationDumplogs:
     """DumpLogs
 
-
-     dumpLogs: The logs of a pod
-
+    Create a new dask cluster on a bridge server
 
     Arguments:
-        pod (ID): pod
-        logs (str): logs
+        pod: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
+        logs: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
         DumpLogsMutationDumplogs"""
-    return execute(DumpLogsMutation, {"pod": pod, "logs": logs}, rath=rath).dump_logs
+    return execute(
+        DumpLogsMutation, {"input": {"pod": pod, "logs": logs}}, rath=rath
+    ).dump_logs
 
 
 async def acreate_app_image(
-    input: AppImageInput, rath: Optional[KabinetRath] = None
+    manifest: ManifestInput,
+    selectors: Iterable[SelectorInput],
+    app_image_id: str,
+    inspection: InspectionInput,
+    image: DockerImageInput,
+    flavour_name: Optional[str] = None,
+    rath: Optional[KabinetRath] = None,
 ) -> Release:
     """CreateAppImage
 
-
-     createAppImage: A user of the bridge server. Maps to an authentikate user
-
+    Create a new release
 
     Arguments:
-        input (AppImageInput): input
+        flavour_name: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+        manifest:  (required)
+        selectors:  (required) (list) (required)
+        app_image_id: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
+        inspection:  (required)
+        image:  (required)
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        CreateAppImageMutationCreateappimage"""
+        Release"""
     return (
-        await aexecute(CreateAppImageMutation, {"input": input}, rath=rath)
+        await aexecute(
+            CreateAppImageMutation,
+            {
+                "input": {
+                    "flavour_name": flavour_name,
+                    "manifest": manifest,
+                    "selectors": selectors,
+                    "app_image_id": app_image_id,
+                    "inspection": inspection,
+                    "image": image,
+                }
+            },
+            rath=rath,
+        )
     ).create_app_image
 
 
 def create_app_image(
-    input: AppImageInput, rath: Optional[KabinetRath] = None
+    manifest: ManifestInput,
+    selectors: Iterable[SelectorInput],
+    app_image_id: str,
+    inspection: InspectionInput,
+    image: DockerImageInput,
+    flavour_name: Optional[str] = None,
+    rath: Optional[KabinetRath] = None,
 ) -> Release:
     """CreateAppImage
 
-
-     createAppImage: A user of the bridge server. Maps to an authentikate user
-
+    Create a new release
 
     Arguments:
-        input (AppImageInput): input
+        flavour_name: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+        manifest:  (required)
+        selectors:  (required) (list) (required)
+        app_image_id: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
+        inspection:  (required)
+        image:  (required)
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        CreateAppImageMutationCreateappimage"""
-    return execute(CreateAppImageMutation, {"input": input}, rath=rath).create_app_image
+        Release"""
+    return execute(
+        CreateAppImageMutation,
+        {
+            "input": {
+                "flavour_name": flavour_name,
+                "manifest": manifest,
+                "selectors": selectors,
+                "app_image_id": app_image_id,
+                "inspection": inspection,
+                "image": image,
+            }
+        },
+        rath=rath,
+    ).create_app_image
 
 
 async def acreate_github_repo(
-    user: str, repo: str, branch: str, name: str, rath: Optional[KabinetRath] = None
+    name: Optional[str] = None,
+    user: Optional[str] = None,
+    branch: Optional[str] = None,
+    repo: Optional[str] = None,
+    identifier: Optional[str] = None,
+    auto_scan: Optional[bool] = True,
+    rath: Optional[KabinetRath] = None,
 ) -> GithubRepo:
     """CreateGithubRepo
 
-
-     createGithubRepo: A user of the bridge server. Maps to an authentikate user
-
+    Create a new Github repository on a bridge server
 
     Arguments:
-        user (str): user
-        repo (str): repo
-        branch (str): branch
-        name (str): name
+        name: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+        user: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+        branch: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+        repo: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+        identifier: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+        auto_scan: The `Boolean` scalar type represents `true` or `false`.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        CreateGithubRepoMutationCreategithubrepo"""
+        GithubRepo"""
     return (
         await aexecute(
             CreateGithubRepoMutation,
-            {"user": user, "repo": repo, "branch": branch, "name": name},
+            {
+                "input": {
+                    "name": name,
+                    "user": user,
+                    "branch": branch,
+                    "repo": repo,
+                    "identifier": identifier,
+                    "auto_scan": auto_scan,
+                }
+            },
             rath=rath,
         )
     ).create_github_repo
 
 
 def create_github_repo(
-    user: str, repo: str, branch: str, name: str, rath: Optional[KabinetRath] = None
+    name: Optional[str] = None,
+    user: Optional[str] = None,
+    branch: Optional[str] = None,
+    repo: Optional[str] = None,
+    identifier: Optional[str] = None,
+    auto_scan: Optional[bool] = True,
+    rath: Optional[KabinetRath] = None,
 ) -> GithubRepo:
     """CreateGithubRepo
 
-
-     createGithubRepo: A user of the bridge server. Maps to an authentikate user
-
+    Create a new Github repository on a bridge server
 
     Arguments:
-        user (str): user
-        repo (str): repo
-        branch (str): branch
-        name (str): name
+        name: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+        user: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+        branch: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+        repo: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+        identifier: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+        auto_scan: The `Boolean` scalar type represents `true` or `false`.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        CreateGithubRepoMutationCreategithubrepo"""
+        GithubRepo"""
     return execute(
         CreateGithubRepoMutation,
-        {"user": user, "repo": repo, "branch": branch, "name": name},
+        {
+            "input": {
+                "name": name,
+                "user": user,
+                "branch": branch,
+                "repo": repo,
+                "identifier": identifier,
+                "auto_scan": auto_scan,
+            }
+        },
         rath=rath,
     ).create_github_repo
 
 
 async def adeclare_resource(
     backend: ID,
-    name: str,
     local_id: str,
-    qualifiers: Optional[List[QualifierInput]] = None,
+    name: Optional[str] = None,
+    qualifiers: Optional[Iterable[QualifierInput]] = None,
     rath: Optional[KabinetRath] = None,
 ) -> Resource:
     """DeclareResource
 
-
-     declareResource: A resource on a backend. Resource define allocated resources on a backend. E.g a computational node
-
+    Create a new resource for your backend
 
     Arguments:
-        backend (ID): backend
-        name (str): name
-        local_id (str): localId
-        qualifiers (Optional[List[QualifierInput]], optional): qualifiers.
+        backend: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
+        name: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+        local_id: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
+        qualifiers: A qualifier that describes some property of the node (required) (list)
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        DeclareResourceMutationDeclareresource"""
+        Resource"""
     return (
         await aexecute(
             DeclareResourceMutation,
             {
-                "backend": backend,
-                "name": name,
-                "localId": local_id,
-                "qualifiers": qualifiers,
+                "input": {
+                    "backend": backend,
+                    "name": name,
+                    "local_id": local_id,
+                    "qualifiers": qualifiers,
+                }
             },
             rath=rath,
         )
@@ -1611,84 +1782,80 @@ async def adeclare_resource(
 
 def declare_resource(
     backend: ID,
-    name: str,
     local_id: str,
-    qualifiers: Optional[List[QualifierInput]] = None,
+    name: Optional[str] = None,
+    qualifiers: Optional[Iterable[QualifierInput]] = None,
     rath: Optional[KabinetRath] = None,
 ) -> Resource:
     """DeclareResource
 
-
-     declareResource: A resource on a backend. Resource define allocated resources on a backend. E.g a computational node
-
+    Create a new resource for your backend
 
     Arguments:
-        backend (ID): backend
-        name (str): name
-        local_id (str): localId
-        qualifiers (Optional[List[QualifierInput]], optional): qualifiers.
+        backend: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
+        name: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+        local_id: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
+        qualifiers: A qualifier that describes some property of the node (required) (list)
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        DeclareResourceMutationDeclareresource"""
+        Resource"""
     return execute(
         DeclareResourceMutation,
         {
-            "backend": backend,
-            "name": name,
-            "localId": local_id,
-            "qualifiers": qualifiers,
+            "input": {
+                "backend": backend,
+                "name": name,
+                "local_id": local_id,
+                "qualifiers": qualifiers,
+            }
         },
         rath=rath,
     ).declare_resource
 
 
 async def adeclare_backend(
-    instance_id: str, kind: str, name: str, rath: Optional[KabinetRath] = None
+    instance_id: str, name: str, kind: str, rath: Optional[KabinetRath] = None
 ) -> Backend:
     """DeclareBackend
 
-
-     declareBackend: A user of the bridge server. Maps to an authentikate user
-
+    Create a new dask cluster on a bridge server
 
     Arguments:
-        instance_id (str): instanceId
-        kind (str): kind
-        name (str): name
+        instance_id: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
+        name: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
+        kind: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        DeclareBackendMutationDeclarebackend"""
+        Backend"""
     return (
         await aexecute(
             DeclareBackendMutation,
-            {"instanceId": instance_id, "kind": kind, "name": name},
+            {"input": {"instance_id": instance_id, "name": name, "kind": kind}},
             rath=rath,
         )
     ).declare_backend
 
 
 def declare_backend(
-    instance_id: str, kind: str, name: str, rath: Optional[KabinetRath] = None
+    instance_id: str, name: str, kind: str, rath: Optional[KabinetRath] = None
 ) -> Backend:
     """DeclareBackend
 
-
-     declareBackend: A user of the bridge server. Maps to an authentikate user
-
+    Create a new dask cluster on a bridge server
 
     Arguments:
-        instance_id (str): instanceId
-        kind (str): kind
-        name (str): name
+        instance_id: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
+        name: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
+        kind: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        DeclareBackendMutationDeclarebackend"""
+        Backend"""
     return execute(
         DeclareBackendMutation,
-        {"instanceId": instance_id, "kind": kind, "name": name},
+        {"input": {"instance_id": instance_id, "name": name, "kind": kind}},
         rath=rath,
     ).declare_backend
 
@@ -1697,14 +1864,11 @@ async def alist_releases(rath: Optional[KabinetRath] = None) -> List[ListRelease
     """ListReleases
 
 
-     releases: A user of the bridge server. Maps to an authentikate user
-
-
     Arguments:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListReleasesQueryReleases]"""
+        List[ListRelease]"""
     return (await aexecute(ListReleasesQuery, {}, rath=rath)).releases
 
 
@@ -1712,46 +1876,39 @@ def list_releases(rath: Optional[KabinetRath] = None) -> List[ListRelease]:
     """ListReleases
 
 
-     releases: A user of the bridge server. Maps to an authentikate user
-
-
     Arguments:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListReleasesQueryReleases]"""
+        List[ListRelease]"""
     return execute(ListReleasesQuery, {}, rath=rath).releases
 
 
 async def aget_release(id: ID, rath: Optional[KabinetRath] = None) -> Release:
     """GetRelease
 
-
-     release: A user of the bridge server. Maps to an authentikate user
-
+    Return all dask clusters
 
     Arguments:
-        id (ID): id
+        id (ID): No description
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GetReleaseQueryRelease"""
+        Release"""
     return (await aexecute(GetReleaseQuery, {"id": id}, rath=rath)).release
 
 
 def get_release(id: ID, rath: Optional[KabinetRath] = None) -> Release:
     """GetRelease
 
-
-     release: A user of the bridge server. Maps to an authentikate user
-
+    Return all dask clusters
 
     Arguments:
-        id (ID): id
+        id (ID): No description
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GetReleaseQueryRelease"""
+        Release"""
     return execute(GetReleaseQuery, {"id": id}, rath=rath).release
 
 
@@ -1763,12 +1920,9 @@ async def asearch_releases(
     """SearchReleases
 
 
-     options: A user of the bridge server. Maps to an authentikate user
-
-
     Arguments:
-        search (Optional[str], optional): search.
-        values (Optional[List[ID]], optional): values.
+        search (Optional[str], optional): No description.
+        values (Optional[List[ID]], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -1788,12 +1942,9 @@ def search_releases(
     """SearchReleases
 
 
-     options: A user of the bridge server. Maps to an authentikate user
-
-
     Arguments:
-        search (Optional[str], optional): search.
-        values (Optional[List[ID]], optional): values.
+        search (Optional[str], optional): No description.
+        values (Optional[List[ID]], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -1806,32 +1957,28 @@ def search_releases(
 async def aget_deployment(id: ID, rath: Optional[KabinetRath] = None) -> Deployment:
     """GetDeployment
 
-
-     deployment: A user of the bridge server. Maps to an authentikate user
-
+    Return all dask clusters
 
     Arguments:
-        id (ID): id
+        id (ID): No description
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GetDeploymentQueryDeployment"""
+        Deployment"""
     return (await aexecute(GetDeploymentQuery, {"id": id}, rath=rath)).deployment
 
 
 def get_deployment(id: ID, rath: Optional[KabinetRath] = None) -> Deployment:
     """GetDeployment
 
-
-     deployment: A user of the bridge server. Maps to an authentikate user
-
+    Return all dask clusters
 
     Arguments:
-        id (ID): id
+        id (ID): No description
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GetDeploymentQueryDeployment"""
+        Deployment"""
     return execute(GetDeploymentQuery, {"id": id}, rath=rath).deployment
 
 
@@ -1839,14 +1986,11 @@ async def alist_deployments(rath: Optional[KabinetRath] = None) -> List[ListDepl
     """ListDeployments
 
 
-     deployments: A user of the bridge server. Maps to an authentikate user
-
-
     Arguments:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListDeploymentsQueryDeployments]"""
+        List[ListDeployment]"""
     return (await aexecute(ListDeploymentsQuery, {}, rath=rath)).deployments
 
 
@@ -1854,14 +1998,11 @@ def list_deployments(rath: Optional[KabinetRath] = None) -> List[ListDeployment]
     """ListDeployments
 
 
-     deployments: A user of the bridge server. Maps to an authentikate user
-
-
     Arguments:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListDeploymentsQueryDeployments]"""
+        List[ListDeployment]"""
     return execute(ListDeploymentsQuery, {}, rath=rath).deployments
 
 
@@ -1873,12 +2014,9 @@ async def asearch_deployments(
     """SearchDeployments
 
 
-     options: A user of the bridge server. Maps to an authentikate user
-
-
     Arguments:
-        search (Optional[str], optional): search.
-        values (Optional[List[ID]], optional): values.
+        search (Optional[str], optional): No description.
+        values (Optional[List[ID]], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -1898,12 +2036,9 @@ def search_deployments(
     """SearchDeployments
 
 
-     options: A user of the bridge server. Maps to an authentikate user
-
-
     Arguments:
-        search (Optional[str], optional): search.
-        values (Optional[List[ID]], optional): values.
+        search (Optional[str], optional): No description.
+        values (Optional[List[ID]], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -1917,14 +2052,11 @@ async def alist_pod(rath: Optional[KabinetRath] = None) -> List[ListPod]:
     """ListPod
 
 
-     pods: A user of the bridge server. Maps to an authentikate user
-
-
     Arguments:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListPodQueryPods]"""
+        List[ListPod]"""
     return (await aexecute(ListPodQuery, {}, rath=rath)).pods
 
 
@@ -1932,46 +2064,39 @@ def list_pod(rath: Optional[KabinetRath] = None) -> List[ListPod]:
     """ListPod
 
 
-     pods: A user of the bridge server. Maps to an authentikate user
-
-
     Arguments:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListPodQueryPods]"""
+        List[ListPod]"""
     return execute(ListPodQuery, {}, rath=rath).pods
 
 
 async def aget_pod(id: ID, rath: Optional[KabinetRath] = None) -> Pod:
     """GetPod
 
-
-     pod: A user of the bridge server. Maps to an authentikate user
-
+    Return all dask clusters
 
     Arguments:
-        id (ID): id
+        id (ID): No description
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GetPodQueryPod"""
+        Pod"""
     return (await aexecute(GetPodQuery, {"id": id}, rath=rath)).pod
 
 
 def get_pod(id: ID, rath: Optional[KabinetRath] = None) -> Pod:
     """GetPod
 
-
-     pod: A user of the bridge server. Maps to an authentikate user
-
+    Return all dask clusters
 
     Arguments:
-        id (ID): id
+        id (ID): No description
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GetPodQueryPod"""
+        Pod"""
     return execute(GetPodQuery, {"id": id}, rath=rath).pod
 
 
@@ -1984,13 +2109,10 @@ async def asearch_pods(
     """SearchPods
 
 
-     options: A user of the bridge server. Maps to an authentikate user
-
-
     Arguments:
-        search (Optional[str], optional): search.
-        values (Optional[List[ID]], optional): values.
-        backend (Optional[ID], optional): backend.
+        search (Optional[str], optional): No description.
+        values (Optional[List[ID]], optional): No description.
+        backend (Optional[ID], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -2013,13 +2135,10 @@ def search_pods(
     """SearchPods
 
 
-     options: A user of the bridge server. Maps to an authentikate user
-
-
     Arguments:
-        search (Optional[str], optional): search.
-        values (Optional[List[ID]], optional): values.
-        backend (Optional[ID], optional): backend.
+        search (Optional[str], optional): No description.
+        values (Optional[List[ID]], optional): No description.
+        backend (Optional[ID], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -2035,16 +2154,11 @@ async def alist_definitions(rath: Optional[KabinetRath] = None) -> List[ListDefi
     """ListDefinitions
 
 
-     definitions: Nodes are abstraction of RPC Tasks. They provide a common API to deal with creating tasks.
-
-    See online Documentation
-
-
     Arguments:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListDefinitionsQueryDefinitions]"""
+        List[ListDefinition]"""
     return (await aexecute(ListDefinitionsQuery, {}, rath=rath)).definitions
 
 
@@ -2052,16 +2166,11 @@ def list_definitions(rath: Optional[KabinetRath] = None) -> List[ListDefinition]
     """ListDefinitions
 
 
-     definitions: Nodes are abstraction of RPC Tasks. They provide a common API to deal with creating tasks.
-
-    See online Documentation
-
-
     Arguments:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListDefinitionsQueryDefinitions]"""
+        List[ListDefinition]"""
     return execute(ListDefinitionsQuery, {}, rath=rath).definitions
 
 
@@ -2070,18 +2179,14 @@ async def aget_definition(
 ) -> Definition:
     """GetDefinition
 
-
-     definition: Nodes are abstraction of RPC Tasks. They provide a common API to deal with creating tasks.
-
-    See online Documentation
-
+    Return all dask clusters
 
     Arguments:
-        hash (Optional[NodeHash], optional): hash.
+        hash (Optional[NodeHash], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GetDefinitionQueryDefinition"""
+        Definition"""
     return (await aexecute(GetDefinitionQuery, {"hash": hash}, rath=rath)).definition
 
 
@@ -2090,18 +2195,14 @@ def get_definition(
 ) -> Definition:
     """GetDefinition
 
-
-     definition: Nodes are abstraction of RPC Tasks. They provide a common API to deal with creating tasks.
-
-    See online Documentation
-
+    Return all dask clusters
 
     Arguments:
-        hash (Optional[NodeHash], optional): hash.
+        hash (Optional[NodeHash], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GetDefinitionQueryDefinition"""
+        Definition"""
     return execute(GetDefinitionQuery, {"hash": hash}, rath=rath).definition
 
 
@@ -2113,14 +2214,9 @@ async def asearch_definitions(
     """SearchDefinitions
 
 
-     options: Nodes are abstraction of RPC Tasks. They provide a common API to deal with creating tasks.
-
-    See online Documentation
-
-
     Arguments:
-        search (Optional[str], optional): search.
-        values (Optional[List[ID]], optional): values.
+        search (Optional[str], optional): No description.
+        values (Optional[List[ID]], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -2140,14 +2236,9 @@ def search_definitions(
     """SearchDefinitions
 
 
-     options: Nodes are abstraction of RPC Tasks. They provide a common API to deal with creating tasks.
-
-    See online Documentation
-
-
     Arguments:
-        search (Optional[str], optional): search.
-        values (Optional[List[ID]], optional): values.
+        search (Optional[str], optional): No description.
+        values (Optional[List[ID]], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -2164,13 +2255,11 @@ async def amatch_flavour(
 ) -> MatchFlavourQueryMatchflavour:
     """MatchFlavour
 
-
-     matchFlavour: A user of the bridge server. Maps to an authentikate user
-
+    Return the currently logged in user
 
     Arguments:
-        nodes (Optional[List[NodeHash]], optional): nodes.
-        environment (Optional[EnvironmentInput], optional): environment.
+        nodes (Optional[List[NodeHash]], optional): No description.
+        environment (Optional[EnvironmentInput], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -2189,13 +2278,11 @@ def match_flavour(
 ) -> MatchFlavourQueryMatchflavour:
     """MatchFlavour
 
-
-     matchFlavour: A user of the bridge server. Maps to an authentikate user
-
+    Return the currently logged in user
 
     Arguments:
-        nodes (Optional[List[NodeHash]], optional): nodes.
-        environment (Optional[EnvironmentInput], optional): environment.
+        nodes (Optional[List[NodeHash]], optional): No description.
+        environment (Optional[EnvironmentInput], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -2208,32 +2295,28 @@ def match_flavour(
 async def aget_flavour(id: ID, rath: Optional[KabinetRath] = None) -> Flavour:
     """GetFlavour
 
-
-     flavour: A user of the bridge server. Maps to an authentikate user
-
+    Return all dask clusters
 
     Arguments:
-        id (ID): id
+        id (ID): No description
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GetFlavourQueryFlavour"""
+        Flavour"""
     return (await aexecute(GetFlavourQuery, {"id": id}, rath=rath)).flavour
 
 
 def get_flavour(id: ID, rath: Optional[KabinetRath] = None) -> Flavour:
     """GetFlavour
 
-
-     flavour: A user of the bridge server. Maps to an authentikate user
-
+    Return all dask clusters
 
     Arguments:
-        id (ID): id
+        id (ID): No description
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GetFlavourQueryFlavour"""
+        Flavour"""
     return execute(GetFlavourQuery, {"id": id}, rath=rath).flavour
 
 
@@ -2245,12 +2328,9 @@ async def asearch_flavours(
     """SearchFlavours
 
 
-     options: A user of the bridge server. Maps to an authentikate user
-
-
     Arguments:
-        search (Optional[str], optional): search.
-        values (Optional[List[ID]], optional): values.
+        search (Optional[str], optional): No description.
+        values (Optional[List[ID]], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -2270,12 +2350,9 @@ def search_flavours(
     """SearchFlavours
 
 
-     options: A user of the bridge server. Maps to an authentikate user
-
-
     Arguments:
-        search (Optional[str], optional): search.
-        values (Optional[List[ID]], optional): values.
+        search (Optional[str], optional): No description.
+        values (Optional[List[ID]], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -2293,16 +2370,13 @@ async def alist_resources(
     """ListResources
 
 
-     resources: A resource on a backend. Resource define allocated resources on a backend. E.g a computational node
-
-
     Arguments:
-        filters (Optional[ResourceFilter], optional): filters.
-        pagination (Optional[OffsetPaginationInput], optional): pagination.
+        filters (Optional[ResourceFilter], optional): No description.
+        pagination (Optional[OffsetPaginationInput], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListResourcesQueryResources]"""
+        List[ListResource]"""
     return (
         await aexecute(
             ListResourcesQuery,
@@ -2320,16 +2394,13 @@ def list_resources(
     """ListResources
 
 
-     resources: A resource on a backend. Resource define allocated resources on a backend. E.g a computational node
-
-
     Arguments:
-        filters (Optional[ResourceFilter], optional): filters.
-        pagination (Optional[OffsetPaginationInput], optional): pagination.
+        filters (Optional[ResourceFilter], optional): No description.
+        pagination (Optional[OffsetPaginationInput], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListResourcesQueryResources]"""
+        List[ListResource]"""
     return execute(
         ListResourcesQuery, {"filters": filters, "pagination": pagination}, rath=rath
     ).resources
@@ -2338,32 +2409,28 @@ def list_resources(
 async def age_resource(id: ID, rath: Optional[KabinetRath] = None) -> Resource:
     """GeResource
 
-
-     resource: A resource on a backend. Resource define allocated resources on a backend. E.g a computational node
-
+    Return all dask clusters
 
     Arguments:
-        id (ID): id
+        id (ID): No description
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GeResourceQueryResource"""
+        Resource"""
     return (await aexecute(GeResourceQuery, {"id": id}, rath=rath)).resource
 
 
 def ge_resource(id: ID, rath: Optional[KabinetRath] = None) -> Resource:
     """GeResource
 
-
-     resource: A resource on a backend. Resource define allocated resources on a backend. E.g a computational node
-
+    Return all dask clusters
 
     Arguments:
-        id (ID): id
+        id (ID): No description
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GeResourceQueryResource"""
+        Resource"""
     return execute(GeResourceQuery, {"id": id}, rath=rath).resource
 
 
@@ -2375,12 +2442,9 @@ async def asearch_resources(
     """SearchResources
 
 
-     options: A resource on a backend. Resource define allocated resources on a backend. E.g a computational node
-
-
     Arguments:
-        search (Optional[str], optional): search.
-        values (Optional[List[ID]], optional): values.
+        search (Optional[str], optional): No description.
+        values (Optional[List[ID]], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -2400,12 +2464,9 @@ def search_resources(
     """SearchResources
 
 
-     options: A resource on a backend. Resource define allocated resources on a backend. E.g a computational node
-
-
     Arguments:
-        search (Optional[str], optional): search.
-        values (Optional[List[ID]], optional): values.
+        search (Optional[str], optional): No description.
+        values (Optional[List[ID]], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -2423,16 +2484,13 @@ async def alist_backends(
     """ListBackends
 
 
-     backends: A user of the bridge server. Maps to an authentikate user
-
-
     Arguments:
-        filters (Optional[BackendFilter], optional): filters.
-        pagination (Optional[OffsetPaginationInput], optional): pagination.
+        filters (Optional[BackendFilter], optional): No description.
+        pagination (Optional[OffsetPaginationInput], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListBackendsQueryBackends]"""
+        List[ListBackend]"""
     return (
         await aexecute(
             ListBackendsQuery, {"filters": filters, "pagination": pagination}, rath=rath
@@ -2448,16 +2506,13 @@ def list_backends(
     """ListBackends
 
 
-     backends: A user of the bridge server. Maps to an authentikate user
-
-
     Arguments:
-        filters (Optional[BackendFilter], optional): filters.
-        pagination (Optional[OffsetPaginationInput], optional): pagination.
+        filters (Optional[BackendFilter], optional): No description.
+        pagination (Optional[OffsetPaginationInput], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListBackendsQueryBackends]"""
+        List[ListBackend]"""
     return execute(
         ListBackendsQuery, {"filters": filters, "pagination": pagination}, rath=rath
     ).backends
@@ -2466,32 +2521,28 @@ def list_backends(
 async def aget_backend(id: ID, rath: Optional[KabinetRath] = None) -> Backend:
     """GetBackend
 
-
-     backend: A user of the bridge server. Maps to an authentikate user
-
+    Return all dask clusters
 
     Arguments:
-        id (ID): id
+        id (ID): No description
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GetBackendQueryBackend"""
+        Backend"""
     return (await aexecute(GetBackendQuery, {"id": id}, rath=rath)).backend
 
 
 def get_backend(id: ID, rath: Optional[KabinetRath] = None) -> Backend:
     """GetBackend
 
-
-     backend: A user of the bridge server. Maps to an authentikate user
-
+    Return all dask clusters
 
     Arguments:
-        id (ID): id
+        id (ID): No description
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GetBackendQueryBackend"""
+        Backend"""
     return execute(GetBackendQuery, {"id": id}, rath=rath).backend
 
 
@@ -2503,12 +2554,9 @@ async def asearch_backends(
     """SearchBackends
 
 
-     options: A user of the bridge server. Maps to an authentikate user
-
-
     Arguments:
-        search (Optional[str], optional): search.
-        values (Optional[List[ID]], optional): values.
+        search (Optional[str], optional): No description.
+        values (Optional[List[ID]], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -2528,12 +2576,9 @@ def search_backends(
     """SearchBackends
 
 
-     options: A user of the bridge server. Maps to an authentikate user
-
-
     Arguments:
-        search (Optional[str], optional): search.
-        values (Optional[List[ID]], optional): values.
+        search (Optional[str], optional): No description.
+        values (Optional[List[ID]], optional): No description.
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
@@ -2547,6 +2592,7 @@ AppImageInput.model_rebuild()
 AssignWidgetInput.model_rebuild()
 BackendFilter.model_rebuild()
 ChildPortInput.model_rebuild()
+DeclareResourceInput.model_rebuild()
 DefinitionInput.model_rebuild()
 InspectionInput.model_rebuild()
 PortInput.model_rebuild()
