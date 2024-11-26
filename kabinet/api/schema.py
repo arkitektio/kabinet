@@ -1,11 +1,11 @@
-from rekuest_next.scalars import ValidatorFunction, SearchQuery, NodeHash, Identifier
-from typing import Union, Optional, Literal, List, Iterable, Annotated, Any, Tuple
-from pydantic import BaseModel, ConfigDict, Field
-from kabinet.funcs import aexecute, execute
+from kabinet.funcs import execute, aexecute
+from typing import Union, List, Optional, Tuple, Annotated, Iterable, Literal, Any
+from pydantic import Field, BaseModel, ConfigDict
+from datetime import datetime
+from rekuest_next.scalars import ValidatorFunction, NodeHash, Identifier, SearchQuery
+from enum import Enum
 from rath.scalars import ID
 from kabinet.rath import KabinetRath
-from datetime import datetime
-from enum import Enum
 
 
 class AssignWidgetKind(str, Enum):
@@ -80,7 +80,9 @@ class CpuSelectorInput(BaseModel):
     "The frequency in MHz"
     memory: Optional[int] = None
     "The memory in MB"
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class CudaSelectorInput(BaseModel):
@@ -89,14 +91,18 @@ class CudaSelectorInput(BaseModel):
     "The minimum cuda version"
     cuda_cores: Optional[int] = Field(alias="cudaCores", default=None)
     "The cuda cores"
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class OneApiSelectorInput(BaseModel):
     kind: Literal["oneapi"] = Field(default="oneapi")
     oneapi_version: Optional[str] = Field(alias="oneapiVersion", default=None)
     "The api versison of the selector"
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class RocmSelectorInput(BaseModel):
@@ -105,7 +111,9 @@ class RocmSelectorInput(BaseModel):
     "The api version of the selector"
     api_thing: Optional[str] = Field(alias="apiThing", default=None)
     "The api thing of the selector"
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class AppImageInput(BaseModel):
@@ -117,7 +125,9 @@ class AppImageInput(BaseModel):
     app_image_id: str = Field(alias="appImageId")
     inspection: "InspectionInput"
     image: "DockerImageInput"
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class AssignWidgetInput(BaseModel):
@@ -135,7 +145,9 @@ class AssignWidgetInput(BaseModel):
     ward: Optional[str] = None
     fallback: Optional["AssignWidgetInput"] = None
     filters: Optional[Tuple["ChildPortInput", ...]] = None
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class BackendFilter(BaseModel):
@@ -146,14 +158,18 @@ class BackendFilter(BaseModel):
     and_: Optional["BackendFilter"] = Field(alias="AND", default=None)
     or_: Optional["BackendFilter"] = Field(alias="OR", default=None)
     not_: Optional["BackendFilter"] = Field(alias="NOT", default=None)
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class BindsInput(BaseModel):
     templates: Optional[Tuple[str, ...]] = None
     clients: Optional[Tuple[str, ...]] = None
     desired_instances: int = Field(alias="desiredInstances")
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class ChildPortInput(BaseModel):
@@ -173,14 +189,18 @@ class ChildPortInput(BaseModel):
     return_widget: Optional["ReturnWidgetInput"] = Field(
         alias="returnWidget", default=None
     )
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class ChoiceInput(BaseModel):
     value: Any
     label: str
     description: Optional[str] = None
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class CreateDeploymentInput(BaseModel):
@@ -191,7 +211,9 @@ class CreateDeploymentInput(BaseModel):
     flavour: ID
     last_pulled: Optional[datetime] = Field(alias="lastPulled", default=None)
     secret_params: Optional[Any] = Field(alias="secretParams", default=None)
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class CreateGithubRepoInput(BaseModel):
@@ -203,7 +225,9 @@ class CreateGithubRepoInput(BaseModel):
     repo: Optional[str] = None
     identifier: Optional[str] = None
     auto_scan: Optional[bool] = Field(alias="autoScan", default=None)
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class CreatePodInput(BaseModel):
@@ -214,7 +238,9 @@ class CreatePodInput(BaseModel):
     resource: Optional[ID] = None
     instance_id: str = Field(alias="instanceId")
     client_id: Optional[str] = Field(alias="clientId", default=None)
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class DeclareBackendInput(BaseModel):
@@ -223,7 +249,9 @@ class DeclareBackendInput(BaseModel):
     instance_id: str = Field(alias="instanceId")
     name: str
     kind: str
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class DeclareResourceInput(BaseModel):
@@ -233,7 +261,9 @@ class DeclareResourceInput(BaseModel):
     name: Optional[str] = None
     local_id: str = Field(alias="localId")
     qualifiers: Optional[Tuple["QualifierInput", ...]] = None
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class DefinitionInput(BaseModel):
@@ -248,12 +278,16 @@ class DefinitionInput(BaseModel):
     is_test_for: Tuple[str, ...] = Field(alias="isTestFor")
     interfaces: Tuple[str, ...]
     is_dev: bool = Field(alias="isDev")
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class DeletePodInput(BaseModel):
     id: ID
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class DependencyInput(BaseModel):
@@ -262,7 +296,9 @@ class DependencyInput(BaseModel):
     binds: Optional[BindsInput] = None
     optional: bool
     viable_instances: Optional[int] = Field(alias="viableInstances", default=None)
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class DeviceFeature(BaseModel):
@@ -270,13 +306,17 @@ class DeviceFeature(BaseModel):
 
     kind: str
     cpu_count: str = Field(alias="cpuCount")
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class DockerImageInput(BaseModel):
     image_string: str = Field(alias="imageString")
     build_at: datetime = Field(alias="buildAt")
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class DumpLogsInput(BaseModel):
@@ -284,14 +324,18 @@ class DumpLogsInput(BaseModel):
 
     pod: ID
     logs: str
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class EffectDependencyInput(BaseModel):
     key: str
     condition: LogicalCondition
     value: Any
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class EffectInput(BaseModel):
@@ -299,7 +343,9 @@ class EffectInput(BaseModel):
     description: Optional[str] = None
     dependencies: Tuple[EffectDependencyInput, ...]
     kind: EffectKind
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class EnvironmentInput(BaseModel):
@@ -307,14 +353,18 @@ class EnvironmentInput(BaseModel):
 
     features: Optional[Tuple[DeviceFeature, ...]] = None
     container_type: ContainerType = Field(alias="containerType")
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class InspectionInput(BaseModel):
     size: Optional[int] = None
     templates: Tuple["TemplateInput", ...]
     requirements: Tuple["RequirementInput", ...]
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class ManifestInput(BaseModel):
@@ -325,19 +375,25 @@ class ManifestInput(BaseModel):
     author: str
     logo: Optional[str] = None
     scopes: Tuple[str, ...]
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class OffsetPaginationInput(BaseModel):
     offset: int
     limit: int
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class PortGroupInput(BaseModel):
     key: str
     hidden: bool
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class PortInput(BaseModel):
@@ -359,7 +415,9 @@ class PortInput(BaseModel):
         alias="returnWidget", default=None
     )
     groups: Optional[Tuple[str, ...]] = None
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class QualifierInput(BaseModel):
@@ -367,7 +425,9 @@ class QualifierInput(BaseModel):
 
     key: str
     value: str
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class RequirementInput(BaseModel):
@@ -375,7 +435,9 @@ class RequirementInput(BaseModel):
     service: str
     optional: bool
     description: Optional[str] = None
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class ResourceFilter(BaseModel):
@@ -386,7 +448,9 @@ class ResourceFilter(BaseModel):
     and_: Optional["ResourceFilter"] = Field(alias="AND", default=None)
     or_: Optional["ResourceFilter"] = Field(alias="OR", default=None)
     not_: Optional["ResourceFilter"] = Field(alias="NOT", default=None)
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class ReturnWidgetInput(BaseModel):
@@ -399,7 +463,9 @@ class ReturnWidgetInput(BaseModel):
     placeholder: Optional[str] = None
     hook: Optional[str] = None
     ward: Optional[str] = None
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 SelectorInput = Annotated[
@@ -415,7 +481,9 @@ class TemplateInput(BaseModel):
     params: Optional[Any] = None
     dynamic: bool
     logo: Optional[str] = None
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class UpdatePodInput(BaseModel):
@@ -425,7 +493,9 @@ class UpdatePodInput(BaseModel):
     local_id: Optional[ID] = Field(alias="localId", default=None)
     status: PodStatus
     instance_id: str = Field(alias="instanceId")
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class ValidatorInput(BaseModel):
@@ -433,7 +503,9 @@ class ValidatorInput(BaseModel):
     dependencies: Optional[Tuple[str, ...]] = None
     label: Optional[str] = None
     error_message: Optional[str] = Field(alias="errorMessage", default=None)
-    model_config = ConfigDict(frozen=True, extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    )
 
 
 class Deployment(BaseModel):
@@ -922,7 +994,7 @@ class CreateAppImageMutation(BaseModel):
         input: AppImageInput
 
     class Meta:
-        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  colour\n  description\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n    __typename\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  colour\n  description\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n    __typename\n  }\n}"
 
 
 class CreateGithubRepoMutation(BaseModel):
@@ -965,7 +1037,7 @@ class ListReleasesQuery(BaseModel):
         pass
 
     class Meta:
-        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  installed\n  scopes\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  colour\n  description\n  __typename\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n    __typename\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  installed\n  scopes\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  colour\n  description\n  __typename\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n    __typename\n  }\n}"
 
 
 class GetReleaseQuery(BaseModel):
@@ -976,7 +1048,7 @@ class GetReleaseQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  colour\n  description\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n    __typename\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  colour\n  description\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n    __typename\n  }\n}"
 
 
 class SearchReleasesQueryOptions(BaseModel):
@@ -1175,7 +1247,7 @@ class GetFlavourQuery(BaseModel):
         id: ID
 
     class Meta:
-        document = "fragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n      __typename\n    }\n    scopes\n    colour\n    description\n    __typename\n  }\n  __typename\n}\n\nquery GetFlavour($id: ID!) {\n  flavour(id: $id) {\n    ...Flavour\n    __typename\n  }\n}"
+        document = "fragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  cudaVersion\n  cudaCores\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  selectors {\n    ...CudaSelector\n    ...RocmSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n      __typename\n    }\n    scopes\n    colour\n    description\n    __typename\n  }\n  __typename\n}\n\nquery GetFlavour($id: ID!) {\n  flavour(id: $id) {\n    ...Flavour\n    __typename\n  }\n}"
 
 
 class SearchFlavoursQueryOptions(BaseModel):
