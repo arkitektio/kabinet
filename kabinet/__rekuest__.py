@@ -96,4 +96,3 @@ def register_structures(structure_reg):
             ward="kabinet",
         ),
     )
-

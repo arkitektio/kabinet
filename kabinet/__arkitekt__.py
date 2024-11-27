@@ -20,22 +20,21 @@ from arkitekt_next.base_models import Requirement
 
 
 class ArkitektNextKabinet(Kabinet):
-        rath: KabinetRath
-
+    rath: KabinetRath
 
 
 def build_relative_path(*path: str) -> str:
     return os.path.join(os.path.dirname(__file__), *path)
 
 
-
 class KabinetService(BaseArkitektService):
-
 
     def get_service_name(self):
         return "kabinet"
 
-    def build_service(self, fakts: Fakts, herre: Herre, params: Params, manifest: Manifest):
+    def build_service(
+        self, fakts: Fakts, herre: Herre, params: Params, manifest: Manifest
+    ):
         return ArkitektNextKabinet(
             rath=KabinetRath(
                 link=KabinetLinkComposition(
@@ -58,23 +57,21 @@ class KabinetService(BaseArkitektService):
     def get_requirements(self):
         return [
             Requirement(
-            key="kabinet",
-            service="live.arkitekt.kabinet",
-            description="An instance of ArkitektNext kabinet to relate entities",
-        ),
+                key="kabinet",
+                service="live.arkitekt.kabinet",
+                description="An instance of ArkitektNext kabinet to relate entities",
+            ),
         ]
 
     def get_graphql_schema(self):
         schema_graphql_path = build_relative_path("api", "schema.graphql")
         with open(schema_graphql_path) as f:
             return f.read()
-        
+
     def get_turms_project(self):
         turms_prject = build_relative_path("api", "project.json")
         with open(turms_prject) as f:
             return json.loads(f.read())
-
-
 
 
 def build_services():
