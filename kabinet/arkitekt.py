@@ -15,6 +15,7 @@ from arkitekt_next.base_models import Manifest
 from arkitekt_next.service_registry import (
     BaseArkitektService,
     Params,
+    get_default_service_registry,
 )
 from arkitekt_next.base_models import Requirement
 
@@ -74,5 +75,4 @@ class KabinetService(BaseArkitektService):
             return json.loads(f.read())
 
 
-def build_services():
-    return [KabinetService()]
+get_default_service_registry().register(KabinetService())
