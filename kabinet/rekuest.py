@@ -1,10 +1,9 @@
 from rekuest_next.structures.default import (
     get_default_structure_registry,
-    PortScope,
     id_shrink,
 )
 from rekuest_next.widgets import SearchWidget
-from rekuest_next.api.schema import ChildPortInput, PortKind
+from rekuest_next.api.schema import ChildPortInput, PortKind, PortScope
 
 from kabinet.api.schema import (
     Pod,

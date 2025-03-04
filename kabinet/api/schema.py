@@ -1,11 +1,11 @@
 from kabinet.funcs import execute, aexecute
-from rekuest_next.scalars import NodeHash, ValidatorFunction, Identifier, SearchQuery
-from typing import Any, Iterable, Union, Annotated, Literal, Optional, Tuple, List
-from rath.scalars import ID
-from pydantic import Field, ConfigDict, BaseModel
-from datetime import datetime
+from typing import Optional, Iterable, Any, Literal, Tuple, Union, List, Annotated
 from enum import Enum
+from rekuest_next.scalars import Identifier, NodeHash, ValidatorFunction, SearchQuery
+from pydantic import Field, ConfigDict, BaseModel
 from kabinet.rath import KabinetRath
+from datetime import datetime
+from rath.scalars import ID
 
 
 class AssignWidgetKind(str, Enum):
@@ -26,13 +26,8 @@ class ContainerType(str, Enum):
 
 class EffectKind(str, Enum):
     MESSAGE = "MESSAGE"
+    HIDE = "HIDE"
     CUSTOM = "CUSTOM"
-
-
-class LogicalCondition(str, Enum):
-    IS = "IS"
-    IS_NOT = "IS_NOT"
-    IN = "IN"
 
 
 class NodeKind(str, Enum):
@@ -137,14 +132,15 @@ class AssignWidgetInput(BaseModel):
     choices: Optional[Tuple["ChoiceInput", ...]] = None
     state_choices: Optional[str] = Field(alias="stateChoices", default=None)
     follow_value: Optional[str] = Field(alias="followValue", default=None)
-    min: Optional[int] = None
-    max: Optional[int] = None
-    step: Optional[int] = None
+    min: Optional[float] = None
+    max: Optional[float] = None
+    step: Optional[float] = None
     placeholder: Optional[str] = None
     hook: Optional[str] = None
     ward: Optional[str] = None
     fallback: Optional["AssignWidgetInput"] = None
     filters: Optional[Tuple["ChildPortInput", ...]] = None
+    dependencies: Optional[Tuple[str, ...]] = None
     model_config = ConfigDict(
         frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
     )
@@ -197,6 +193,7 @@ class ChildPortInput(BaseModel):
 class ChoiceInput(BaseModel):
     value: Any
     label: str
+    image: Optional[str] = None
     description: Optional[str] = None
     model_config = ConfigDict(
         frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
@@ -329,20 +326,13 @@ class DumpLogsInput(BaseModel):
     )
 
 
-class EffectDependencyInput(BaseModel):
-    key: str
-    condition: LogicalCondition
-    value: Any
-    model_config = ConfigDict(
-        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
-    )
-
-
 class EffectInput(BaseModel):
-    label: str
-    description: Optional[str] = None
-    dependencies: Tuple[EffectDependencyInput, ...]
+    function: ValidatorFunction
+    dependencies: Tuple[str, ...]
+    message: Optional[str] = None
     kind: EffectKind
+    hook: Optional[str] = None
+    ward: Optional[str] = None
     model_config = ConfigDict(
         frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
     )
@@ -390,7 +380,10 @@ class OffsetPaginationInput(BaseModel):
 
 class PortGroupInput(BaseModel):
     key: str
-    hidden: bool
+    title: Optional[str] = None
+    description: Optional[str] = None
+    effects: Optional[Tuple[EffectInput, ...]] = None
+    ports: Optional[Tuple[str, ...]] = None
     model_config = ConfigDict(
         frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
     )
@@ -414,7 +407,6 @@ class PortInput(BaseModel):
     return_widget: Optional["ReturnWidgetInput"] = Field(
         alias="returnWidget", default=None
     )
-    groups: Optional[Tuple[str, ...]] = None
     model_config = ConfigDict(
         frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
     )
@@ -1381,18 +1373,17 @@ async def acreate_deployment(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Deployment
-    """
+        Deployment"""
     return (
         await aexecute(
             CreateDeploymentMutation,
             {
                 "input": {
-                    "instance_id": instance_id,
-                    "local_id": local_id,
+                    "instanceId": instance_id,
+                    "localId": local_id,
                     "flavour": flavour,
-                    "last_pulled": last_pulled,
-                    "secret_params": secret_params,
+                    "lastPulled": last_pulled,
+                    "secretParams": secret_params,
                 }
             },
             rath=rath,
@@ -1421,17 +1412,16 @@ def create_deployment(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Deployment
-    """
+        Deployment"""
     return execute(
         CreateDeploymentMutation,
         {
             "input": {
-                "instance_id": instance_id,
-                "local_id": local_id,
+                "instanceId": instance_id,
+                "localId": local_id,
                 "flavour": flavour,
-                "last_pulled": last_pulled,
-                "secret_params": secret_params,
+                "lastPulled": last_pulled,
+                "secretParams": secret_params,
             }
         },
         rath=rath,
@@ -1459,18 +1449,17 @@ async def acreate_pod(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Pod
-    """
+        Pod"""
     return (
         await aexecute(
             CreatePodMutation,
             {
                 "input": {
                     "deployment": deployment,
-                    "local_id": local_id,
+                    "localId": local_id,
                     "resource": resource,
-                    "instance_id": instance_id,
-                    "client_id": client_id,
+                    "instanceId": instance_id,
+                    "clientId": client_id,
                 }
             },
             rath=rath,
@@ -1499,17 +1488,16 @@ def create_pod(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Pod
-    """
+        Pod"""
     return execute(
         CreatePodMutation,
         {
             "input": {
                 "deployment": deployment,
-                "local_id": local_id,
+                "localId": local_id,
                 "resource": resource,
-                "instance_id": instance_id,
-                "client_id": client_id,
+                "instanceId": instance_id,
+                "clientId": client_id,
             }
         },
         rath=rath,
@@ -1535,17 +1523,16 @@ async def aupdate_pod(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Pod
-    """
+        Pod"""
     return (
         await aexecute(
             UpdatePodMutation,
             {
                 "input": {
                     "pod": pod,
-                    "local_id": local_id,
+                    "localId": local_id,
                     "status": status,
-                    "instance_id": instance_id,
+                    "instanceId": instance_id,
                 }
             },
             rath=rath,
@@ -1572,16 +1559,15 @@ def update_pod(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Pod
-    """
+        Pod"""
     return execute(
         UpdatePodMutation,
         {
             "input": {
                 "pod": pod,
-                "local_id": local_id,
+                "localId": local_id,
                 "status": status,
-                "instance_id": instance_id,
+                "instanceId": instance_id,
             }
         },
         rath=rath,
@@ -1598,8 +1584,7 @@ async def adelete_pod(id: ID, rath: Optional[KabinetRath] = None) -> ID:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        ID
-    """
+        ID"""
     return (
         await aexecute(DeletePodMutation, {"input": {"id": id}}, rath=rath)
     ).delete_pod
@@ -1615,8 +1600,7 @@ def delete_pod(id: ID, rath: Optional[KabinetRath] = None) -> ID:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        ID
-    """
+        ID"""
     return execute(DeletePodMutation, {"input": {"id": id}}, rath=rath).delete_pod
 
 
@@ -1633,8 +1617,7 @@ async def adump_logs(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        DumpLogsMutationDumplogs
-    """
+        DumpLogsMutationDumplogs"""
     return (
         await aexecute(
             DumpLogsMutation, {"input": {"pod": pod, "logs": logs}}, rath=rath
@@ -1655,8 +1638,7 @@ def dump_logs(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        DumpLogsMutationDumplogs
-    """
+        DumpLogsMutationDumplogs"""
     return execute(
         DumpLogsMutation, {"input": {"pod": pod, "logs": logs}}, rath=rath
     ).dump_logs
@@ -1685,17 +1667,16 @@ async def acreate_app_image(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Release
-    """
+        Release"""
     return (
         await aexecute(
             CreateAppImageMutation,
             {
                 "input": {
-                    "flavour_name": flavour_name,
+                    "flavourName": flavour_name,
                     "manifest": manifest,
                     "selectors": selectors,
-                    "app_image_id": app_image_id,
+                    "appImageId": app_image_id,
                     "inspection": inspection,
                     "image": image,
                 }
@@ -1728,16 +1709,15 @@ def create_app_image(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Release
-    """
+        Release"""
     return execute(
         CreateAppImageMutation,
         {
             "input": {
-                "flavour_name": flavour_name,
+                "flavourName": flavour_name,
                 "manifest": manifest,
                 "selectors": selectors,
-                "app_image_id": app_image_id,
+                "appImageId": app_image_id,
                 "inspection": inspection,
                 "image": image,
             }
@@ -1769,8 +1749,7 @@ async def acreate_github_repo(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GithubRepo
-    """
+        GithubRepo"""
     return (
         await aexecute(
             CreateGithubRepoMutation,
@@ -1781,7 +1760,7 @@ async def acreate_github_repo(
                     "branch": branch,
                     "repo": repo,
                     "identifier": identifier,
-                    "auto_scan": auto_scan,
+                    "autoScan": auto_scan,
                 }
             },
             rath=rath,
@@ -1812,8 +1791,7 @@ def create_github_repo(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        GithubRepo
-    """
+        GithubRepo"""
     return execute(
         CreateGithubRepoMutation,
         {
@@ -1823,7 +1801,7 @@ def create_github_repo(
                 "branch": branch,
                 "repo": repo,
                 "identifier": identifier,
-                "auto_scan": auto_scan,
+                "autoScan": auto_scan,
             }
         },
         rath=rath,
@@ -1849,8 +1827,7 @@ async def adeclare_resource(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Resource
-    """
+        Resource"""
     return (
         await aexecute(
             DeclareResourceMutation,
@@ -1858,7 +1835,7 @@ async def adeclare_resource(
                 "input": {
                     "backend": backend,
                     "name": name,
-                    "local_id": local_id,
+                    "localId": local_id,
                     "qualifiers": qualifiers,
                 }
             },
@@ -1886,15 +1863,14 @@ def declare_resource(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Resource
-    """
+        Resource"""
     return execute(
         DeclareResourceMutation,
         {
             "input": {
                 "backend": backend,
                 "name": name,
-                "local_id": local_id,
+                "localId": local_id,
                 "qualifiers": qualifiers,
             }
         },
@@ -1916,12 +1892,11 @@ async def adeclare_backend(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Backend
-    """
+        Backend"""
     return (
         await aexecute(
             DeclareBackendMutation,
-            {"input": {"instance_id": instance_id, "name": name, "kind": kind}},
+            {"input": {"instanceId": instance_id, "name": name, "kind": kind}},
             rath=rath,
         )
     ).declare_backend
@@ -1941,16 +1916,15 @@ def declare_backend(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Backend
-    """
+        Backend"""
     return execute(
         DeclareBackendMutation,
-        {"input": {"instance_id": instance_id, "name": name, "kind": kind}},
+        {"input": {"instanceId": instance_id, "name": name, "kind": kind}},
         rath=rath,
     ).declare_backend
 
 
-async def alist_releases(rath: Optional[KabinetRath] = None) -> List[ListRelease]:
+async def alist_releases(rath: Optional[KabinetRath] = None) -> Tuple[ListRelease, ...]:
     """ListReleases
 
 
@@ -1958,12 +1932,11 @@ async def alist_releases(rath: Optional[KabinetRath] = None) -> List[ListRelease
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListRelease]
-    """
+        List[ListRelease]"""
     return (await aexecute(ListReleasesQuery, {}, rath=rath)).releases
 
 
-def list_releases(rath: Optional[KabinetRath] = None) -> List[ListRelease]:
+def list_releases(rath: Optional[KabinetRath] = None) -> Tuple[ListRelease, ...]:
     """ListReleases
 
 
@@ -1971,8 +1944,7 @@ def list_releases(rath: Optional[KabinetRath] = None) -> List[ListRelease]:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListRelease]
-    """
+        List[ListRelease]"""
     return execute(ListReleasesQuery, {}, rath=rath).releases
 
 
@@ -1986,8 +1958,7 @@ async def aget_release(id: ID, rath: Optional[KabinetRath] = None) -> Release:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Release
-    """
+        Release"""
     return (await aexecute(GetReleaseQuery, {"id": id}, rath=rath)).release
 
 
@@ -2001,8 +1972,7 @@ def get_release(id: ID, rath: Optional[KabinetRath] = None) -> Release:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Release
-    """
+        Release"""
     return execute(GetReleaseQuery, {"id": id}, rath=rath).release
 
 
@@ -2010,7 +1980,7 @@ async def asearch_releases(
     search: Optional[str] = None,
     values: Optional[List[ID]] = None,
     rath: Optional[KabinetRath] = None,
-) -> List[SearchReleasesQueryOptions]:
+) -> Tuple[SearchReleasesQueryOptions, ...]:
     """SearchReleases
 
 
@@ -2020,8 +1990,7 @@ async def asearch_releases(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SearchReleasesQueryReleases]
-    """
+        List[SearchReleasesQueryReleases]"""
     return (
         await aexecute(
             SearchReleasesQuery, {"search": search, "values": values}, rath=rath
@@ -2033,7 +2002,7 @@ def search_releases(
     search: Optional[str] = None,
     values: Optional[List[ID]] = None,
     rath: Optional[KabinetRath] = None,
-) -> List[SearchReleasesQueryOptions]:
+) -> Tuple[SearchReleasesQueryOptions, ...]:
     """SearchReleases
 
 
@@ -2043,8 +2012,7 @@ def search_releases(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SearchReleasesQueryReleases]
-    """
+        List[SearchReleasesQueryReleases]"""
     return execute(
         SearchReleasesQuery, {"search": search, "values": values}, rath=rath
     ).options
@@ -2060,8 +2028,7 @@ async def aget_deployment(id: ID, rath: Optional[KabinetRath] = None) -> Deploym
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Deployment
-    """
+        Deployment"""
     return (await aexecute(GetDeploymentQuery, {"id": id}, rath=rath)).deployment
 
 
@@ -2075,12 +2042,13 @@ def get_deployment(id: ID, rath: Optional[KabinetRath] = None) -> Deployment:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Deployment
-    """
+        Deployment"""
     return execute(GetDeploymentQuery, {"id": id}, rath=rath).deployment
 
 
-async def alist_deployments(rath: Optional[KabinetRath] = None) -> List[ListDeployment]:
+async def alist_deployments(
+    rath: Optional[KabinetRath] = None,
+) -> Tuple[ListDeployment, ...]:
     """ListDeployments
 
 
@@ -2088,12 +2056,11 @@ async def alist_deployments(rath: Optional[KabinetRath] = None) -> List[ListDepl
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListDeployment]
-    """
+        List[ListDeployment]"""
     return (await aexecute(ListDeploymentsQuery, {}, rath=rath)).deployments
 
 
-def list_deployments(rath: Optional[KabinetRath] = None) -> List[ListDeployment]:
+def list_deployments(rath: Optional[KabinetRath] = None) -> Tuple[ListDeployment, ...]:
     """ListDeployments
 
 
@@ -2101,8 +2068,7 @@ def list_deployments(rath: Optional[KabinetRath] = None) -> List[ListDeployment]
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListDeployment]
-    """
+        List[ListDeployment]"""
     return execute(ListDeploymentsQuery, {}, rath=rath).deployments
 
 
@@ -2110,7 +2076,7 @@ async def asearch_deployments(
     search: Optional[str] = None,
     values: Optional[List[ID]] = None,
     rath: Optional[KabinetRath] = None,
-) -> List[SearchDeploymentsQueryOptions]:
+) -> Tuple[SearchDeploymentsQueryOptions, ...]:
     """SearchDeployments
 
 
@@ -2120,8 +2086,7 @@ async def asearch_deployments(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SearchDeploymentsQueryDeployments]
-    """
+        List[SearchDeploymentsQueryDeployments]"""
     return (
         await aexecute(
             SearchDeploymentsQuery, {"search": search, "values": values}, rath=rath
@@ -2133,7 +2098,7 @@ def search_deployments(
     search: Optional[str] = None,
     values: Optional[List[ID]] = None,
     rath: Optional[KabinetRath] = None,
-) -> List[SearchDeploymentsQueryOptions]:
+) -> Tuple[SearchDeploymentsQueryOptions, ...]:
     """SearchDeployments
 
 
@@ -2143,14 +2108,13 @@ def search_deployments(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SearchDeploymentsQueryDeployments]
-    """
+        List[SearchDeploymentsQueryDeployments]"""
     return execute(
         SearchDeploymentsQuery, {"search": search, "values": values}, rath=rath
     ).options
 
 
-async def alist_pod(rath: Optional[KabinetRath] = None) -> List[ListPod]:
+async def alist_pod(rath: Optional[KabinetRath] = None) -> Tuple[ListPod, ...]:
     """ListPod
 
 
@@ -2158,12 +2122,11 @@ async def alist_pod(rath: Optional[KabinetRath] = None) -> List[ListPod]:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListPod]
-    """
+        List[ListPod]"""
     return (await aexecute(ListPodQuery, {}, rath=rath)).pods
 
 
-def list_pod(rath: Optional[KabinetRath] = None) -> List[ListPod]:
+def list_pod(rath: Optional[KabinetRath] = None) -> Tuple[ListPod, ...]:
     """ListPod
 
 
@@ -2171,8 +2134,7 @@ def list_pod(rath: Optional[KabinetRath] = None) -> List[ListPod]:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListPod]
-    """
+        List[ListPod]"""
     return execute(ListPodQuery, {}, rath=rath).pods
 
 
@@ -2186,8 +2148,7 @@ async def aget_pod(id: ID, rath: Optional[KabinetRath] = None) -> Pod:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Pod
-    """
+        Pod"""
     return (await aexecute(GetPodQuery, {"id": id}, rath=rath)).pod
 
 
@@ -2201,8 +2162,7 @@ def get_pod(id: ID, rath: Optional[KabinetRath] = None) -> Pod:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Pod
-    """
+        Pod"""
     return execute(GetPodQuery, {"id": id}, rath=rath).pod
 
 
@@ -2211,7 +2171,7 @@ async def asearch_pods(
     values: Optional[List[ID]] = None,
     backend: Optional[ID] = None,
     rath: Optional[KabinetRath] = None,
-) -> List[SearchPodsQueryOptions]:
+) -> Tuple[SearchPodsQueryOptions, ...]:
     """SearchPods
 
 
@@ -2222,8 +2182,7 @@ async def asearch_pods(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SearchPodsQueryPods]
-    """
+        List[SearchPodsQueryPods]"""
     return (
         await aexecute(
             SearchPodsQuery,
@@ -2238,7 +2197,7 @@ def search_pods(
     values: Optional[List[ID]] = None,
     backend: Optional[ID] = None,
     rath: Optional[KabinetRath] = None,
-) -> List[SearchPodsQueryOptions]:
+) -> Tuple[SearchPodsQueryOptions, ...]:
     """SearchPods
 
 
@@ -2249,8 +2208,7 @@ def search_pods(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SearchPodsQueryPods]
-    """
+        List[SearchPodsQueryPods]"""
     return execute(
         SearchPodsQuery,
         {"search": search, "values": values, "backend": backend},
@@ -2258,7 +2216,9 @@ def search_pods(
     ).options
 
 
-async def alist_definitions(rath: Optional[KabinetRath] = None) -> List[ListDefinition]:
+async def alist_definitions(
+    rath: Optional[KabinetRath] = None,
+) -> Tuple[ListDefinition, ...]:
     """ListDefinitions
 
 
@@ -2266,12 +2226,11 @@ async def alist_definitions(rath: Optional[KabinetRath] = None) -> List[ListDefi
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListDefinition]
-    """
+        List[ListDefinition]"""
     return (await aexecute(ListDefinitionsQuery, {}, rath=rath)).definitions
 
 
-def list_definitions(rath: Optional[KabinetRath] = None) -> List[ListDefinition]:
+def list_definitions(rath: Optional[KabinetRath] = None) -> Tuple[ListDefinition, ...]:
     """ListDefinitions
 
 
@@ -2279,8 +2238,7 @@ def list_definitions(rath: Optional[KabinetRath] = None) -> List[ListDefinition]
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListDefinition]
-    """
+        List[ListDefinition]"""
     return execute(ListDefinitionsQuery, {}, rath=rath).definitions
 
 
@@ -2296,8 +2254,7 @@ async def aget_definition(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Definition
-    """
+        Definition"""
     return (await aexecute(GetDefinitionQuery, {"hash": hash}, rath=rath)).definition
 
 
@@ -2313,8 +2270,7 @@ def get_definition(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Definition
-    """
+        Definition"""
     return execute(GetDefinitionQuery, {"hash": hash}, rath=rath).definition
 
 
@@ -2322,7 +2278,7 @@ async def asearch_definitions(
     search: Optional[str] = None,
     values: Optional[List[ID]] = None,
     rath: Optional[KabinetRath] = None,
-) -> List[SearchDefinitionsQueryOptions]:
+) -> Tuple[SearchDefinitionsQueryOptions, ...]:
     """SearchDefinitions
 
 
@@ -2332,8 +2288,7 @@ async def asearch_definitions(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SearchDefinitionsQueryDefinitions]
-    """
+        List[SearchDefinitionsQueryDefinitions]"""
     return (
         await aexecute(
             SearchDefinitionsQuery, {"search": search, "values": values}, rath=rath
@@ -2345,7 +2300,7 @@ def search_definitions(
     search: Optional[str] = None,
     values: Optional[List[ID]] = None,
     rath: Optional[KabinetRath] = None,
-) -> List[SearchDefinitionsQueryOptions]:
+) -> Tuple[SearchDefinitionsQueryOptions, ...]:
     """SearchDefinitions
 
 
@@ -2355,8 +2310,7 @@ def search_definitions(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SearchDefinitionsQueryDefinitions]
-    """
+        List[SearchDefinitionsQueryDefinitions]"""
     return execute(
         SearchDefinitionsQuery, {"search": search, "values": values}, rath=rath
     ).options
@@ -2377,8 +2331,7 @@ async def amatch_flavour(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        MatchFlavourQueryMatchflavour
-    """
+        MatchFlavourQueryMatchflavour"""
     return (
         await aexecute(
             MatchFlavourQuery, {"nodes": nodes, "environment": environment}, rath=rath
@@ -2401,8 +2354,7 @@ def match_flavour(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        MatchFlavourQueryMatchflavour
-    """
+        MatchFlavourQueryMatchflavour"""
     return execute(
         MatchFlavourQuery, {"nodes": nodes, "environment": environment}, rath=rath
     ).match_flavour
@@ -2418,8 +2370,7 @@ async def aget_flavour(id: ID, rath: Optional[KabinetRath] = None) -> Flavour:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Flavour
-    """
+        Flavour"""
     return (await aexecute(GetFlavourQuery, {"id": id}, rath=rath)).flavour
 
 
@@ -2433,8 +2384,7 @@ def get_flavour(id: ID, rath: Optional[KabinetRath] = None) -> Flavour:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Flavour
-    """
+        Flavour"""
     return execute(GetFlavourQuery, {"id": id}, rath=rath).flavour
 
 
@@ -2442,7 +2392,7 @@ async def asearch_flavours(
     search: Optional[str] = None,
     values: Optional[List[ID]] = None,
     rath: Optional[KabinetRath] = None,
-) -> List[SearchFlavoursQueryOptions]:
+) -> Tuple[SearchFlavoursQueryOptions, ...]:
     """SearchFlavours
 
 
@@ -2452,8 +2402,7 @@ async def asearch_flavours(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SearchFlavoursQueryFlavours]
-    """
+        List[SearchFlavoursQueryFlavours]"""
     return (
         await aexecute(
             SearchFlavoursQuery, {"search": search, "values": values}, rath=rath
@@ -2465,7 +2414,7 @@ def search_flavours(
     search: Optional[str] = None,
     values: Optional[List[ID]] = None,
     rath: Optional[KabinetRath] = None,
-) -> List[SearchFlavoursQueryOptions]:
+) -> Tuple[SearchFlavoursQueryOptions, ...]:
     """SearchFlavours
 
 
@@ -2475,8 +2424,7 @@ def search_flavours(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SearchFlavoursQueryFlavours]
-    """
+        List[SearchFlavoursQueryFlavours]"""
     return execute(
         SearchFlavoursQuery, {"search": search, "values": values}, rath=rath
     ).options
@@ -2486,7 +2434,7 @@ async def alist_resources(
     filters: Optional[ResourceFilter] = None,
     pagination: Optional[OffsetPaginationInput] = None,
     rath: Optional[KabinetRath] = None,
-) -> List[ListResource]:
+) -> Tuple[ListResource, ...]:
     """ListResources
 
 
@@ -2496,8 +2444,7 @@ async def alist_resources(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListResource]
-    """
+        List[ListResource]"""
     return (
         await aexecute(
             ListResourcesQuery,
@@ -2511,7 +2458,7 @@ def list_resources(
     filters: Optional[ResourceFilter] = None,
     pagination: Optional[OffsetPaginationInput] = None,
     rath: Optional[KabinetRath] = None,
-) -> List[ListResource]:
+) -> Tuple[ListResource, ...]:
     """ListResources
 
 
@@ -2521,8 +2468,7 @@ def list_resources(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListResource]
-    """
+        List[ListResource]"""
     return execute(
         ListResourcesQuery, {"filters": filters, "pagination": pagination}, rath=rath
     ).resources
@@ -2538,8 +2484,7 @@ async def age_resource(id: ID, rath: Optional[KabinetRath] = None) -> Resource:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Resource
-    """
+        Resource"""
     return (await aexecute(GeResourceQuery, {"id": id}, rath=rath)).resource
 
 
@@ -2553,8 +2498,7 @@ def ge_resource(id: ID, rath: Optional[KabinetRath] = None) -> Resource:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Resource
-    """
+        Resource"""
     return execute(GeResourceQuery, {"id": id}, rath=rath).resource
 
 
@@ -2562,7 +2506,7 @@ async def asearch_resources(
     search: Optional[str] = None,
     values: Optional[List[ID]] = None,
     rath: Optional[KabinetRath] = None,
-) -> List[SearchResourcesQueryOptions]:
+) -> Tuple[SearchResourcesQueryOptions, ...]:
     """SearchResources
 
 
@@ -2572,8 +2516,7 @@ async def asearch_resources(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SearchResourcesQueryResources]
-    """
+        List[SearchResourcesQueryResources]"""
     return (
         await aexecute(
             SearchResourcesQuery, {"search": search, "values": values}, rath=rath
@@ -2585,7 +2528,7 @@ def search_resources(
     search: Optional[str] = None,
     values: Optional[List[ID]] = None,
     rath: Optional[KabinetRath] = None,
-) -> List[SearchResourcesQueryOptions]:
+) -> Tuple[SearchResourcesQueryOptions, ...]:
     """SearchResources
 
 
@@ -2595,8 +2538,7 @@ def search_resources(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SearchResourcesQueryResources]
-    """
+        List[SearchResourcesQueryResources]"""
     return execute(
         SearchResourcesQuery, {"search": search, "values": values}, rath=rath
     ).options
@@ -2606,7 +2548,7 @@ async def alist_backends(
     filters: Optional[BackendFilter] = None,
     pagination: Optional[OffsetPaginationInput] = None,
     rath: Optional[KabinetRath] = None,
-) -> List[ListBackend]:
+) -> Tuple[ListBackend, ...]:
     """ListBackends
 
 
@@ -2616,8 +2558,7 @@ async def alist_backends(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListBackend]
-    """
+        List[ListBackend]"""
     return (
         await aexecute(
             ListBackendsQuery, {"filters": filters, "pagination": pagination}, rath=rath
@@ -2629,7 +2570,7 @@ def list_backends(
     filters: Optional[BackendFilter] = None,
     pagination: Optional[OffsetPaginationInput] = None,
     rath: Optional[KabinetRath] = None,
-) -> List[ListBackend]:
+) -> Tuple[ListBackend, ...]:
     """ListBackends
 
 
@@ -2639,8 +2580,7 @@ def list_backends(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[ListBackend]
-    """
+        List[ListBackend]"""
     return execute(
         ListBackendsQuery, {"filters": filters, "pagination": pagination}, rath=rath
     ).backends
@@ -2656,8 +2596,7 @@ async def aget_backend(id: ID, rath: Optional[KabinetRath] = None) -> Backend:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Backend
-    """
+        Backend"""
     return (await aexecute(GetBackendQuery, {"id": id}, rath=rath)).backend
 
 
@@ -2671,8 +2610,7 @@ def get_backend(id: ID, rath: Optional[KabinetRath] = None) -> Backend:
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Backend
-    """
+        Backend"""
     return execute(GetBackendQuery, {"id": id}, rath=rath).backend
 
 
@@ -2680,7 +2618,7 @@ async def asearch_backends(
     search: Optional[str] = None,
     values: Optional[List[ID]] = None,
     rath: Optional[KabinetRath] = None,
-) -> List[SearchBackendsQueryOptions]:
+) -> Tuple[SearchBackendsQueryOptions, ...]:
     """SearchBackends
 
 
@@ -2690,8 +2628,7 @@ async def asearch_backends(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SearchBackendsQueryBackends]
-    """
+        List[SearchBackendsQueryBackends]"""
     return (
         await aexecute(
             SearchBackendsQuery, {"search": search, "values": values}, rath=rath
@@ -2703,7 +2640,7 @@ def search_backends(
     search: Optional[str] = None,
     values: Optional[List[ID]] = None,
     rath: Optional[KabinetRath] = None,
-) -> List[SearchBackendsQueryOptions]:
+) -> Tuple[SearchBackendsQueryOptions, ...]:
     """SearchBackends
 
 
@@ -2713,8 +2650,7 @@ def search_backends(
         rath (kabinet.rath.KabinetRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SearchBackendsQueryBackends]
-    """
+        List[SearchBackendsQueryBackends]"""
     return execute(
         SearchBackendsQuery, {"search": search, "values": values}, rath=rath
     ).options

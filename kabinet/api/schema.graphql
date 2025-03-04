@@ -41,14 +41,15 @@ input AssignWidgetInput {
   choices: [ChoiceInput!] = null
   stateChoices: String = null
   followValue: String = null
-  min: Int = null
-  max: Int = null
-  step: Int = null
+  min: Float = null
+  max: Float = null
+  step: Float = null
   placeholder: String = null
   hook: String = null
   ward: String = null
   fallback: AssignWidgetInput = null
   filters: [ChildPortInput!] = null
+  dependencies: [String!] = null
 }
 
 enum AssignWidgetKind {
@@ -128,6 +129,7 @@ input ChildPortInput {
 type Choice {
   label: String!
   value: String!
+  image: String
   description: String
 }
 
@@ -140,6 +142,7 @@ type ChoiceAssignWidget implements AssignWidget {
 input ChoiceInput {
   value: AnyDefault!
   label: String!
+  image: String = null
   description: String = null
 }
 
@@ -236,8 +239,9 @@ type CustomAssignWidget implements AssignWidget {
 }
 
 type CustomEffect implements Effect {
-  dependencies: [EffectDependency!]!
+  dependencies: [String!]!
   kind: EffectKind!
+  function: ValidatorFunction!
   hook: String!
   ward: String!
 }
@@ -402,31 +406,23 @@ input DumpLogsInput {
 }
 
 interface Effect {
-  dependencies: [EffectDependency!]!
+  dependencies: [String!]!
   kind: EffectKind!
-}
-
-type EffectDependency {
-  condition: LogicalCondition!
-  key: String!
-  value: String!
-}
-
-input EffectDependencyInput {
-  key: String!
-  condition: LogicalCondition!
-  value: AnyDefault!
+  function: ValidatorFunction!
 }
 
 input EffectInput {
-  label: String!
-  description: String
-  dependencies: [EffectDependencyInput!]!
+  function: ValidatorFunction!
+  dependencies: [String!]! = []
+  message: String = null
   kind: EffectKind!
+  hook: String = null
+  ward: String = null
 }
 
 enum EffectKind {
   MESSAGE
+  HIDE
   CUSTOM
 }
 
@@ -502,12 +498,6 @@ type LogDump {
   createdAt: DateTime!
 }
 
-enum LogicalCondition {
-  IS
-  IS_NOT
-  IN
-}
-
 input ManifestInput {
   """The entrypoint of the app, defaults to 'app'"""
   entrypoint: String
@@ -526,8 +516,9 @@ input MatchFlavoursInput {
 }
 
 type MessageEffect implements Effect {
-  dependencies: [EffectDependency!]!
+  dependencies: [String!]!
   kind: EffectKind!
+  function: ValidatorFunction!
   message: String!
 }
 
@@ -655,7 +646,6 @@ type Port {
   children: [ChildPort!]
   assignWidget: AssignWidget
   returnWidget: ReturnWidget
-  groups: [String!]
   validators: [Validator!]
 }
 
@@ -668,7 +658,10 @@ input PortDemandInput {
 
 input PortGroupInput {
   key: String!
-  hidden: Boolean!
+  title: String
+  description: String
+  effects: [EffectInput!] = []
+  ports: [String!] = []
 }
 
 input PortInput {
@@ -685,7 +678,6 @@ input PortInput {
   children: [ChildPortInput!] = null
   assignWidget: AssignWidgetInput = null
   returnWidget: ReturnWidgetInput = null
-  groups: [String!] = null
 }
 
 enum PortKind {
@@ -897,6 +889,7 @@ type SearchAssignWidget implements AssignWidget {
   query: String!
   ward: String!
   filters: [ChildPort!]
+  dependencies: [String!]
 }
 
 """
@@ -936,8 +929,9 @@ input SelectorInput {
 type SliderAssignWidget implements AssignWidget {
   kind: AssignWidgetKind!
   followValue: String
-  min: Int
-  max: Int
+  min: Float
+  max: Float
+  step: Float
 }
 
 type StateChoiceAssignWidget implements AssignWidget {
