@@ -24,5 +24,6 @@
         "activityBar.background": "#1C322B",
         "titleBar.activeBackground": "#27463C",
         "titleBar.activeForeground": "#F9FCFB"
-    }
+    },
+    "python.analysis.typeCheckingMode": "strict"
 }

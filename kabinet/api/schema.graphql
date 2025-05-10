@@ -1,12 +1,23 @@
 directive @unionElementOf(union: String!, discriminator: String!, key: String!) on INPUT_OBJECT
 
-"""Make string uppercase"""
-directive @upper on FIELD
+"""
+The `ArrayLike` scalar type represents a reference to a store previously created by the user n a datalayer
+"""
+scalar ActionHash
 
-directive @replace(old: String!, new: String!) on FIELD
+"""The kind of action."""
+enum ActionKind {
+  FUNCTION
+  GENERATOR
+}
 
-"""Make get stuff uppercase"""
-directive @relation(on: String!) on FIELD
+"""The kind of action scope."""
+enum ActionScope {
+  GLOBAL
+  LOCAL
+  BRIDGE_GLOBAL_TO_LOCAL
+  BRIDGE_LOCAL_TO_GLOBAL
+}
 
 """
 The `ArrayLike` scalar type represents a reference to a store previously created by the user n a datalayer
@@ -21,7 +32,7 @@ type App {
 
 """Create a new Github repository input"""
 input AppImageInput {
-  flavourName: String = null
+  flavourName: String
   manifest: ManifestInput!
   selectors: [SelectorInput!]!
   appImageId: String!
@@ -35,12 +46,13 @@ interface AssignWidget {
 }
 
 input AssignWidgetInput {
+  """
+  Whether to display the input as a paragraph or not. This is used for text inputs and dropdowns
+  """
   asParagraph: Boolean = null
   kind: AssignWidgetKind!
   query: SearchQuery = null
   choices: [ChoiceInput!] = null
-  stateChoices: String = null
-  followValue: String = null
   min: Float = null
   max: Float = null
   step: Float = null
@@ -48,10 +60,11 @@ input AssignWidgetInput {
   hook: String = null
   ward: String = null
   fallback: AssignWidgetInput = null
-  filters: [ChildPortInput!] = null
+  filters: [PortInput!]
   dependencies: [String!] = null
 }
 
+"""The kind of assign widget."""
 enum AssignWidgetKind {
   SEARCH
   CHOICE
@@ -81,10 +94,11 @@ input BackendFilter {
   AND: BackendFilter
   OR: BackendFilter
   NOT: BackendFilter
+  DISTINCT: Boolean
 }
 
 input BindsInput {
-  templates: [String!] = null
+  implementations: [String!] = null
   clients: [String!] = null
   desiredInstances: Int! = 1
 }
@@ -95,35 +109,6 @@ type CPUSelector implements Selector {
   required: Boolean!
   min: Int
   frequency: Float
-}
-
-type ChildPort {
-  key: String!
-  label: String
-  scope: PortScope!
-  kind: PortKind!
-  description: String
-  identifier: Identifier
-  nullable: Boolean!
-  default: AnyDefault
-  children: [ChildPort!]
-  assignWidget: AssignWidget
-  returnWidget: ReturnWidget
-}
-
-input ChildPortInput {
-  default: AnyDefault = null
-  key: String!
-  label: String = null
-  kind: PortKind!
-  scope: PortScope!
-  description: String = null
-  identifier: Identifier = null
-  nullable: Boolean!
-  children: [ChildPortInput!] = null
-  effects: [EffectInput!] = null
-  assignWidget: AssignWidgetInput = null
-  returnWidget: ReturnWidgetInput = null
 }
 
 type Choice {
@@ -139,11 +124,12 @@ type ChoiceAssignWidget implements AssignWidget {
   choices: [Choice!]
 }
 
+"\nA choice is a value that can be selected in a dropdown.\n\nIt is composed of a value, a label, and a description. The value is the\nvalue that is returned when the choice is selected. The label is the\ntext that is displayed in the dropdown. The description is the text\nthat is displayed when the user hovers over the choice.\n\n    "
 input ChoiceInput {
   value: AnyDefault!
   label: String!
-  image: String = null
-  description: String = null
+  image: String
+  description: String
 }
 
 type ChoiceReturnWidget implements ReturnWidget {
@@ -151,20 +137,15 @@ type ChoiceReturnWidget implements ReturnWidget {
   choices: [Choice!]
 }
 
-"""A user of the bridge server. Maps to an authentikate user"""
 type Client {
-  id: ID!
-  identifier: String!
+  clientId: String!
+  name: String!
 }
 
 """A user of the bridge server. Maps to an authentikate user"""
 type Collection {
   id: ID!
-
-  """The name of this Collection"""
   name: String!
-
-  """A description for the Collection"""
   description: String!
   definedAt: DateTime!
 }
@@ -189,7 +170,7 @@ input CreateDeploymentInput {
   localId: ID!
   flavour: ID!
   lastPulled: DateTime = null
-  secretParams: UntypedParams = null
+  secretParams: UntypedParams
 }
 
 """Create a new Github repository input"""
@@ -270,51 +251,20 @@ input DeclareResourceInput {
   qualifiers: [QualifierInput!] = null
 }
 
-"""
-Nodes are abstraction of RPC Tasks. They provide a common API to deal with creating tasks.
-
-See online Documentation
-"""
 type Definition {
   id: ID!
-
-  """The hash of the Node (completely unique)"""
-  hash: NodeHash!
-
-  """The cleartext name of this Node"""
+  hash: ActionHash!
   name: String!
-
-  """The kind of this Node. e.g. is it a function or a generator?"""
-  kind: NodeKind!
-
-  """A description for the Node"""
+  kind: ActionKind!
   description: String
-
-  """The collections this Node belongs to"""
   collections: [Collection!]!
-
-  """The flavours this Definition belongs to"""
   flavours(filters: FlavourFilter, pagination: OffsetPaginationInput): [Flavour!]!
-
-  """
-  The scope of this Node. e.g. does the data it needs or produce live only in the scope of this Node or is it global or does it bridge data?
-  """
-  scope: NodeScope!
-
-  """The users that have pinned the position"""
+  scope: ActionScope!
   isTestFor(filters: DefinitionFilter, order: DefinitionOrder, pagination: OffsetPaginationInput): [Definition!]!
-
-  """The users that have pinned the position"""
   tests(filters: DefinitionFilter, order: DefinitionOrder, pagination: OffsetPaginationInput): [Definition!]!
-
-  """The protocols this Node implements (e.g. Predicate)"""
   protocols: [Protocol!]!
   definedAt: DateTime!
-
-  """Inputs for this Node"""
   args: [Port!]!
-
-  """Outputs for this Node"""
   returns: [Port!]!
 }
 
@@ -326,20 +276,66 @@ input DefinitionFilter {
   AND: DefinitionFilter
   OR: DefinitionFilter
   NOT: DefinitionFilter
+  DISTINCT: Boolean
 }
 
+"A definition\n\n    Definitions are the building implementation for Actions and provide the\n    information needed to create a action. They are primarly composed of a name,\n    a description, and a list of ports.\n\n    Definitions provide a protocol of input and output, and do not contain\n    any information about the actual implementation of the action ( this is handled\n    by a implementation that implements a action).\n\n\n\n\n    "
 input DefinitionInput {
+  """
+  The description of the definition. This is the text that is displayed in the UI
+  """
   description: String = null
+
+  """
+  The collections of the definition. This is used to group definitions together in the UI
+  """
   collections: [String!]! = []
+
+  """
+  The name of the actions. This is used to uniquely identify the definition
+  """
   name: String!
+
+  """
+  Whether the definition is stateful or not. If the definition is stateful, it can be used to create a stateful action. If the definition is not stateful, it cannot be used to create a stateful action
+  """
   stateful: Boolean! = false
+
+  """
+  The port groups of the definition. This is used to group ports together in the UI
+  """
   portGroups: [PortGroupInput!]! = []
+
+  """The args of the definition. This is the input ports of the definition"""
   args: [PortInput!]! = []
+
+  """
+  The returns of the definition. This is the output ports of the definition
+  """
   returns: [PortInput!]! = []
-  kind: NodeKind!
+
+  """
+  The kind of the definition. This is the type of the definition. Can be either a function or a generator
+  """
+  kind: ActionKind!
+
+  """
+  The tests for the definition. This is used to group definitions together in the UI
+  """
   isTestFor: [String!]! = []
+
+  """
+  The interfaces of the definition. This is used to group definitions together in the UI
+  """
   interfaces: [String!]! = []
+
+  """
+  Whether the definition is a dev definition or not. If the definition is a dev definition, it can be used to create a dev action. If the definition is not a dev definition, it cannot be used to create a dev action
+  """
   isDev: Boolean! = false
+
+  """The logo of the definition. This is used to display the logo in the UI"""
+  logo: String = null
 }
 
 input DefinitionOrder {
@@ -355,12 +351,16 @@ enum DemandKind {
   RETURNS
 }
 
+"""
+A dependency for a implementation. By defining dependencies, you can
+    create a dependency graph for your implementations and actions
+"""
 input DependencyInput {
-  hash: NodeHash
-  reference: String = null
-  binds: BindsInput = null
+  hash: ActionHash
+  reference: String
+  binds: BindsInput
   optional: Boolean! = false
-  viableInstances: Int = null
+  viableInstances: Int
 }
 
 """A user of the bridge server. Maps to an authentikate user"""
@@ -380,6 +380,7 @@ input DeploymentFilter {
   AND: DeploymentFilter
   OR: DeploymentFilter
   NOT: DeploymentFilter
+  DISTINCT: Boolean
 }
 
 """The Feature you are trying to match"""
@@ -411,15 +412,17 @@ interface Effect {
   function: ValidatorFunction!
 }
 
+"\n                 An effect is a way to modify a port based on a condition. For example,\n    you could have an effect that sets a port to null if another port is null.\n\n    Or, you could have an effect that hides the port if another port meets a condition.\n    E.g when the user selects a certain option in a dropdown, another port is hidden.\n\n\n    "
 input EffectInput {
   function: ValidatorFunction!
-  dependencies: [String!]! = []
+  dependencies: [String!] = []
   message: String = null
   kind: EffectKind!
-  hook: String = null
-  ward: String = null
+  hook: String
+  ward: String
 }
 
+"""The kind of effect."""
 enum EffectKind {
   MESSAGE
   HIDE
@@ -436,19 +439,17 @@ input EnvironmentInput {
 type Flavour {
   id: ID!
   name: String!
-  description: String!
   logo: String
   image: DockerImage!
   originalLogo: String
   entrypoint: CudaSelector!
   release: Release!
   deployments(filters: DeploymentFilter, pagination: OffsetPaginationInput): [Deployment!]!
-
-  """The flavours this Definition belongs to"""
   definitions(filters: DefinitionFilter, order: DefinitionOrder, pagination: OffsetPaginationInput): [Definition!]!
   manifest: UntypedParams!
   selectors: [Selector!]!
   requirements: [Requirement!]!
+  description: String!
 }
 
 """Filter for Dask Clusters"""
@@ -458,6 +459,7 @@ input FlavourFilter {
   AND: FlavourFilter
   OR: FlavourFilter
   NOT: FlavourFilter
+  DISTINCT: Boolean
 }
 
 """A user of the bridge server. Maps to an authentikate user"""
@@ -477,6 +479,7 @@ input GithubRepoFilter {
   AND: GithubRepoFilter
   OR: GithubRepoFilter
   NOT: GithubRepoFilter
+  DISTINCT: Boolean
 }
 
 """
@@ -484,9 +487,21 @@ The `ArrayLike` scalar type represents a reference to a store previously created
 """
 scalar Identifier
 
+"""
+A implementation is a blueprint for a action. It is composed of a definition, a list of dependencies, and a list of params.
+"""
+input ImplementationInput {
+  definition: DefinitionInput!
+  dependencies: [DependencyInput!]!
+  interface: String
+  params: AnyDefault = null
+  dynamic: Boolean! = false
+  logo: String = null
+}
+
 input InspectionInput {
   size: Int
-  templates: [TemplateInput!]!
+  templates: [ImplementationInput!]!
   requirements: [RequirementInput!]!
 }
 
@@ -505,14 +520,14 @@ input ManifestInput {
   version: String!
   author: String! = "unknown"
   logo: String = null
-  scopes: [String!]!
+  scopes: [String!]! = []
 }
 
 """Create a new Github repository input"""
 input MatchFlavoursInput {
   environment: EnvironmentInput = null
   release: ID = null
-  nodes: [NodeHash!] = null
+  actions: [ActionHash!]
 }
 
 type MessageEffect implements Effect {
@@ -560,26 +575,9 @@ type Mutation {
   deletePod(input: DeletePodInput!): ID!
 }
 
-"""
-The `ArrayLike` scalar type represents a reference to a store previously created by the user n a datalayer
-"""
-scalar NodeHash
-
-enum NodeKind {
-  FUNCTION
-  GENERATOR
-}
-
-enum NodeScope {
-  GLOBAL
-  LOCAL
-  BRIDGE_GLOBAL_TO_LOCAL
-  BRIDGE_LOCAL_TO_GLOBAL
-}
-
 input OffsetPaginationInput {
   offset: Int! = 0
-  limit: Int! = -1
+  limit: Int
 }
 
 input OneApiSelectorInput {
@@ -589,7 +587,11 @@ input OneApiSelectorInput {
 
 enum Ordering {
   ASC
+  ASC_NULLS_FIRST
+  ASC_NULLS_LAST
   DESC
+  DESC_NULLS_FIRST
+  DESC_NULLS_LAST
 }
 
 """A user of the bridge server. Maps to an authentikate user"""
@@ -613,6 +615,7 @@ input PodFilter {
   AND: PodFilter
   OR: PodFilter
   NOT: PodFilter
+  DISTINCT: Boolean
 }
 
 """The state of a dask cluster"""
@@ -635,7 +638,6 @@ type PodUpdateMessage {
 
 type Port {
   key: String!
-  scope: PortScope!
   label: String
   kind: PortKind!
   description: String
@@ -643,7 +645,8 @@ type Port {
   nullable: Boolean!
   effects: [Effect!]
   default: AnyDefault
-  children: [ChildPort!]
+  children: [Port!]
+  choices: [Choice!]
   assignWidget: AssignWidget
   returnWidget: ReturnWidget
   validators: [Validator!]
@@ -656,7 +659,13 @@ input PortDemandInput {
   forceNonNullableLength: Int = null
 }
 
+"""
+A Port Group is a group of ports that are related to each other. It is used to group ports together in the UI and provide a better user experience.
+"""
 input PortGroupInput {
+  """
+  The key of the port group. This is used to uniquely identify the port group
+  """
   key: String!
   title: String
   description: String
@@ -664,22 +673,24 @@ input PortGroupInput {
   ports: [String!] = []
 }
 
+"Port\n\n    A Port is a single input or output of a action. It is composed of a key and a kind\n    which are used to uniquely identify the port.\n\n    If the Port is a structure, we need to define a identifier and scope,\n    Identifiers uniquely identify a specific type of model for the scopes (e.g\n    all the ports that have the identifier \"@mikro/image\" are of the same type, and\n    are hence compatible with each other). Scopes are used to define in which context\n    the identifier is valid (e.g. a port with the identifier \"@mikro/image\" and the\n    scope \"local\", can only be wired to other ports that have the same identifier and\n    are running in the same app). Global ports are ports that have the scope \"global\",\n    and can be wired to any other port that has the same identifier, as there exists a\n    mechanism to resolve and retrieve the object for each app. Please check the rekuest\n    documentation for more information on how this works.\n\n\n    "
 input PortInput {
-  validators: [ValidatorInput!] = null
   key: String!
-  scope: PortScope!
   label: String = null
   kind: PortKind!
   description: String = null
   identifier: String = null
   nullable: Boolean! = false
+  validators: [ValidatorInput!] = null
   effects: [EffectInput!] = null
   default: AnyDefault = null
-  children: [ChildPortInput!] = null
+  children: [PortInput!] = null
+  choices: [ChoiceInput!] = null
   assignWidget: AssignWidgetInput = null
   returnWidget: ReturnWidgetInput = null
 }
 
+"""The kind of port."""
 enum PortKind {
   INT
   STRING
@@ -690,7 +701,9 @@ enum PortKind {
   FLOAT
   DATE
   UNION
+  ENUM
   MODEL
+  MEMORY_STRUCTURE
 }
 
 input PortMatchInput {
@@ -702,23 +715,14 @@ input PortMatchInput {
   children: [PortMatchInput!] = null
 }
 
-enum PortScope {
-  GLOBAL
-  LOCAL
-}
-
 """A user of the bridge server. Maps to an authentikate user"""
 type Protocol {
   id: ID!
-
-  """The name of this Protocol"""
   name: String!
-
-  """A description for the Protocol"""
   description: String!
 }
 
-"""A qualifier that describes some property of the node"""
+"""A qualifier that describes some property of the action"""
 input QualifierInput {
   key: String!
   value: String!
@@ -729,7 +733,7 @@ type Query {
   githubRepo(id: ID!): GithubRepo!
 
   """Return all dask clusters"""
-  definition(id: ID = null, hash: NodeHash = null): Definition!
+  definition(id: ID = null, hash: ActionHash = null): Definition!
 
   """Return all dask clusters"""
   release(id: ID!): Release!
@@ -774,8 +778,6 @@ type Release {
   app: App!
   scopes: [String!]!
   logo: String
-
-  """The original logo url"""
   originalLogo: String
   entrypoint: String!
   flavours(filters: FlavourFilter, pagination: OffsetPaginationInput): [Flavour!]!
@@ -803,6 +805,7 @@ input ReleaseFilter {
   AND: ReleaseFilter
   OR: ReleaseFilter
   NOT: ReleaseFilter
+  DISTINCT: Boolean
 }
 
 """A requirement"""
@@ -821,7 +824,7 @@ input RequirementInput {
 }
 
 """
-A resource on a backend. Resource define allocated resources on a backend. E.g a computational node
+A resource on a backend. Resource define allocated resources on a backend. E.g a computational action
 """
 type Resource {
   id: ID!
@@ -839,12 +842,14 @@ input ResourceFilter {
   AND: ResourceFilter
   OR: ResourceFilter
   NOT: ResourceFilter
+  DISTINCT: Boolean
 }
 
 interface ReturnWidget {
   kind: ReturnWidgetKind!
 }
 
+"A Return Widget is a UI element that is used to display the value of a port.\n\n    Return Widgets get displayed both if we show the return values of an assignment,\n    but also when we inspect the given arguments of a previous run task. Their primary\n    usecase is to adequately display the value of a port, in a user readable way.\n\n    Return Widgets are often overwriten by the underlying UI framework (e.g. Orkestrator)\n    to provide a better user experience. For example, a return widget that displays a\n    date could be overwriten to display a calendar widget.\n\n    Return Widgets provide more a way to customize this overwriten behavior.\n\n    "
 input ReturnWidgetInput {
   kind: ReturnWidgetKind!
   query: SearchQuery = null
@@ -857,6 +862,7 @@ input ReturnWidgetInput {
   ward: String = null
 }
 
+"""The kind of return widget."""
 enum ReturnWidgetKind {
   CHOICE
   CUSTOM
@@ -888,7 +894,7 @@ type SearchAssignWidget implements AssignWidget {
   followValue: String
   query: String!
   ward: String!
-  filters: [ChildPort!]
+  filters: [Port!]
   dependencies: [String!]
 }
 
@@ -955,15 +961,6 @@ type Subscription {
   pods: PodUpdateMessage!
 }
 
-input TemplateInput {
-  definition: DefinitionInput!
-  dependencies: [DependencyInput!]!
-  interface: String!
-  params: AnyDefault = null
-  dynamic: Boolean! = false
-  logo: String = null
-}
-
 """
 UntypedParams represents an untyped options object returned by the Dask Gateway API.
 """
@@ -977,21 +974,16 @@ input UpdateDeploymentInput {
 
 """Create a new Github repository input"""
 input UpdatePodInput {
-  pod: ID = null
-  localId: ID = null
+  pod: ID
+  localId: ID
   status: PodStatus!
   instanceId: String!
 }
 
-"""A user of the bridge server. Maps to an authentikate user"""
 type User {
-  id: ID!
   sub: String!
-
-  """Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."""
-  username: String!
-  email: String!
-  password: String!
+  preferredUsername: String!
+  roles: [String!]!
 }
 
 type Validator {
@@ -1004,6 +996,7 @@ type Validator {
 "\n    The `Validator` scalar represents a javascript function that should execute on the client side (inside a shadow realm)\n      to validate a value (or a set of values) before it is sent to the server.  The function has two parameters (value, otherValues) and should return a string if the value is invalid and undefined if the value is valid.\n        The otherValues parameter is an object with the other values in the form {fieldName: value}."
 scalar ValidatorFunction
 
+" \nA validating function for a port. Can specify a function that will run when validating values of the port.\nIf outside dependencies are needed they need to be specified in the dependencies field. With the .. syntax\nwhen transversing the tree of ports. \n\n"
 input ValidatorInput {
   function: ValidatorFunction!
   dependencies: [String!] = []

@@ -4,8 +4,14 @@ query ListDefinitions {
   }
 }
 
-query GetDefinition($hash: NodeHash) {
+query GetDefinitionByHash($hash: ActionHash) {
   definition(hash: $hash) {
+    ...Definition
+  }
+}
+
+query GetDefinition($id: ID!) {
+  definition(id: $id) {
     ...Definition
   }
 }

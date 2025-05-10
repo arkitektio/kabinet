@@ -1,9 +1,11 @@
+"""Rekuest integration for Kabinet. This module will register default structures when importing"""
+
 from rekuest_next.structures.default import (
     get_default_structure_registry,
     id_shrink,
 )
 from rekuest_next.widgets import SearchWidget
-from rekuest_next.api.schema import ChildPortInput, PortKind, PortScope
+from rekuest_next.api.schema import ChildPortInput, PortKind
 
 from kabinet.api.schema import (
     Pod,
@@ -20,7 +22,6 @@ from kabinet.api.schema import (
     SearchPodsQuery,
     SearchDeploymentsQuery,
     SearchReleasesQuery,
-    SearchBackendsQuery,
     SearchFlavoursQuery,
 )
 
@@ -29,7 +30,6 @@ structure_reg = get_default_structure_registry()
 structure_reg.register_as_structure(
     Pod,
     identifier="@kabinet/pod",
-    scope=PortScope.GLOBAL,
     aexpand=aget_pod,
     ashrink=id_shrink,
     default_widget=SearchWidget(
@@ -39,7 +39,6 @@ structure_reg.register_as_structure(
             ChildPortInput(
                 key="deployment",
                 kind=PortKind.STRUCTURE,
-                scope=PortScope.GLOBAL,
                 nullable=True,
                 identifier="@kabinet/deployment",
                 assignWidget=SearchWidget(
@@ -54,7 +53,6 @@ structure_reg.register_as_structure(
 structure_reg.register_as_structure(
     Deployment,
     identifier="@kabinet/deployment",
-    scope=PortScope.GLOBAL,
     aexpand=aget_deployment,
     ashrink=id_shrink,
     default_widget=SearchWidget(
@@ -65,7 +63,6 @@ structure_reg.register_as_structure(
 structure_reg.register_as_structure(
     Release,
     identifier="@kabinet/release",
-    scope=PortScope.GLOBAL,
     aexpand=aget_release,
     ashrink=id_shrink,
     default_widget=SearchWidget(
@@ -76,7 +73,6 @@ structure_reg.register_as_structure(
 structure_reg.register_as_structure(
     Definition,
     identifier="@kabinet/definition",
-    scope=PortScope.GLOBAL,
     aexpand=aget_definition,
     ashrink=id_shrink,
     default_widget=SearchWidget(
@@ -88,7 +84,6 @@ structure_reg.register_as_structure(
 structure_reg.register_as_structure(
     Flavour,
     identifier="@kabinet/flavour",
-    scope=PortScope.GLOBAL,
     aexpand=aget_flavour,
     ashrink=id_shrink,
     default_widget=SearchWidget(

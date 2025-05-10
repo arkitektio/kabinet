@@ -1,3 +1,5 @@
+""" The core client for the kabinet service"""
+
 from koil.composition import Composition
 from pydantic import Field
 
@@ -5,7 +7,14 @@ from kabinet.rath import KabinetRath
 
 
 class Kabinet(Composition):
-    rath: KabinetRath = Field(default_factory=KabinetRath)
+    """Kabinet Service Composition
 
-    def _repr_html_inline_(self):
-        return f"""<p>Kabinet </p>"""
+    This context manager wraps all the necessary components to interact
+    with a kabinet service. Kabinet needs only a graphql
+    client to be able to interact with the service This is
+    provided by the rath client.
+
+
+    """
+
+    rath: KabinetRath = Field(default_factory=KabinetRath)

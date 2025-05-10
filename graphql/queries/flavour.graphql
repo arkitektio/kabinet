@@ -1,5 +1,5 @@
-query MatchFlavour($nodes: [NodeHash!], $environment: EnvironmentInput) {
-  matchFlavour(input: { nodes: $nodes, environment: $environment }) {
+query MatchFlavour($actions: [ActionHash!], $environment: EnvironmentInput) {
+  matchFlavour(input: { actions: $actions, environment: $environment }) {
     id
     image {
       imageString
