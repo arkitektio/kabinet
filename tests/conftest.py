@@ -29,8 +29,7 @@ async def token_loader():
 @dataclass
 class DeployedKabinet:
     deployment: Deployment
-    mikro_watcher: LogWatcher
-    minio_watcher: LogWatcher
+    kabinet_watcher: LogWatcher
     kabinet: Kabinet
 
 
@@ -43,11 +42,10 @@ def deployed_app() -> Generator[DeployedKabinet, None, None]:
         url=lambda spec: f"http://localhost:{spec.services.get('kabinet').get_port_for_internal(80).published}/graphql",
         service="kabinet",
         timeout=5,
-        max_retries=10,
+        max_retries=15,
     )
 
-    watcher = setup.create_watcher("mikro")
-    minio_watcher = setup.create_watcher("minio")
+    watcher = setup.create_watcher("kabinet")
 
     with setup:
         setup.down()
@@ -77,8 +75,7 @@ def deployed_app() -> Generator[DeployedKabinet, None, None]:
         with kab as kab:
             deployed = DeployedKabinet(
                 deployment=setup,
-                mikro_watcher=watcher,
-                minio_watcher=minio_watcher,
+                kabinet_watcher=watcher,
                 kabinet=kab,
             )
 
