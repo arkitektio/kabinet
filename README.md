@@ -1,4 +1,4 @@
-# Konviktion
+# Kabinet
 
 [![codecov](https://codecov.io/gh/jhnnsrs/konviktion/branch/main/graph/badge.svg?token=UGXEA2THBV)](https://codecov.io/gh/jhnnsrs/konviktion)
 [![PyPI version](https://badge.fury.io/py/konviktion.svg)](https://pypi.org/project/konviktion/)
@@ -12,46 +12,12 @@
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/jhnnsrs/konviktion)
 
 
-## Description
+## Kabinet
 
-Konviktion is a simple, lightweight, notion gateway. It is designed to be used within
-the Arkitekt Framework to allow users to easily add pages to their notion workspace.
+Kabinet is a tool for managing and deploying applications installable applications for the arkitekt framework. It is the
+successto to the port spec.
 
-This is the client library for Konviktion, wich can be found [here](https://github.com/arkitektio/konviktion-server).
-More information will be added soon.
 
-### Requirements
-
-Konviktion standalone requires that you have docker installed on your machine. If you do not have docker installed, you can find
-instructions for installing it [here](https://docs.docker.com/get-docker/). 
-Also we require you to have at least Python3.9.
-
-```bash
-pip install konviktion
-```
-
-### Usage
-
-While you can use docker to spin up a konviktion-server yourself, you can also use the `deployed` context manager to spin up
-a local konviktion-server.
-    
-```python
-from konviktion import deployed 
-from konviktion.api.schema import create_github_repository
-
-with deployed():
-
-    
-
-    
-
-```
-
-In the above example, we use the `deployed` context manager to spin up a a local konviktion-server, and are creating
-a repo on github. Repositories are online collections of various Apps (in various releases and flaovurs), that can be
-used to deploy containers running these apps.
-
-More info to come soon. Stay tuned.
 
 
 
