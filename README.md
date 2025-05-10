@@ -26,8 +26,24 @@ pip install kabinet
 ```
 
 
+## Usage
+
+This client can be use to manage and retrive defintions of applications on the arkitekt server. Currently, its mainly
+tide to the arkitekt platform and we wouldn't recommend using it outside of its orignal scope just yet.
+
+```python
+from arkitekt_next import easy
+from kabient.api.schema import create_github_repo
+
+with easy():
+
+    repo = create_github_repo(
+        name=" A new repo",
+        identifier="jhnnsrs/kabinet:main", 
+    )
+
+    print(repo) # will print the repo with all appimages that are in the repo
 
 
-
-
+```
 
