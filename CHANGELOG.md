@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.2.0 (2025-05-10)
+
+### Features
+
+- Added more to readme
+  ([`095719d`](https://github.com/arkitektio/kabinet/commit/095719d48486c7f23a6441bdf27dade6c38a7919))
+
+
 ## v0.1.0 (2025-05-10)
 
 ### Chores
@@ -20,3 +28,8 @@
 
 - Simplify DeployedKabinet structure and update watcher configuration
   ([`cc82026`](https://github.com/arkitektio/kabinet/commit/cc8202606158a15600382e33f54729e81e1ab964))
+
+### Testing
+
+- Add type hints to test functions and implement CPU selector input test
+  ([`939e946`](https://github.com/arkitektio/kabinet/commit/939e94619ea0f1495991352790f63f4b980c3bca))
