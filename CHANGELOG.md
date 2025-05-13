@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.3.0 (2025-05-10)
+
+### Features
+
+- Add some more documentation
+  ([`0b14650`](https://github.com/arkitektio/kabinet/commit/0b146509c3706b15aefa8c2f2b03dd34eace7fc8))
+
+
 ## v0.2.0 (2025-05-10)
 
 ### Features
