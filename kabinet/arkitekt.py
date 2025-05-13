@@ -20,23 +20,18 @@ from arkitekt_next.service_registry import (
 from arkitekt_next.base_models import Requirement
 
 
-class ArkitektNextKabinet(Kabinet):
-    rath: KabinetRath
-
-
 def build_relative_path(*path: str) -> str:
     return os.path.join(os.path.dirname(__file__), *path)
 
 
 class KabinetService(BaseArkitektService):
-
     def get_service_name(self):
         return "kabinet"
 
     def build_service(
         self, fakts: Fakts, herre: Herre, params: Params, manifest: Manifest
     ):
-        return ArkitektNextKabinet(
+        return Kabinet(
             rath=KabinetRath(
                 link=KabinetLinkComposition(
                     auth=HerreAuthLink(herre=herre),

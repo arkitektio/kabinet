@@ -5,7 +5,7 @@ from rekuest_next.structures.default import (
     id_shrink,
 )
 from rekuest_next.widgets import SearchWidget
-from rekuest_next.api.schema import ChildPortInput, PortKind
+from rekuest_next.api.schema import PortInput, PortKind
 
 from kabinet.api.schema import (
     Pod,
@@ -36,7 +36,7 @@ structure_reg.register_as_structure(
         query=SearchPodsQuery.Meta.document,
         ward="kabinet",
         filters=[
-            ChildPortInput(
+            PortInput(
                 key="deployment",
                 kind=PortKind.STRUCTURE,
                 nullable=True,
