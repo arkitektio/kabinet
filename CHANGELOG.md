@@ -1,12 +1,18 @@
 # CHANGELOG
 
 
+## v0.4.0 (2025-05-13)
+
+
 ## v0.3.0 (2025-05-10)
 
 ### Features
 
 - Add some more documentation
   ([`0b14650`](https://github.com/arkitektio/kabinet/commit/0b146509c3706b15aefa8c2f2b03dd34eace7fc8))
+
+- Update to rath 3.4
+  ([`6570387`](https://github.com/arkitektio/kabinet/commit/657038778eb8cb89c8924f89ca0f948abb0fd9a7))
 
 
 ## v0.2.0 (2025-05-10)
