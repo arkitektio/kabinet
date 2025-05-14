@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.5.0 (2025-05-14)
+
+### Features
+
+- Update input fields and error handling in schema and scalars
+  ([`32eba62`](https://github.com/arkitektio/kabinet/commit/32eba627ff613ad53f5e2e9c71d2042dca3ca5ae))
+
+
 ## v0.4.0 (2025-05-13)
 
 
