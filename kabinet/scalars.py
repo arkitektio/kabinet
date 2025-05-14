@@ -8,7 +8,7 @@ from graphql import (
     OperationType,
     print_ast,
     print_source_location,
-    GraphQLError,
+    GraphQLSyntaxError,
 )
 from typing import Callable, Dict, Any, Union
 
@@ -70,13 +70,13 @@ class Identifier(str):
         return core_schema.no_info_after_validator_function(cls.validate, handler(str))
 
     @classmethod
-    def validate(cls, v: str) -> str:
+    def validate(cls, v: str) -> "Identifier":
         """Validate the identifier"""
         if "@" in v and "/" not in v:
             raise ValueError(
                 "Identifier must contain follow '@package/module' when trying to mimic a global module "
             )
-        return v
+        return Identifier(v)
 
 
 class ValidatorFunction(str):
@@ -127,14 +127,14 @@ def parse_or_raise(v: str) -> DocumentNode:
     """
     try:
         return parse(v)
-    except GraphQLError as e:
+    except GraphQLSyntaxError as e:
         x = repr(e)
         x += "\n" + v + "\n"
         if e.locations:
             for loc in e.locations:
                 if e.source:
                     x += "\n" + print_source_location(e.source, loc)
-        raise ValueError("Could not parse to graphql: \n" + x)
+        raise ValueError("Could not parse to graphql: \n" + x) from e
 
 
 class SearchQuery(str):
@@ -166,10 +166,10 @@ class SearchQuery(str):
         return core_schema.no_info_after_validator_function(cls.validate, handler(str))
 
     @classmethod
-    def validate(cls, v: Union[str, DocumentNode, Any]) -> str:
+    def validate(cls, v: Union[str, DocumentNode, Any]) -> "SearchQuery":
         """Validate the search query"""
         if not isinstance(v, str) and not isinstance(v, DocumentNode):
-            raise TypeError("Search query must be either a str or a graphql DocumentAction")
+            raise ValueError("Search query must be either a str or a graphql DocumentAction")
         if isinstance(v, str):
             v = parse_or_raise(v)
 
@@ -189,9 +189,10 @@ class SearchQuery(str):
         if not definition.operation == OperationType.QUERY:
             raise ValueError("Needs to be operation")
 
-        assert len(definition.variable_definitions) >= 2, (
-            f"At least two arguments should be provided ($search: String, $values: [ID])): Was given: {print_ast(v)}"
-        )
+        if len(definition.variable_definitions) < 2:
+            raise ValueError(
+                f"At least two arguments should be provided ($search: String, $values: [ID])): Was given: {print_ast(v)}"
+            )
 
         if (
             definition.variable_definitions[0].variable.name.value != "search"
@@ -229,11 +230,6 @@ class SearchQuery(str):
 
         wrapped_selection = wrapped_query.selection_set.selections
 
-        if not isinstance(wrapped_selection, list):
-            raise ValueError(
-                f"Wrapped query should contain a selection set: Was given: {print_ast(v)}"
-            )
-
         aliases = [
             field.alias.value if field.alias else field.name.value
             for field in wrapped_selection
@@ -248,4 +244,4 @@ class SearchQuery(str):
                 "Searched query needs to contain a 'label' that corresponds to the displayed value to the user"
             )
 
-        return print_ast(v)
+        return SearchQuery(print_ast(v))

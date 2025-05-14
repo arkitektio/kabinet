@@ -501,7 +501,7 @@ input ImplementationInput {
 
 input InspectionInput {
   size: Int
-  templates: [ImplementationInput!]!
+  implementations: [ImplementationInput!]!
   requirements: [RequirementInput!]!
 }
 
@@ -544,9 +544,6 @@ type Mutation {
   """Rescan all repos"""
   rescanRepos: [GithubRepo!]!
 
-  """Create a new release"""
-  createAppImage(input: AppImageInput!): Release!
-
   """Create a new Github repository on a bridge server"""
   createGithubRepo(input: CreateGithubRepoInput!): GithubRepo!
 
@@ -573,6 +570,9 @@ type Mutation {
 
   """Create a new dask cluster on a bridge server"""
   deletePod(input: DeletePodInput!): ID!
+
+  """Create a new release"""
+  createAppImage(input: AppImageInput!): Release!
 }
 
 input OffsetPaginationInput {
