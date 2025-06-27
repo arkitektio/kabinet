@@ -1,23 +1,20 @@
 import json
 import os
+from fakts_next.contrib.rath.auth import FaktsAuthLink
+from fakts_next.models import Requirement
 from kabinet.kabinet import Kabinet
 from kabinet.rath import KabinetLinkComposition, KabinetRath
 from rath.links.split import SplitLink
 from fakts_next.contrib.rath.aiohttp import FaktsAIOHttpLink
 from fakts_next.contrib.rath.graphql_ws import FaktsGraphQLWSLink
-from herre_next.contrib.rath.auth_link import HerreAuthLink
 from graphql import OperationType
-from herre_next import Herre
 from fakts_next import Fakts
-
-from arkitekt_next.base_models import Manifest
 
 from arkitekt_next.service_registry import (
     BaseArkitektService,
     Params,
     get_default_service_registry,
 )
-from arkitekt_next.base_models import Requirement
 
 
 def build_relative_path(*path: str) -> str:
@@ -29,12 +26,16 @@ class KabinetService(BaseArkitektService):
         return "kabinet"
 
     def build_service(
-        self, fakts: Fakts, herre: Herre, params: Params, manifest: Manifest
+        self,
+        fakts: Fakts,
+        params: Params,
     ):
         return Kabinet(
             rath=KabinetRath(
                 link=KabinetLinkComposition(
-                    auth=HerreAuthLink(herre=herre),
+                    auth=FaktsAuthLink(
+                        fakts=fakts,
+                    ),
                     split=SplitLink(
                         left=FaktsAIOHttpLink(
                             fakts_group="kabinet", fakts=fakts, endpoint_url="FAKE_URL"
