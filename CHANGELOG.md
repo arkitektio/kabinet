@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.6.0 (2025-06-27)
+
+### Features
+
+- Updated arkitekt stack
+  ([`26a64ac`](https://github.com/arkitektio/kabinet/commit/26a64acad506780da429ab61a13ec7f638439177))
+
+
 ## v0.5.0 (2025-05-14)
 
 ### Features
