@@ -1,3 +1,5 @@
+directive @oneOf on INPUT_OBJECT
+
 directive @unionElementOf(union: String!, discriminator: String!, key: String!) on INPUT_OBJECT
 
 """
@@ -60,8 +62,8 @@ input AssignWidgetInput {
   hook: String = null
   ward: String = null
   fallback: AssignWidgetInput = null
-  filters: [PortInput!]
-  dependencies: [String!] = null
+  filters: [PortInput!] = null
+  dependencies: [String!] = []
 }
 
 """The kind of assign widget."""
@@ -98,8 +100,8 @@ input BackendFilter {
 }
 
 input BindsInput {
-  implementations: [String!] = null
-  clients: [String!] = null
+  implementations: [String!]
+  clients: [String!]
   desiredInstances: Int! = 1
 }
 
@@ -128,8 +130,8 @@ type ChoiceAssignWidget implements AssignWidget {
 input ChoiceInput {
   value: AnyDefault!
   label: String!
-  image: String
-  description: String
+  image: String = null
+  description: String = null
 }
 
 type ChoiceReturnWidget implements ReturnWidget {
@@ -258,7 +260,7 @@ type Definition {
   kind: ActionKind!
   description: String
   collections: [Collection!]!
-  flavours(filters: FlavourFilter, pagination: OffsetPaginationInput): [Flavour!]!
+  flavours(filters: FlavourFilter, order: FlavourOrder, pagination: OffsetPaginationInput): [Flavour!]!
   scope: ActionScope!
   isTestFor(filters: DefinitionFilter, order: DefinitionOrder, pagination: OffsetPaginationInput): [Definition!]!
   tests(filters: DefinitionFilter, order: DefinitionOrder, pagination: OffsetPaginationInput): [Definition!]!
@@ -454,12 +456,17 @@ type Flavour {
 
 """Filter for Dask Clusters"""
 input FlavourFilter {
-  ids: [ID!] = null
-  search: String = null
+  ids: [ID!]
+  search: String
+  hasDefinitions: [ID!]
   AND: FlavourFilter
   OR: FlavourFilter
   NOT: FlavourFilter
   DISTINCT: Boolean
+}
+
+input FlavourOrder {
+  releasedAt: Ordering
 }
 
 """A user of the bridge server. Maps to an authentikate user"""
@@ -469,7 +476,7 @@ type GithubRepo {
   repo: String!
   branch: String!
   user: String!
-  flavours(filters: FlavourFilter, pagination: OffsetPaginationInput): [Flavour!]!
+  flavours(filters: FlavourFilter, order: FlavourOrder, pagination: OffsetPaginationInput): [Flavour!]!
 }
 
 """Filter for Dask Clusters"""
@@ -594,6 +601,11 @@ enum Ordering {
   DESC_NULLS_LAST
 }
 
+type Organization {
+  id: String!
+  slug: String!
+}
+
 """A user of the bridge server. Maps to an authentikate user"""
 type Pod {
   id: ID!
@@ -675,13 +687,13 @@ input PortGroupInput {
 
 "Port\n\n    A Port is a single input or output of a action. It is composed of a key and a kind\n    which are used to uniquely identify the port.\n\n    If the Port is a structure, we need to define a identifier and scope,\n    Identifiers uniquely identify a specific type of model for the scopes (e.g\n    all the ports that have the identifier \"@mikro/image\" are of the same type, and\n    are hence compatible with each other). Scopes are used to define in which context\n    the identifier is valid (e.g. a port with the identifier \"@mikro/image\" and the\n    scope \"local\", can only be wired to other ports that have the same identifier and\n    are running in the same app). Global ports are ports that have the scope \"global\",\n    and can be wired to any other port that has the same identifier, as there exists a\n    mechanism to resolve and retrieve the object for each app. Please check the rekuest\n    documentation for more information on how this works.\n\n\n    "
 input PortInput {
+  validators: [ValidatorInput!] = null
   key: String!
   label: String = null
   kind: PortKind!
   description: String = null
   identifier: String = null
   nullable: Boolean! = false
-  validators: [ValidatorInput!] = null
   effects: [EffectInput!] = null
   default: AnyDefault = null
   children: [PortInput!] = null
@@ -758,7 +770,7 @@ type Query {
 
   """Return the currently logged in user"""
   matchFlavour(input: MatchFlavoursInput!): Flavour!
-  flavours(filters: FlavourFilter, pagination: OffsetPaginationInput): [Flavour!]!
+  flavours(filters: FlavourFilter, order: FlavourOrder, pagination: OffsetPaginationInput): [Flavour!]!
   releases(filters: ReleaseFilter, pagination: OffsetPaginationInput): [Release!]!
   resources(filters: ResourceFilter, pagination: OffsetPaginationInput): [Resource!]!
   deployments(filters: DeploymentFilter, pagination: OffsetPaginationInput): [Deployment!]!
@@ -780,7 +792,7 @@ type Release {
   logo: String
   originalLogo: String
   entrypoint: String!
-  flavours(filters: FlavourFilter, pagination: OffsetPaginationInput): [Flavour!]!
+  flavours(filters: FlavourFilter, order: FlavourOrder, pagination: OffsetPaginationInput): [Flavour!]!
 
   """Is this release deployed"""
   installed: Boolean!
@@ -983,7 +995,7 @@ input UpdatePodInput {
 type User {
   sub: String!
   preferredUsername: String!
-  roles: [String!]!
+  activeOrganization: Organization
 }
 
 type Validator {

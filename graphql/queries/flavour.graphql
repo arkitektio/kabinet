@@ -8,6 +8,12 @@ query MatchFlavour($actions: [ActionHash!], $environment: EnvironmentInput) {
   }
 }
 
+query ListFlavours($filters: FlavourFilter, $pagination: OffsetPaginationInput, $order: FlavourOrder) {
+  flavours(filters: $filters, pagination: $pagination, order: $order) {
+    ...ListFlavour
+  }
+}
+
 query GetFlavour($id: ID!) {
   flavour(id: $id) {
     ...Flavour

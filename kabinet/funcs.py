@@ -13,44 +13,56 @@ from .errors import NoKabinetFound
 
 
 def execute(
-    operation: Type[TOperation], variables: Dict[str, Any], rath: KabinetRath | None = None
+    operation: Type[TOperation],
+    variables: Dict[str, Any],
+    rath: KabinetRath | None = None,
 ) -> TOperation:
     """Executes a query or mutation using rath in a blocking way."""
     return unkoil(aexecute, operation, variables, rath)
 
 
 async def aexecute(
-    operation: Type[TOperation], variables: Dict[str, Any], rath: KabinetRath | None = None
+    operation: Type[TOperation],
+    variables: Dict[str, Any],
+    rath: KabinetRath | None = None,
 ) -> TOperation:
     """Executes a query or mutation using rath in a non-blocking way."""
     rath = rath or current_kabinet_rath.get()
     if not rath:
-        raise NoKabinetFound("No rath client found in context. Please provide a rath client.")
+        raise NoKabinetFound(
+            "No rath client found in context. Please provide a rath client."
+        )
 
     x = await rath.aquery(
         operation.Meta.document,
-        operation.Arguments(**variables).model_dump(by_alias=True),
+        operation.Arguments(**variables).model_dump(by_alias=True, exclude_unset=True),
     )
     return operation(**x.data)
 
 
 def subscribe(
-    operation: Type[TOperation], variables: Dict[str, Any], rath: KabinetRath | None = None
+    operation: Type[TOperation],
+    variables: Dict[str, Any],
+    rath: KabinetRath | None = None,
 ) -> Generator[TOperation, None, None]:
     """Subscribes to a query or mutation using rath in a blocking way."""
     return unkoil_gen(asubscribe, operation, variables, rath)
 
 
 async def asubscribe(
-    operation: Type[TOperation], variables: Dict[str, Any], rath: KabinetRath | None = None
+    operation: Type[TOperation],
+    variables: Dict[str, Any],
+    rath: KabinetRath | None = None,
 ) -> AsyncGenerator[TOperation, None]:
     """Subscribes to a query or mutation using rath in a non-blocking way."""
     rath = rath or current_kabinet_rath.get()
     if not rath:
-        raise NoKabinetFound("No rath client found in context. Please provide a rath client.")
+        raise NoKabinetFound(
+            "No rath client found in context. Please provide a rath client."
+        )
 
     async for event in rath.asubscribe(
         operation.Meta.document,
-        operation.Arguments(**variables).model_dump(by_alias=True),
+        operation.Arguments(**variables).model_dump(by_alias=True, exclude_unset=True),
     ):
         yield operation(**event.data)
