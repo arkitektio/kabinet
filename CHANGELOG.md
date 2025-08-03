@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.7.0 (2025-08-03)
+
+### Bug Fixes
+
+- Exclude unset
+  ([`f675c55`](https://github.com/arkitektio/kabinet/commit/f675c55e79955505b5c90032975249cd3c98a1eb))
+
+### Features
+
+- Add new integration tests
+  ([`bc5de45`](https://github.com/arkitektio/kabinet/commit/bc5de45f7d38d907d005846f09361a3fd47f2daf))
+
+
 ## v0.6.0 (2025-06-27)
 
 ### Features
