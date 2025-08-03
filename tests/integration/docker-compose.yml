@@ -13,7 +13,7 @@ services:
     - redis
     - db
     - minio
-    image: jhnnsrs/kabinet:nightly
+    image: jhnnsrs/kabinet:dev
     command: bash run-debug.sh
     stop_grace_period: 1s
     ports:

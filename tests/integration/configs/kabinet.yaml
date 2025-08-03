@@ -17,10 +17,9 @@ django:
   secret_key: ab94ec351412c22324b2f635e0d6b9dd
 force_script_name: ""
 ensured_repos:
-  - jhnnsrs/ome:main
-  - jhnnsrs/renderer:main
-  - jhnnsrs/std-next:main
-  - jhnnsrs/starmist:main
+  - arkitektio-apps/ome:main
+  - arkitektio-apps/renderer:main
+  - arkitektio-apps/std-next:main
 lok:
   static_tokens:
     test:

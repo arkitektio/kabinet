@@ -48,6 +48,8 @@ def deployed_app() -> Generator[DeployedKabinet, None, None]:
     watcher = setup.create_watcher("kabinet")
 
     with setup:
+        
+        setup.pull()
         setup.down()
 
         http_url = f"http://localhost:{setup.spec.services.get('kabinet').get_port_for_internal(80).published}/graphql"
