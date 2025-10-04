@@ -1,9 +1,15 @@
 # CHANGELOG
 
 
+## v0.9.0 (2025-10-04)
+
+
 ## v0.8.0 (2025-10-04)
 
 ### Features
+
+- Add my_pod_at
+  ([`27b31b7`](https://github.com/arkitektio/kabinet/commit/27b31b751254b4a6707f422e59b1938cea4e9aa9))
 
 - Update to latest schema
   ([`6c3ef4c`](https://github.com/arkitektio/kabinet/commit/6c3ef4c7903c18acddc218024baad9331f248914))
