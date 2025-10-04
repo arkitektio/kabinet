@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.8.0 (2025-10-04)
+
+### Features
+
+- Update to latest schema
+  ([`6c3ef4c`](https://github.com/arkitektio/kabinet/commit/6c3ef4c7903c18acddc218024baad9331f248914))
+
+
 ## v0.7.0 (2025-08-03)
 
 ### Bug Fixes
