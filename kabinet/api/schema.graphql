@@ -831,6 +831,9 @@ type Query {
 
   """Return the pod for an agent"""
   podForAgent(clientId: ID!, instanceId: ID!): Pod
+
+  """Let a backend discover its own pods"""
+  myPodAt(instanceId: ID!, localId: ID!): Pod!
 }
 
 """A user of the bridge server. Maps to an authentikate user"""

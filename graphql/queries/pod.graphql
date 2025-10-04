@@ -10,6 +10,12 @@ query GetPod($id: ID!) {
   }
 }
 
+query MyPodAt($instanceId: ID!, $localId: ID!) {
+  myPodAt(instanceId: $instanceId, localId: $localId) {
+    ...Pod
+  }
+}
+
 query SearchPods($search: String, $values: [ID!], $backend: ID) {
   options: pods(
     filters: { search: $search, ids: $values, backend: $backend }
