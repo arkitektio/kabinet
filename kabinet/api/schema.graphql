@@ -3,6 +3,23 @@ directive @oneOf on INPUT_OBJECT
 directive @unionElementOf(union: String!, discriminator: String!, key: String!) on INPUT_OBJECT
 
 """
+A dependency for a implementation. By defining dependencies, you can
+    create a dependency graph for your implementations and actions
+"""
+input ActionDependencyInput {
+  key: String!
+  hash: ActionHash = null
+  name: String = null
+  description: String = null
+  argMatches: [PortMatchInput!] = null
+  returnMatches: [PortMatchInput!] = null
+  protocols: [ID!] = null
+  forceArgLength: Int = null
+  forceReturnLength: Int = null
+  optional: Boolean! = false
+}
+
+"""
 The `ArrayLike` scalar type represents a reference to a store previously created by the user n a datalayer
 """
 scalar ActionHash
@@ -41,6 +58,9 @@ input AppImageInput {
   inspection: InspectionInput!
   image: DockerImageInput!
 }
+
+"""The `Arg` scalar type represents a an Argument in a Action assignment"""
+scalar Arg
 
 interface AssignWidget {
   kind: AssignWidgetKind!
@@ -81,6 +101,7 @@ type Backend {
   id: ID!
   user: User!
   client: Client!
+  organization: Organization!
   name: String!
   kind: String!
   pods(filters: PodFilter, pagination: OffsetPaginationInput): [Pod!]!
@@ -97,12 +118,6 @@ input BackendFilter {
   OR: BackendFilter
   NOT: BackendFilter
   DISTINCT: Boolean
-}
-
-input BindsInput {
-  implementations: [String!]
-  clients: [String!]
-  desiredInstances: Int! = 1
 }
 
 """ A selector is a way to select a release"""
@@ -222,9 +237,9 @@ type CustomAssignWidget implements AssignWidget {
 }
 
 type CustomEffect implements Effect {
-  dependencies: [String!]!
   kind: EffectKind!
   function: ValidatorFunction!
+  dependencies: [String!]!
   hook: String!
   ward: String!
 }
@@ -353,18 +368,6 @@ enum DemandKind {
   RETURNS
 }
 
-"""
-A dependency for a implementation. By defining dependencies, you can
-    create a dependency graph for your implementations and actions
-"""
-input DependencyInput {
-  hash: ActionHash
-  reference: String
-  binds: BindsInput
-  optional: Boolean! = false
-  viableInstances: Int
-}
-
 """A user of the bridge server. Maps to an authentikate user"""
 type Deployment {
   id: ID!
@@ -383,6 +386,16 @@ input DeploymentFilter {
   OR: DeploymentFilter
   NOT: DeploymentFilter
   DISTINCT: Boolean
+}
+
+type Descriptor {
+  key: String!
+  value: Arg!
+}
+
+input DescriptorInput {
+  key: String!
+  value: Arg!
 }
 
 """The Feature you are trying to match"""
@@ -409,9 +422,9 @@ input DumpLogsInput {
 }
 
 interface Effect {
-  dependencies: [String!]!
   kind: EffectKind!
   function: ValidatorFunction!
+  dependencies: [String!]!
 }
 
 "\n                 An effect is a way to modify a port based on a condition. For example,\n    you could have an effect that sets a port to null if another port is null.\n\n    Or, you could have an effect that hides the port if another port meets a condition.\n    E.g when the user selects a certain option in a dropdown, another port is hidden.\n\n\n    "
@@ -420,8 +433,9 @@ input EffectInput {
   dependencies: [String!] = []
   message: String = null
   kind: EffectKind!
-  hook: String
-  ward: String
+  fade: Boolean = true
+  hook: String = null
+  ward: String = null
 }
 
 """The kind of effect."""
@@ -477,16 +491,29 @@ type GithubRepo {
   branch: String!
   user: String!
   flavours(filters: FlavourFilter, order: FlavourOrder, pagination: OffsetPaginationInput): [Flavour!]!
+  updatedAt: DateTime!
+  addedAt: DateTime!
+  organization: Organization!
 }
 
 """Filter for Dask Clusters"""
 input GithubRepoFilter {
   ids: [ID!] = null
   search: String = null
+  repo: String = null
+  user: String = null
+  branch: String = null
   AND: GithubRepoFilter
   OR: GithubRepoFilter
   NOT: GithubRepoFilter
   DISTINCT: Boolean
+}
+
+type HideEffect implements Effect {
+  kind: EffectKind!
+  function: ValidatorFunction!
+  dependencies: [String!]!
+  fade: Boolean!
 }
 
 """
@@ -499,7 +526,7 @@ A implementation is a blueprint for a action. It is composed of a definition, a 
 """
 input ImplementationInput {
   definition: DefinitionInput!
-  dependencies: [DependencyInput!]!
+  dependencies: [ActionDependencyInput!]!
   interface: String
   params: AnyDefault = null
   dynamic: Boolean! = false
@@ -538,9 +565,9 @@ input MatchFlavoursInput {
 }
 
 type MessageEffect implements Effect {
-  dependencies: [String!]!
   kind: EffectKind!
   function: ValidatorFunction!
+  dependencies: [String!]!
   message: String!
 }
 
@@ -662,13 +689,30 @@ type Port {
   assignWidget: AssignWidget
   returnWidget: ReturnWidget
   validators: [Validator!]
+  descriptors: [Descriptor!]
 }
 
 input PortDemandInput {
+  """The kind of the demand. You can ask for args or returns"""
   kind: DemandKind!
+
+  """The matches of the demand. """
   matches: [PortMatchInput!] = null
+
+  """
+  Require that the action has a specific number of ports. This is used to identify the demand in the system.
+  """
   forceLength: Int = null
+
+  """
+  Require that the action has a specific number of non-nullable ports. This is used to identify the demand in the system.
+  """
   forceNonNullableLength: Int = null
+
+  """
+  Require that the action has a specific number of structure ports. This is used to identify the demand in the system.
+  """
+  forceStructureLength: Int = null
 }
 
 """
@@ -700,6 +744,7 @@ input PortInput {
   choices: [ChoiceInput!] = null
   assignWidget: AssignWidgetInput = null
   returnWidget: ReturnWidgetInput = null
+  descriptors: [DescriptorInput!] = null
 }
 
 """The kind of port."""
@@ -716,8 +761,13 @@ enum PortKind {
   ENUM
   MODEL
   MEMORY_STRUCTURE
+  INTERFACE
 }
 
+"""
+A dependency for a implementation. By defining dependencies, you can
+    create a dependency graph for your implementations and actions
+"""
 input PortMatchInput {
   at: Int = null
   key: String = null
