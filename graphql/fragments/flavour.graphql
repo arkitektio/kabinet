@@ -26,6 +26,9 @@ fragment ListFlavour on Flavour {
     imageString
     buildAt
   }
+  repo {
+    url
+  }
   selectors {
     ...CudaSelector
     ...RocmSelector

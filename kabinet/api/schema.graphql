@@ -17,6 +17,7 @@ input ActionDependencyInput {
   forceArgLength: Int = null
   forceReturnLength: Int = null
   optional: Boolean! = false
+  allowInactive: Boolean = true
 }
 
 """
@@ -462,6 +463,7 @@ type Flavour {
   release: Release!
   deployments(filters: DeploymentFilter, pagination: OffsetPaginationInput): [Deployment!]!
   definitions(filters: DefinitionFilter, order: DefinitionOrder, pagination: OffsetPaginationInput): [Definition!]!
+  repo: GithubRepo!
   manifest: UntypedParams!
   selectors: [Selector!]!
   requirements: [Requirement!]!
@@ -494,6 +496,13 @@ type GithubRepo {
   updatedAt: DateTime!
   addedAt: DateTime!
   organization: Organization!
+  issueUrl: String!
+  url: String!
+}
+
+"""Numeric/aggregatable fields of GithubRepo"""
+enum GithubRepoField {
+  CREATED_AT
 }
 
 """Filter for Dask Clusters"""
@@ -507,6 +516,43 @@ input GithubRepoFilter {
   OR: GithubRepoFilter
   NOT: GithubRepoFilter
   DISTINCT: Boolean
+}
+
+type GithubRepoStats {
+  """Total number of items in the selection"""
+  count: Int!
+
+  """Number of distinct values for the field"""
+  distinctCount(field: GithubRepoField!): Int!
+
+  """Maximum"""
+  max(field: GithubRepoField!): Float
+
+  """Minimum"""
+  min(field: GithubRepoField!): Float
+
+  """Average"""
+  avg(field: GithubRepoField!): Float
+
+  """Sum"""
+  sum(field: GithubRepoField!): Float
+
+  """Time-bucketed stats over a datetime field."""
+  series(field: GithubRepoField!, timestampField: GithubRepoTimestampField!, by: Granularity!): [TimeBucket!]!
+}
+
+"""Datetime fields of GithubRepo for bucketing"""
+enum GithubRepoTimestampField {
+  CREATED_AT
+}
+
+enum Granularity {
+  HOUR
+  DAY
+  WEEK
+  MONTH
+  QUARTER
+  YEAR
 }
 
 type HideEffect implements Effect {
@@ -829,6 +875,9 @@ type Query {
   pods(filters: PodFilter, pagination: OffsetPaginationInput): [Pod!]!
   backends(filters: BackendFilter, pagination: OffsetPaginationInput): [Backend!]!
 
+  """Stats about github repos"""
+  githubRepoStats(filters: GithubRepoFilter = null): GithubRepoStats!
+
   """Return the pod for an agent"""
   podForAgent(clientId: ID!, instanceId: ID!): Pod
 
@@ -1024,6 +1073,16 @@ type Subscription {
 
   """Create a new dask cluster on a bridge server"""
   pods: PodUpdateMessage!
+}
+
+type TimeBucket {
+  ts: DateTime!
+  count: Int!
+  distinctCount: Int!
+  max: Float
+  min: Float
+  avg: Float
+  sum: Float
 }
 
 """
