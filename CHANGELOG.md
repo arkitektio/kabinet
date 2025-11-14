@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.10.0 (2025-11-14)
+
+### Features
+
+- Updated repo on flavour
+  ([`4ae7d63`](https://github.com/arkitektio/kabinet/commit/4ae7d63c2cd3da4916fc7b3959140b215b82b59c))
+
+
 ## v0.9.0 (2025-10-04)
 
 
