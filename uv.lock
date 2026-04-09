@@ -459,7 +459,7 @@ wheels = [
 
 [[package]]
 name = "kabinet"
-version = "0.9.0"
+version = "0.10.0"
 source = { editable = "." }
 dependencies = [
     { name = "rath" },
@@ -481,7 +481,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "rath", specifier = ">=3.6" },
+    { name = "rath", specifier = ">=3.9.0" },
     { name = "websockets", specifier = ">=15.0.1" },
 ]
 
@@ -939,16 +939,16 @@ wheels = [
 
 [[package]]
 name = "rath"
-version = "3.6.0"
+version = "3.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "graphql-core" },
     { name = "koil" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/61/8e/f9b23d737b46575a999e5d8954a433d3bebf72fa665abd84c49d1f18dad4/rath-3.6.0.tar.gz", hash = "sha256:33ac30eac0305aa826851555d90ddf55246c6da397dfe1184aafb50ff477efc9", size = 32860, upload-time = "2025-07-11T11:12:36.543Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/76/39/bd30d6235adbfa4874d3037ca7451cc79f560748560fe678f9fe2bc820e1/rath-3.9.0.tar.gz", hash = "sha256:a45aa740dd2ad902ab8319e3f706a1c89a867be52a81cc21d3a35065376eb81b", size = 34849, upload-time = "2026-04-09T11:22:51.074Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2a/d9/6743cda9d1284e9abce19b5b7749ac09d0865cb6686830decf5b80a38ca3/rath-3.6.0-py3-none-any.whl", hash = "sha256:9677911c5ad99d922e915e94280d52fc8d842891fef6aff7c0ba8f04fdcb941c", size = 48373, upload-time = "2025-07-11T11:12:33.064Z" },
+    { url = "https://files.pythonhosted.org/packages/4b/4d/fefd86abc8e40bcee38753779c10415838a25defa52c3c90273ae0541a0e/rath-3.9.0-py3-none-any.whl", hash = "sha256:e3b973965d17319ef4d31135a3da50034f3db9c435e8eb5a04f0428d914bb7f7", size = 52381, upload-time = "2026-04-09T11:22:50.114Z" },
 ]
 
 [[package]]

@@ -6,7 +6,7 @@ authors = [{ name = "jhnnsrs", email = "jhnnsrs@gmail.com" }]
 requires-python = ">=3.11"
 readme = "README.md"
 dependencies = [
-    "rath>=3.6",
+    "rath>=3.9.0",
     "websockets>=15.0.1",
 ]
 
