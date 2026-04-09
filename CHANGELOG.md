@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.11.0 (2026-04-09)
+
+### Bug Fixes
+
+- Add schema
+  ([`f5f4114`](https://github.com/arkitektio/kabinet/commit/f5f41144f251604b2eaaaba8a606dc14bafb9b1e))
+
+### Features
+
+- Fix current breaking change
+  ([`0438301`](https://github.com/arkitektio/kabinet/commit/0438301f285dff202213ade3888cfc3673132608))
+
+
 ## v0.10.0 (2025-11-14)
 
 ### Features
