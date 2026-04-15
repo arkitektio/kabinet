@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.11.1 (2026-04-15)
+
+### Bug Fixes
+
+- Rekuest imports
+  ([`fabe1f8`](https://github.com/arkitektio/kabinet/commit/fabe1f850fc4dbefb8d0af808101dfeb411ab145))
+
+
 ## v0.11.0 (2026-04-09)
 
 ### Bug Fixes
