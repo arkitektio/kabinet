@@ -52,11 +52,6 @@ input AgentDependencyInput {
   name: String = null
 
   """
-  The maximum amount of viable instances for the agent. This is used to identify the demand in the system.
-  """
-  maxViableInstances: Int = null
-
-  """
   A list of keys of other agent dependencies that are mutually exclusive with this one. This means two agent dependencies with mutually exclusive keys cannot be assigned to the same implementing agent. This is used to identify the demand in the system.
   """
   mutuallyExclusiveKeys: [String!] = null
@@ -69,6 +64,7 @@ input AgentDependencyInput {
   stateDemands: [StateDependencyInput!] = null
   autoResolvable: Boolean! = false
   minViableInstances: Int = null
+  maxViableInstances: Int = null
   preferedInstances: Int = null
 }
 
@@ -152,6 +148,9 @@ input AssignWidgetInput {
   filters: [ArgPortInput!] = null
   dependencies: [String!] = []
   dependency: String = null
+  targetDependency: String = null
+  targetAction: String = null
+  targetPort: String = null
   statePath: String = null
   stateAccessors: [StateAccessorInput!] = null
 }
@@ -164,6 +163,7 @@ enum AssignWidgetKind {
   CUSTOM
   STRING
   STATE_CHOICE
+  PROXY
 }
 
 """A user of the bridge server. Maps to an authentikate user"""
@@ -980,6 +980,14 @@ enum ProvidesOperator {
   NOT_IN
 }
 
+type ProxyWidget implements AssignWidget {
+  kind: AssignWidgetKind!
+  followValue: String
+  targetPort: String!
+  targetAction: String!
+  targetDependency: String
+}
+
 """A qualifier that describes some property of the action"""
 input QualifierInput {
   key: String!
@@ -1187,6 +1195,7 @@ input ReturnWidgetInput {
 enum ReturnWidgetKind {
   CHOICE
   CUSTOM
+  PROXY
 }
 
 """ A selector is a way to select a release"""

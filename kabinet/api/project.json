@@ -1,5 +1,5 @@
 {
-    "schema_url": "http://localhost/kabinet/schema",
+    "schema_url": "https://demo.arkitekt.live/kabinet/schema",
     "documents": "graphql/kabinet/*/**.graphql",
     "extensions": {
         "turms": {
