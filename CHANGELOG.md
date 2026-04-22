@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.11.2 (2026-04-22)
+
+### Bug Fixes
+
+- Schema
+  ([`4c5abc9`](https://github.com/arkitektio/kabinet/commit/4c5abc98b0710070a34abb6f9f73d4f310fad606))
+
+
 ## v0.11.1 (2026-04-15)
 
 ### Bug Fixes
