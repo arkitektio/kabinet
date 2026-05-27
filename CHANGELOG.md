@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.11.4 (2026-05-27)
+
+### Bug Fixes
+
+- Kabinet schema
+  ([`a14df24`](https://github.com/arkitektio/kabinet/commit/a14df24df54525a56b5763fe9358a2f1ac536cdf))
+
+
 ## v0.11.3 (2026-05-27)
 
 ### Bug Fixes
