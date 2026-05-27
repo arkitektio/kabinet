@@ -1,5 +1,5 @@
 {
-    "schema_url": "https://demo.arkitekt.live/kabinet/schema",
+    "schema_url": "http://localhost/kabinet/schema",
     "documents": "graphql/kabinet/*/**.graphql",
     "extensions": {
         "turms": {
@@ -27,6 +27,7 @@
                 "Callback": "str",
                 "Any": "typing.Any",
                 "AnyInput": "typing.Any",
+                "JSONSerializable": "kabinet.scalars.JSONSerializable",
                 "AnyDefault": "typing.Any",
                 "Args": "kabinet.scalars.Args",
                 "ValueMap": "kabinet.scalars.ValueMap",

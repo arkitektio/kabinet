@@ -1,5 +1,16 @@
 directive @unionElementOf(union: String!, discriminator: String!, key: String!) on INPUT_OBJECT
 
+"""A JSON-serializable argument entry for a multi-agent action trigger."""
+input ActionArgumentInput {
+  key: String = null
+  valueLiteral: JSONSerializable = null
+  valuePath: String = null
+  agentCall: AgentCallInput = null
+  utilCall: UtilCallInput = null
+  valueList: [ActionArgumentInput!] = null
+  valueDict: [ActionArgumentInput!] = null
+}
+
 """
 A dependency for a implementation. By defining dependencies, you can
     create a dependency graph for your implementations and actions
@@ -39,6 +50,15 @@ enum ActionScope {
   LOCAL
   BRIDGE_GLOBAL_TO_LOCAL
   BRIDGE_LOCAL_TO_GLOBAL
+}
+
+"""
+Defines a callback that routes user interactions directly to an Arkitekt Agent via Rekuest.
+"""
+input AgentCallInput {
+  dependency: String!
+  operation: String!
+  arguments: [ActionArgumentInput!] = null
 }
 
 """
@@ -190,6 +210,18 @@ input BackendFilter {
   DISTINCT: Boolean
 }
 
+"""Which locks does the agent provide in general"""
+input BlokImplementationInput {
+  key: String!
+
+  """The dependencies required by this Blok."""
+  dependencies: [AgentDependencyInput!]! = []
+  components: [ComponentNodeInput!]!
+  catalog: String = null
+  description: String = null
+  demoState: JSONSerializable = null
+}
+
 """ A selector is a way to select a release"""
 type CPUSelector implements Selector {
   kind: String!
@@ -269,6 +301,26 @@ type Collection {
   name: String!
   description: String!
   definedAt: DateTime!
+}
+
+"""
+An abstract structural visual element inside a Blok blueprint manifest.
+"""
+input ComponentNodeInput {
+  id: String!
+  component: String!
+  props: [ComponentPropInput!] = null
+  children: [ComponentNodeInput!] = null
+}
+
+"""A single key-value prop configuration for a component layout node."""
+input ComponentPropInput {
+  key: String!
+  staticValue: JSONSerializable = null
+  dynamicValue: DynamicValueInput = null
+  declaresValue: String = null
+  agentCall: AgentCallInput = null
+  utilCall: UtilCallInput = null
 }
 
 """The state of a dask cluster"""
@@ -540,6 +592,13 @@ input DumpLogsInput {
   logs: String!
 }
 
+"""
+A bound state pointer referencing a variable inside a Blok state instance.
+"""
+input DynamicValueInput {
+  path: String = null
+}
+
 interface Effect {
   kind: EffectKind!
   function: ValidatorFunction!
@@ -695,11 +754,13 @@ input ImplementationInput {
   optimistics: [OptimisticInput!] = null
   definition: DefinitionInput!
   dependencies: [AgentDependencyInput!]! = []
+  tracks: [TrackInput!] = null
   interface: String
   params: AnyDefault = null
   dynamic: Boolean! = false
   logo: String = null
   locks: [String!] = null
+  manipulates: [String!] = null
   extension: String = null
 }
 
@@ -708,8 +769,14 @@ input InspectionInput {
   locks: [LockImplementationInput!]!
   implementations: [ImplementationInput!]!
   states: [StateImplementationInput!]!
+  bloks: [BlokImplementationInput!]!
   requirements: [RequirementInput!]!
 }
+
+"""
+The `JSONSerializable` scalar type represents a JSON-serializable value.
+"""
+scalar JSONSerializable
 
 """Which locks does the agent provide in general"""
 input LockDefinitionInput {
@@ -1353,6 +1420,18 @@ type TimeBucket {
 }
 
 """
+A value that is being tracked over time during the runtime of an action. This is the state of a dependency
+"""
+input TrackInput {
+  dependencyKey: String = null
+  stateKey: String!
+  valueKey: String!
+  label: String = null
+  description: String = null
+  windows: [WindowInput!] = null
+}
+
+"""
 UntypedParams represents an untyped options object returned by the Dask Gateway API.
 """
 scalar UntypedParams
@@ -1377,6 +1456,12 @@ type User {
   sub: ID!
 }
 
+"""Defines a utility call that can be invoked within the system."""
+input UtilCallInput {
+  operation: String!
+  arguments: [ActionArgumentInput!] = null
+}
+
 type Validator {
   function: ValidatorFunction!
   dependencies: [String!]
@@ -1393,4 +1478,10 @@ input ValidatorInput {
   dependencies: [String!] = []
   label: String = null
   errorMessage: String = null
+}
+
+"""A window that is calculated"""
+input WindowInput {
+  windowFunction: String!
+  label: String = null
 }
