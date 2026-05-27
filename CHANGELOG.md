@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.11.3 (2026-05-27)
+
+### Bug Fixes
+
+- Rekuest-core update
+  ([`f72e46c`](https://github.com/arkitektio/kabinet/commit/f72e46c06dc3fcd8cfcf32c9de1cff3b11e89ce3))
+
+
 ## v0.11.2 (2026-04-22)
 
 ### Bug Fixes
