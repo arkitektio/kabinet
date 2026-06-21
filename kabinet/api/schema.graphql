@@ -93,13 +93,19 @@ The `ArrayLike` scalar type represents a reference to a store previously created
 """
 scalar AnyDefault
 
-"""A user of the bridge server. Maps to an authentikate user"""
+"""
+An application, identified by a globally unique, reverse-domain identifier (e.g. live.arkitekt.app).
+"""
 type App {
   id: ID!
+
+  """The globally unique, reverse-domain identifier of the app."""
   identifier: String!
 }
 
-"""Create a new Github repository input"""
+"""
+Input describing a built app image to register (its manifest, image, selectors and inspection).
+"""
 input AppImageInput {
   flavourName: String
   manifest: ManifestInput!
@@ -139,10 +145,10 @@ input ArgPortInput {
   nullable: Boolean! = false
   effects: [EffectInput!] = null
   default: AnyDefault = null
-  children: [ArgPortInput!] = null
   choices: [ChoiceInput!] = null
   widget: AssignWidgetInput = null
   requires: [RequiresInput!] = null
+  children: [ArgPortInput!] = null
 }
 
 interface AssignWidget {
@@ -186,21 +192,38 @@ enum AssignWidgetKind {
   PROXY
 }
 
-"""A user of the bridge server. Maps to an authentikate user"""
+"""
+A deployment target (agent) registered by a client that runs pods on behalf of an organization.
+"""
 type Backend {
   id: ID!
+
+  """The user that registered this backend."""
   user: User!
+
+  """The OAuth2 client this backend authenticates as."""
   client: Client!
+
+  """The organization this backend belongs to."""
   organization: Organization!
+
+  """The human-readable name of this backend."""
   name: String!
+
+  """The kind of backend (its runtime type)."""
   kind: String!
-  pods(filters: PodFilter, pagination: OffsetPaginationInput): [Pod!]!
-  resources(filters: ResourceFilter, pagination: OffsetPaginationInput): [Resource!]!
-  instanceId: String!
+
+  """The pods currently running on this backend."""
+  pods(filters: PodFilter, ordering: [PodOrder!]! = [], pagination: OffsetPaginationInput): [Pod!]!
+
+  """The resources declared on this backend."""
+  resources(filters: ResourceFilter, ordering: [ResourceOrder!]! = [], pagination: OffsetPaginationInput): [Resource!]!
+
+  """The OAuth2 client ID of this backend."""
   clientId: String!
 }
 
-"""Filter for Resources"""
+"""Filter for backends."""
 input BackendFilter {
   ids: [ID!] = null
   search: String = null
@@ -208,6 +231,12 @@ input BackendFilter {
   OR: BackendFilter
   NOT: BackendFilter
   DISTINCT: Boolean
+}
+
+input BackendOrder @oneOf {
+  id: Ordering
+  name: Ordering
+  lastHeartbeat: Ordering
 }
 
 """Which locks does the agent provide in general"""
@@ -222,11 +251,13 @@ input BlokImplementationInput {
   demoState: JSONSerializable = null
 }
 
-""" A selector is a way to select a release"""
+"""Requires CPU resources on the backend."""
 type CPUSelector implements Selector {
   kind: String!
   required: Boolean!
   min: Int
+
+  """The minimum CPU frequency required, in MHz"""
   frequency: Float
 }
 
@@ -274,16 +305,16 @@ type Client {
   device: Device
 }
 
-"""Profile information for a user."""
+"""A client application registered with the authentication provider."""
 type ClientApp {
   """Unique ID of the app."""
   id: ID!
 
-  """Name of the app."""
+  """The unique identifier of the app."""
   identifier: String!
 }
 
-"""Profile information for a user."""
+"""A released version of a client application."""
 type ClientRelease {
   """Unique ID of the release."""
   id: ID!
@@ -295,12 +326,34 @@ type ClientRelease {
   version: String!
 }
 
-"""A user of the bridge server. Maps to an authentikate user"""
+"""A named grouping of related action definitions."""
 type Collection {
   id: ID!
+
+  """The name of this collection."""
   name: String!
+
+  """A description of this collection."""
   description: String!
+
+  """When this collection was defined."""
   definedAt: DateTime!
+}
+
+"""Filter for Collections"""
+input CollectionFilter {
+  ids: [ID!] = null
+  search: String = null
+  AND: CollectionFilter
+  OR: CollectionFilter
+  NOT: CollectionFilter
+  DISTINCT: Boolean
+}
+
+input CollectionOrder @oneOf {
+  id: Ordering
+  name: Ordering
+  definedAt: Ordering
 }
 
 """
@@ -323,49 +376,74 @@ input ComponentPropInput {
   utilCall: UtilCallInput = null
 }
 
-"""The state of a dask cluster"""
+"""The container runtime used to run a pod."""
 enum ContainerType {
   APPTAINER
   DOCKER
 }
 
 input CpuSelectorInput {
-  """The frequency in MHz"""
-  frequency: Int
+  """The minimum CPU frequency required, in MHz."""
+  frequency: Int = null
 
-  """The memory in MB"""
-  memory: Int
+  """The minimum memory required, in MB."""
+  memory: Int = null
 }
 
-"""Create a new Github repository input"""
+"""Input for creating a deployment of a flavour on a backend."""
 input CreateDeploymentInput {
-  instanceId: String!
+  """The identifier of the deployment as known to the backend."""
   localId: ID!
+
+  """The ID of the flavour to deploy."""
   flavour: ID!
+
+  """When the flavour's image was last pulled, if known."""
   lastPulled: DateTime = null
-  secretParams: UntypedParams
+
+  """Secret parameters passed to the deployment (e.g. credentials)."""
+  secretParams: UntypedParams = null
 }
 
-"""Create a new Github repository input"""
+"""Input for tracking a new GitHub repository."""
 input CreateGithubRepoInput {
+  """An optional human-readable name for the repository."""
   name: String = null
+
+  """The GitHub owner (user or organization) of the repository."""
   user: String = null
+
+  """The branch to scan for app manifests."""
   branch: String = null
+
+  """The repository name on GitHub."""
   repo: String = null
+
+  """
+  An optional identifier (e.g. 'user/repo') used to derive the other fields.
+  """
   identifier: String = null
+
+  """Whether to scan the repository immediately after adding it."""
   autoScan: Boolean = true
 }
 
-"""Create a new Github repository input"""
+"""Input for registering a running pod for a deployment."""
 input CreatePodInput {
+  """The ID of the deployment this pod is an instance of."""
   deployment: ID!
+
+  """The identifier of the pod as known to the backend."""
   localId: ID!
+
+  """The resource this pod is scheduled onto, if any."""
   resource: ID = null
-  instanceId: String!
+
+  """The OAuth2 client ID this pod authenticates as, if any."""
   clientId: String = null
 }
 
-""" A selector is a way to select a release"""
+"""Requires a CUDA-capable (NVIDIA) GPU on the backend."""
 type CudaSelector implements Selector {
   kind: String!
   required: Boolean!
@@ -378,10 +456,7 @@ type CudaSelector implements Selector {
 }
 
 input CudaSelectorInput {
-  """The minimum cuda version"""
   cudaVersion: String = null
-
-  """The cuda cores"""
   cudaCores: Int = null
 }
 
@@ -409,39 +484,77 @@ type CustomReturnWidget implements ReturnWidget {
 """Date with time (isoformat)"""
 scalar DateTime
 
-"""Create a new Github repository input"""
+"""Input for declaring (registering or updating) a backend."""
 input DeclareBackendInput {
-  instanceId: String!
+  """The human-readable name of the backend."""
   name: String!
+
+  """The kind of backend (its runtime type)."""
   kind: String!
 }
 
-"""Create a resource"""
+"""Input for declaring (registering or updating) a resource on a backend."""
 input DeclareResourceInput {
+  """The ID of the backend to declare the resource on."""
   backend: ID!
+
+  """An optional human-readable name for the resource."""
   name: String
+
+  """The identifier of the resource as known to the backend."""
   localId: String!
+
+  """Free-form key/value qualifiers describing the resource."""
   qualifiers: [QualifierInput!] = null
 }
 
+"""
+An action definition: the abstract, hashed description of an RPC task that a flavour provides.
+"""
 type Definition {
   id: ID!
+
+  """The unique hash identifying this action definition."""
   hash: ActionHash!
+
+  """The cleartext name of this action."""
   name: String!
+
+  """The kind of action, e.g. a function or a generator."""
   kind: ActionKind!
+
+  """A human-readable description of this action."""
   description: String
-  collections: [Collection!]!
-  flavours(filters: FlavourFilter, order: FlavourOrder, pagination: OffsetPaginationInput): [Flavour!]!
+
+  """The collections this action belongs to."""
+  collections(filters: CollectionFilter, ordering: [CollectionOrder!]! = [], pagination: OffsetPaginationInput): [Collection!]!
+
+  """The flavours that provide this action."""
+  flavours(filters: FlavourFilter, ordering: [FlavourOrder!]! = [], pagination: OffsetPaginationInput): [Flavour!]!
+
+  """The data scope of this action (e.g. local, global or bridge)."""
   scope: ActionScope!
-  isTestFor(filters: DefinitionFilter, order: DefinitionOrder, pagination: OffsetPaginationInput): [Definition!]!
-  tests(filters: DefinitionFilter, order: DefinitionOrder, pagination: OffsetPaginationInput): [Definition!]!
-  protocols: [Protocol!]!
+
+  """The action definitions that this definition is a test for."""
+  isTestFor(filters: DefinitionFilter, ordering: [DefinitionOrder!]! = [], pagination: OffsetPaginationInput): [Definition!]!
+
+  """The action definitions that act as tests for this definition."""
+  tests(filters: DefinitionFilter, ordering: [DefinitionOrder!]! = [], pagination: OffsetPaginationInput): [Definition!]!
+
+  """The protocols this action implements."""
+  protocols(filters: ProtocolFilter, ordering: [ProtocolOrder!]! = [], pagination: OffsetPaginationInput): [Protocol!]!
+
+  """When this action definition was first defined."""
   definedAt: DateTime!
+
+  """The input ports (arguments) of this action."""
   args: [ArgPort!]!
+
+  """The output ports (return values) of this action."""
   returns: [ReturnPort!]!
 }
 
-"""Filter for Dask Clusters"""
+"""Filter for action definitions."""
 input DefinitionFilter {
   ids: [ID!] = null
   search: String = null
@@ -527,11 +640,13 @@ input DefinitionInput {
   logo: String = null
 }
 
-input DefinitionOrder {
+input DefinitionOrder @oneOf {
   definedAt: Ordering
 }
 
+"""Input for deleting a pod."""
 input DeletePodInput {
+  """The ID of the pod to delete."""
   id: ID!
 }
 
@@ -540,17 +655,29 @@ enum DemandKind {
   RETURNS
 }
 
-"""A user of the bridge server. Maps to an authentikate user"""
+"""A flavour scheduled to run on a particular backend."""
 type Deployment {
   id: ID!
+
+  """The flavour that is deployed."""
   flavour: Flavour!
+
+  """The API token the deployed pod uses to authenticate."""
   apiToken: String!
+
+  """The backend this deployment runs on."""
   backend: Backend!
+
+  """The identifier of this deployment as known to the backend."""
   localId: ID!
+
+  """
+  The display name of this deployment, combining backend and flavour names.
+  """
   name: String!
 }
 
-"""Filter for Dask Clusters"""
+"""Filter for deployments."""
 input DeploymentFilter {
   ids: [ID!] = null
   search: String = null
@@ -558,6 +685,12 @@ input DeploymentFilter {
   OR: DeploymentFilter
   NOT: DeploymentFilter
   DISTINCT: Boolean
+}
+
+input DeploymentOrder @oneOf {
+  id: Ordering
+  localId: Ordering
+  createdAt: Ordering
 }
 
 """Represents a device assigned to users within an organization."""
@@ -569,15 +702,21 @@ type Device {
   deviceId: ID!
 }
 
-"""The Feature you are trying to match"""
+"""A single hardware feature of a device to match against."""
 input DeviceFeature {
+  """The kind of feature (e.g. 'gpu', 'cpu')."""
   kind: String!
+
+  """The number of CPUs the feature describes."""
   cpuCount: String!
 }
 
-"""A docker image descriptor"""
+"""A reference to a built Docker image."""
 type DockerImage {
+  """The fully-qualified image reference (registry/name:tag)."""
   imageString: String!
+
+  """When this image was built."""
   buildAt: DateTime!
 }
 
@@ -586,9 +725,12 @@ input DockerImageInput {
   buildAt: DateTime!
 }
 
-"""Create a new Github repository input"""
+"""Input for attaching a log dump to a pod."""
 input DumpLogsInput {
+  """The ID of the pod the logs belong to."""
   pod: ID!
+
+  """The captured log output to store."""
   logs: String!
 }
 
@@ -623,31 +765,61 @@ enum EffectKind {
   CUSTOM
 }
 
-"""Which environment do you want to match against?"""
+"""The target environment that flavours are matched against."""
 input EnvironmentInput {
-  features: [DeviceFeature!]
+  """The container runtime available in the environment."""
   containerType: ContainerType!
+
+  """The hardware features available in the environment."""
+  features: [DeviceFeature!] = null
 }
 
-"""A user of the bridge server. Maps to an authentikate user"""
+"""
+A buildable variant of a release: a specific Docker image together with the selectors and requirements needed to run it.
+"""
 type Flavour {
   id: ID!
+
+  """The name of this flavour (e.g. 'vanilla', 'cuda')."""
   name: String!
+
+  """The stored logo of this flavour."""
   logo: String
+
+  """The Docker image this flavour deploys."""
   image: DockerImage!
+
+  """The original (upstream) logo URL of this flavour."""
   originalLogo: String
-  entrypoint: CudaSelector!
+
+  """The release this flavour belongs to."""
   release: Release!
-  deployments(filters: DeploymentFilter, pagination: OffsetPaginationInput): [Deployment!]!
-  definitions(filters: DefinitionFilter, order: DefinitionOrder, pagination: OffsetPaginationInput): [Definition!]!
+
+  """The deployments that run this flavour."""
+  deployments(filters: DeploymentFilter, ordering: [DeploymentOrder!]! = [], pagination: OffsetPaginationInput): [Deployment!]!
+
+  """The action definitions this flavour provides."""
+  definitions(filters: DefinitionFilter, ordering: [DefinitionOrder!]! = [], pagination: OffsetPaginationInput): [Definition!]!
+
+  """The raw app manifest this flavour was built from."""
   manifest: UntypedParams!
+
+  """The GitHub repository this flavour was built from."""
   repo: GithubRepo!
+
+  """
+  The hardware/capability selectors a backend must satisfy to run this flavour.
+  """
   selectors: [Selector!]!
+
+  """The services this flavour requires in order to run."""
   requirements: [Requirement!]!
+
+  """A human-readable description of this flavour."""
   description: String!
 }
 
-"""Filter for Dask Clusters"""
+"""Filter for flavours."""
 input FlavourFilter {
   ids: [ID!]
   search: String
@@ -662,18 +834,40 @@ input FlavourOrder @oneOf {
   releasedAt: Ordering
 }
 
-"""A user of the bridge server. Maps to an authentikate user"""
+"""
+A GitHub repository tracked by Kabinet and scanned for deployable Arkitekt apps.
+"""
 type GithubRepo {
   id: ID!
+
+  """The human-readable name of the repository."""
   name: String!
+
+  """The repository name on GitHub (the part after the owner)."""
   repo: String!
+
+  """The branch that is scanned for app manifests."""
   branch: String!
+
+  """The GitHub owner (user or organization) of the repository."""
   user: String!
-  flavours(filters: FlavourFilter, order: FlavourOrder, pagination: OffsetPaginationInput): [Flavour!]!
+
+  """The flavours discovered by scanning this repository."""
+  flavours(filters: FlavourFilter, ordering: [FlavourOrder!]! = [], pagination: OffsetPaginationInput): [Flavour!]!
+
+  """When this repository was last updated."""
   updatedAt: DateTime!
+
+  """When this repository was first added to Kabinet."""
   addedAt: DateTime!
+
+  """The organization that owns this repository."""
   organization: Organization!
+
+  """The URL for opening a new issue against this repository on GitHub."""
   issueUrl: String!
+
+  """The URL of this repository on GitHub."""
   url: String!
 }
 
@@ -682,7 +876,7 @@ enum GithubRepoField {
   CREATED_AT
 }
 
-"""Filter for Dask Clusters"""
+"""Filter for tracked GitHub repositories."""
 input GithubRepoFilter {
   ids: [ID!] = null
   search: String = null
@@ -693,6 +887,13 @@ input GithubRepoFilter {
   OR: GithubRepoFilter
   NOT: GithubRepoFilter
   DISTINCT: Boolean
+}
+
+input GithubRepoOrder @oneOf {
+  id: Ordering
+  name: Ordering
+  addedAt: Ordering
+  updatedAt: Ordering
 }
 
 type GithubRepoStats {
@@ -761,7 +962,8 @@ input ImplementationInput {
   logo: String = null
   locks: [String!] = null
   manipulates: [String!] = null
-  extension: String = null
+  needsToken: Boolean! = true
+  provenanceAudience: [String!] = null
 }
 
 input InspectionInput {
@@ -769,7 +971,7 @@ input InspectionInput {
   locks: [LockImplementationInput!]!
   implementations: [ImplementationInput!]!
   states: [StateImplementationInput!]!
-  bloks: [BlokImplementationInput!]!
+  bloks: [BlokImplementationInput!]! = []
   requirements: [RequirementInput!]!
 }
 
@@ -790,11 +992,17 @@ input LockImplementationInput {
   definition: LockDefinitionInput!
 }
 
-"""The logs of a pod"""
+"""A captured snapshot of a pod's logs at a point in time."""
 type LogDump {
   id: ID!
+
+  """The pod these logs were captured from."""
   pod: Pod!
+
+  """The captured log output."""
   logs: String!
+
+  """When these logs were captured."""
   createdAt: DateTime!
 }
 
@@ -808,10 +1016,17 @@ input ManifestInput {
   scopes: [String!]! = []
 }
 
-"""Create a new Github repository input"""
+"""
+Input for matching the best flavour for a release in a given environment.
+"""
 input MatchFlavoursInput {
+  """The target environment to match flavours against."""
   environment: EnvironmentInput = null
+
+  """The release whose flavours should be matched."""
   release: ID = null
+
+  """The action hashes that the matched flavour must provide."""
   actions: [ActionHash!]
 }
 
@@ -823,43 +1038,49 @@ type MessageEffect implements Effect {
 }
 
 type Mutation {
-  """Create a new dask cluster on a bridge server"""
+  """
+  Scan a tracked GitHub repository for app manifests and update its flavours.
+  """
   scanRepo(input: ScanRepoInput!): GithubRepo!
 
-  """Rescan all repos"""
+  """
+  Rescan every tracked GitHub repository for new or updated app manifests.
+  """
   rescanRepos: [GithubRepo!]!
 
-  """Create a new Github repository on a bridge server"""
+  """Start tracking a new GitHub repository so it can be scanned for apps."""
   createGithubRepo(input: CreateGithubRepoInput!): GithubRepo!
 
-  """Create a new dask cluster on a bridge server"""
+  """Schedule a flavour onto a backend, creating a new deployment."""
   createDeployment(input: CreateDeploymentInput!): Deployment!
 
-  """Create a new dask cluster on a bridge server"""
+  """Update the status of an existing deployment."""
   updateDeployment(input: UpdateDeploymentInput!): Deployment!
 
-  """Create a new dask cluster on a bridge server"""
+  """Register a running pod for a deployment on a backend."""
   createPod(input: CreatePodInput!): Pod!
 
-  """Create a new dask cluster on a bridge server"""
+  """Update the status of an existing pod."""
   updatePod(input: UpdatePodInput!): Pod!
 
-  """Create a new dask cluster on a bridge server"""
+  """Attach a captured log dump to a pod."""
   dumpLogs(input: DumpLogsInput!): LogDump!
 
-  """Create a new dask cluster on a bridge server"""
+  """Declare (register or update) a backend for the current client."""
   declareBackend(input: DeclareBackendInput!): Backend!
 
-  """Create a new resource for your backend"""
+  """Declare (register or update) a resource on one of your backends."""
   declareResource(input: DeclareResourceInput!): Resource!
 
-  """Create a new dask cluster on a bridge server"""
+  """Delete a pod and return its ID."""
   deletePod(input: DeletePodInput!): ID!
 
-  """Create a new release"""
+  """
+  Register a built app image, creating its release and flavour as needed.
+  """
   createAppImage(input: AppImageInput!): Release!
 
-  """Create a new dask cluster on a bridge server"""
+  """Delete a backend and return its ID."""
   deleteBackend(id: ID!): ID!
 }
 
@@ -869,7 +1090,6 @@ input OffsetPaginationInput {
 }
 
 input OneApiSelectorInput {
-  """The api versison of the selector"""
   oneapiVersion: String = null
 }
 
@@ -902,20 +1122,38 @@ type Organization {
   slug: String!
 }
 
-"""A user of the bridge server. Maps to an authentikate user"""
+"""A running instance of a deployment on a backend."""
 type Pod {
   id: ID!
+
+  """The resource this pod is scheduled onto, if any."""
   resource: Resource
+
+  """The backend this pod runs on."""
   backend: Backend!
+
+  """The deployment this pod is an instance of."""
   deployment: Deployment!
+
+  """The most recent log dump captured from this pod."""
   latestLogDump: LogDump
+
+  """The identifier of this pod as known to the backend."""
   podId: String!
+
+  """The OAuth2 client ID this pod authenticates as, if any."""
   clientId: String
+
+  """The current lifecycle status of this pod."""
   status: PodStatus!
+
+  """
+  The display name of this pod, combining backend, flavour and app identifier.
+  """
   name: String!
 }
 
-"""Filter for Dask Clusters"""
+"""Filter for pods."""
 input PodFilter {
   ids: [ID!] = null
   search: String = null
@@ -926,7 +1164,13 @@ input PodFilter {
   DISTINCT: Boolean
 }
 
-"""The state of a dask cluster"""
+input PodOrder @oneOf {
+  id: Ordering
+  status: Ordering
+  createdAt: Ordering
+}
+
+"""The lifecycle status of a pod."""
 enum PodStatus {
   PENDING
   RUNNING
@@ -936,14 +1180,22 @@ enum PodStatus {
   UNKOWN
 }
 
-"""An update on a pod"""
+"""A status update for a pod, pushed over a subscription."""
 type PodUpdateMessage {
+  """The ID of the pod this update is about."""
   id: String!
+
+  """The new status of the pod."""
   status: String!
+
+  """Whether this update corresponds to the pod's creation."""
   created: Boolean!
+
+  """Optional progress indicator for the update, as a percentage."""
   progress: Int
 }
 
+"""A demand on the ports (args or returns) of an action."""
 input PortDemandInput {
   """The kind of the demand. You can ask for args or returns"""
   kind: DemandKind!
@@ -1003,10 +1255,6 @@ A dependency for a implementation. By defining dependencies, you can
     create a dependency graph for your implementations and actions
 """
 input PortMatchInput {
-  """
-  The object of the port to match. This is used for adanved pattern matching based on the exact object descriptors of the object. i.e { x: 1, y: 2} 
-  """
-  object: Arg = null
   at: Int = null
   key: String = null
   kind: PortKind = null
@@ -1015,11 +1263,30 @@ input PortMatchInput {
   children: [PortMatchInput!] = null
 }
 
-"""A user of the bridge server. Maps to an authentikate user"""
+"""An interface that an action definition can implement (e.g. Predicate)."""
 type Protocol {
   id: ID!
+
+  """The name of this protocol."""
   name: String!
+
+  """A description of this protocol."""
   description: String!
+}
+
+"""Filter for Protocols"""
+input ProtocolFilter {
+  ids: [ID!] = null
+  search: String = null
+  AND: ProtocolFilter
+  OR: ProtocolFilter
+  NOT: ProtocolFilter
+  DISTINCT: Boolean
+}
+
+input ProtocolOrder @oneOf {
+  id: Ordering
+  name: Ordering
 }
 
 type Provides {
@@ -1057,87 +1324,128 @@ type ProxyWidget implements AssignWidget {
 
 """A qualifier that describes some property of the action"""
 input QualifierInput {
+  """The key of the qualifier."""
   key: String!
+
+  """The value of the qualifier."""
   value: String!
 }
 
 type Query {
-  """Return all dask clusters"""
+  """Return a single tracked GitHub repository by its ID."""
   githubRepo(id: ID!): GithubRepo!
 
-  """Return all dask clusters"""
+  """Return a single action definition by its ID."""
   definition(id: ID = null, hash: ActionHash = null): Definition!
 
-  """Return all dask clusters"""
+  """Return a single app release by its ID."""
   release(id: ID!): Release!
 
-  """Return all dask clusters"""
+  """Return a single backend resource by its ID."""
   resource(id: ID!): Resource!
 
-  """Return all dask clusters"""
+  """Return a single flavour (a buildable variant of a release) by its ID."""
   flavour(id: ID!): Flavour!
 
-  """Return all dask clusters"""
+  """Return a single deployment by its ID."""
   deployment(id: ID!): Deployment!
 
-  """Return all dask clusters"""
+  """Return a single backend by its ID."""
   backend(id: ID!): Backend!
 
-  """Return all dask clusters"""
+  """Return a single pod by its ID."""
   pod(id: ID!): Pod!
 
-  """Return the currently logged in user"""
+  """Return the currently authenticated user."""
   me: User!
 
-  """Return the currently logged in user"""
+  """
+  Return the flavour that best matches the requested release, actions and target environment.
+  """
   matchFlavour(input: MatchFlavoursInput!): Flavour!
-  flavours(filters: FlavourFilter, order: FlavourOrder, pagination: OffsetPaginationInput): [Flavour!]!
-  releases(filters: ReleaseFilter, pagination: OffsetPaginationInput): [Release!]!
-  resources(filters: ResourceFilter, pagination: OffsetPaginationInput): [Resource!]!
-  deployments(filters: DeploymentFilter, pagination: OffsetPaginationInput): [Deployment!]!
-  githubRepos(filters: GithubRepoFilter, pagination: OffsetPaginationInput): [GithubRepo!]!
-  definitions(filters: DefinitionFilter, order: DefinitionOrder, pagination: OffsetPaginationInput): [Definition!]!
-  pods(filters: PodFilter, pagination: OffsetPaginationInput): [Pod!]!
-  backends(filters: BackendFilter, pagination: OffsetPaginationInput): [Backend!]!
+
+  """List all flavours visible to the current organization."""
+  flavours(filters: FlavourFilter, ordering: [FlavourOrder!]! = [], pagination: OffsetPaginationInput): [Flavour!]!
+
+  """List all app releases visible to the current organization."""
+  releases(filters: ReleaseFilter, ordering: [ReleaseOrder!]! = [], pagination: OffsetPaginationInput): [Release!]!
+
+  """List all backend resources visible to the current organization."""
+  resources(filters: ResourceFilter, ordering: [ResourceOrder!]! = [], pagination: OffsetPaginationInput): [Resource!]!
+
+  """List all deployments visible to the current organization."""
+  deployments(filters: DeploymentFilter, ordering: [DeploymentOrder!]! = [], pagination: OffsetPaginationInput): [Deployment!]!
+
+  """
+  List all tracked GitHub repositories visible to the current organization.
+  """
+  githubRepos(filters: GithubRepoFilter, ordering: [GithubRepoOrder!]! = [], pagination: OffsetPaginationInput): [GithubRepo!]!
+
+  """List all action definitions visible to the current organization."""
+  definitions(filters: DefinitionFilter, ordering: [DefinitionOrder!]! = [], pagination: OffsetPaginationInput): [Definition!]!
+
+  """List all pods visible to the current organization."""
+  pods(filters: PodFilter, ordering: [PodOrder!]! = [], pagination: OffsetPaginationInput): [Pod!]!
+
+  """List all backends visible to the current organization."""
+  backends(filters: BackendFilter, ordering: [BackendOrder!]! = [], pagination: OffsetPaginationInput): [Backend!]!
 
   """Stats about github repos"""
   githubRepoStats(filters: GithubRepoFilter = null): GithubRepoStats!
 
-  """Return the pod for an agent"""
-  podForAgent(clientId: ID!, instanceId: ID!): Pod
+  """
+  Return the pod that a given agent (client) is running for a deployment.
+  """
+  podForAgent(clientId: ID!): Pod
 
-  """Let a backend discover its own pods"""
-  myPodAt(instanceId: ID!, localId: ID!): Pod!
+  """Let a backend discover one of its own pods by local identifier."""
+  myPodAt(localId: ID!): Pod!
 }
 
-"""A user of the bridge server. Maps to an authentikate user"""
+"""
+A specific version of an app, bundling the flavours that can be deployed for it.
+"""
 type Release {
   id: ID!
-  version: String!
-  app: App!
-  scopes: [String!]!
-  logo: String
-  originalLogo: String
-  entrypoint: String!
-  flavours(filters: FlavourFilter, order: FlavourOrder, pagination: OffsetPaginationInput): [Flavour!]!
 
-  """Is this release deployed"""
+  """The semantic version of this release."""
+  version: String!
+
+  """The app this release belongs to."""
+  app: App!
+
+  """The OAuth2 scopes this release requires."""
+  scopes: [String!]!
+
+  """The stored logo of this release."""
+  logo: String
+
+  """The original (upstream) logo URL of this release."""
+  originalLogo: String
+
+  """The entrypoint used to start the app."""
+  entrypoint: String!
+
+  """The flavours (buildable variants) available for this release."""
+  flavours(filters: FlavourFilter, ordering: [FlavourOrder!]! = [], pagination: OffsetPaginationInput): [Flavour!]!
+
+  """Whether this release is currently deployed somewhere."""
   installed: Boolean!
 
-  """Is this release deployed"""
+  """The deployments that run a flavour of this release."""
   deployments: [Deployment!]!
 
-  """Is this release deployed"""
+  """A human-readable description of this release."""
   description: String!
 
-  """Is this release deployed"""
+  """A display colour for this release, as a hex string."""
   colour: String!
 
-  """Is this release deployed"""
+  """The display name of this release, in the form 'identifier:version'."""
   name: String!
 }
 
-"""Filter for Dask Clusters"""
+"""Filter for app releases."""
 input ReleaseFilter {
   ids: [ID!] = null
   search: String = null
@@ -1147,11 +1455,27 @@ input ReleaseFilter {
   DISTINCT: Boolean
 }
 
-"""A requirement"""
+input ReleaseOrder @oneOf {
+  id: Ordering
+  version: Ordering
+  releasedAt: Ordering
+  createdAt: Ordering
+}
+
+"""
+A service that a flavour requires in order to run (e.g. mikro, rekuest).
+"""
 type Requirement {
+  """The key identifying this requirement within the flavour."""
   key: String!
+
+  """The name of the required service."""
   service: String!
+
+  """An optional human-readable description of the requirement."""
   description: String
+
+  """Whether the flavour can still run if this service is unavailable."""
   optional: Boolean!
 }
 
@@ -1188,14 +1512,24 @@ enum RequiresOperator {
 }
 
 """
-A resource on a backend. Resource define allocated resources on a backend. E.g a computational action
+An allocatable resource on a backend (e.g. a compute slot) that pods can be scheduled onto.
 """
 type Resource {
   id: ID!
+
+  """The backend this resource belongs to."""
   backend: Backend!
+
+  """The identifier of this resource as known to the backend."""
   resourceId: String!
+
+  """The human-readable name of this resource."""
   name: String!
-  pods(filters: PodFilter, pagination: OffsetPaginationInput): [Pod!]!
+
+  """The pods scheduled onto this resource."""
+  pods(filters: PodFilter, ordering: [PodOrder!]! = [], pagination: OffsetPaginationInput): [Pod!]!
+
+  """Free-form key/value qualifiers describing this resource."""
   qualifiers: UntypedParams
 }
 
@@ -1207,6 +1541,12 @@ input ResourceFilter {
   OR: ResourceFilter
   NOT: ResourceFilter
   DISTINCT: Boolean
+}
+
+input ResourceOrder @oneOf {
+  id: Ordering
+  name: Ordering
+  createdAt: Ordering
 }
 
 type ReturnPort {
@@ -1235,10 +1575,10 @@ input ReturnPortInput {
   nullable: Boolean! = false
   effects: [EffectInput!] = null
   default: AnyDefault = null
-  children: [ReturnPortInput!] = null
   choices: [ChoiceInput!] = null
   widget: ReturnWidgetInput = null
   provides: [ProvidesInput!] = null
+  children: [ReturnPortInput!] = null
 }
 
 interface ReturnWidget {
@@ -1265,24 +1605,26 @@ enum ReturnWidgetKind {
   PROXY
 }
 
-""" A selector is a way to select a release"""
+"""Requires a ROCm-capable (AMD) GPU on the backend."""
 type RocmSelector implements Selector {
   kind: String!
   required: Boolean!
+
+  """An additional ROCm capability qualifier"""
   apiThing: String
+
+  """The minimum ROCm API version required"""
   apiVersion: String
 }
 
 input RocmSelectorInput {
-  """The api version of the selector"""
   apiVersion: String = null
-
-  """The api thing of the selector"""
   apiThing: String = null
 }
 
-"""Create a dask cluster input"""
+"""Input for scanning a tracked GitHub repository for app manifests."""
 input ScanRepoInput {
+  """The ID of the GitHub repository to scan."""
   id: String!
 }
 
@@ -1300,32 +1642,36 @@ The `ArrayLike` scalar type represents a reference to a store previously created
 """
 scalar SearchQuery
 
-""" A selector is a way to select a release"""
+"""
+A selector expresses a hardware (or capability) requirement that a backend must satisfy to run a flavour.
+"""
 interface Selector {
   kind: String!
   required: Boolean!
 }
 
 input SelectorInput {
-  """The kind of the selector"""
+  """
+  The discriminator identifying which kind of selector this is (e.g. 'cuda', 'rocm', 'cpu', 'oneapi').
+  """
   kind: String!
 
-  """The api version of the selector"""
+  """The minimum ROCm API version required (rocm selectors)."""
   apiVersion: String = null
 
-  """The api thing of the selector"""
+  """An additional ROCm capability qualifier (rocm selectors)."""
   apiThing: String = null
 
-  """The api version of the selector"""
+  """The minimum oneAPI version required (oneapi selectors)."""
   oneapiVersion: String = null
 
-  """The cuda cores"""
+  """The minimum number of CUDA cores required (cuda selectors)."""
   cudaCores: Int = null
 
-  """The frequency in MHz"""
+  """The minimum CPU frequency required, in MHz (cpu selectors)."""
   frequency: Int = null
 
-  """The memory in MB"""
+  """The minimum memory required, in MB (cpu selectors)."""
   memory: Int = null
 }
 
@@ -1402,10 +1748,12 @@ type StringAssignWidget implements AssignWidget {
 }
 
 type Subscription {
-  """Create a new dask cluster on a bridge server"""
+  """Subscribe to status updates for a single pod."""
   pod(podId: ID!): PodUpdateMessage!
 
-  """Create a new dask cluster on a bridge server"""
+  """
+  Subscribe to status updates for all pods visible to the current organization.
+  """
   pods: PodUpdateMessage!
 }
 
@@ -1432,22 +1780,29 @@ input TrackInput {
 }
 
 """
-UntypedParams represents an untyped options object returned by the Dask Gateway API.
+An untyped, free-form JSON object whose shape is not known to the schema.
 """
 scalar UntypedParams
 
-"""Create a new Github repository input"""
+"""Input for updating a deployment's status."""
 input UpdateDeploymentInput {
+  """The ID of the deployment to update."""
   deployment: ID!
+
+  """The new status of the deployment."""
   status: PodStatus!
 }
 
-"""Create a new Github repository input"""
+"""Input for updating a pod's status."""
 input UpdatePodInput {
+  """The ID of the pod to update; required unless 'local_id' is given."""
   pod: ID
+
+  """The backend-local identifier of the pod to update."""
   localId: ID
+
+  """The new status of the pod."""
   status: PodStatus!
-  instanceId: String!
 }
 
 """Represents an authenticated user."""
