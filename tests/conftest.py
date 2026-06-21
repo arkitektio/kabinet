@@ -7,7 +7,6 @@ from kabinet.kabinet import Kabinet
 from rath.links.auth import ComposedAuthLink
 from rath.links.aiohttp import AIOHttpLink
 from rath.links.graphql_ws import GraphQLWSLink
-from kabinet.kabinet import Kabinet
 from kabinet.rath import (
     KabinetRath,
     SplitLink,

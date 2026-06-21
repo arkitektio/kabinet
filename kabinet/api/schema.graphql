@@ -225,12 +225,16 @@ type Backend {
 
 """Filter for backends."""
 input BackendFilter {
-  ids: [ID!] = null
-  search: String = null
   AND: BackendFilter
   OR: BackendFilter
   NOT: BackendFilter
   DISTINCT: Boolean
+
+  """Keep only backends whose ID is in this list."""
+  ids: [ID!]
+
+  """Case-insensitive search on the backend name."""
+  search: String
 }
 
 input BackendOrder @oneOf {
@@ -340,14 +344,18 @@ type Collection {
   definedAt: DateTime!
 }
 
-"""Filter for Collections"""
+"""Filter for collections."""
 input CollectionFilter {
-  ids: [ID!] = null
-  search: String = null
   AND: CollectionFilter
   OR: CollectionFilter
   NOT: CollectionFilter
   DISTINCT: Boolean
+
+  """Keep only collections whose ID is in this list."""
+  ids: [ID!]
+
+  """Case-insensitive search on the collection name."""
+  search: String
 }
 
 input CollectionOrder @oneOf {
@@ -499,7 +507,7 @@ input DeclareResourceInput {
   backend: ID!
 
   """An optional human-readable name for the resource."""
-  name: String
+  name: String = null
 
   """The identifier of the resource as known to the backend."""
   localId: String!
@@ -556,13 +564,19 @@ type Definition {
 
 """Filter for action definitions."""
 input DefinitionFilter {
-  ids: [ID!] = null
-  search: String = null
-  demands: [PortDemandInput!]
   AND: DefinitionFilter
   OR: DefinitionFilter
   NOT: DefinitionFilter
   DISTINCT: Boolean
+
+  """Keep only definitions whose ID is in this list."""
+  ids: [ID!]
+
+  """Case-insensitive search on the action name."""
+  search: String
+
+  """Keep only definitions whose ports satisfy all of the given demands."""
+  demands: [PortDemandInput!]
 }
 
 "A definition\n\n    Definitions are the building implementation for Actions and provide the\n    information needed to create a action. They are primarly composed of a name,\n    a description, and a list of ports.\n\n    Definitions provide a protocol of input and output, and do not contain\n    any information about the actual implementation of the action ( this is handled\n    by a implementation that implements a action).\n\n    "
@@ -679,12 +693,16 @@ type Deployment {
 
 """Filter for deployments."""
 input DeploymentFilter {
-  ids: [ID!] = null
-  search: String = null
   AND: DeploymentFilter
   OR: DeploymentFilter
   NOT: DeploymentFilter
   DISTINCT: Boolean
+
+  """Keep only deployments whose ID is in this list."""
+  ids: [ID!]
+
+  """Case-insensitive search on the deployment name."""
+  search: String
 }
 
 input DeploymentOrder @oneOf {
@@ -821,13 +839,19 @@ type Flavour {
 
 """Filter for flavours."""
 input FlavourFilter {
-  ids: [ID!]
-  search: String
-  hasDefinitions: [ID!]
   AND: FlavourFilter
   OR: FlavourFilter
   NOT: FlavourFilter
   DISTINCT: Boolean
+
+  """Keep only flavours whose ID is in this list."""
+  ids: [ID!]
+
+  """Case-insensitive search on the flavour name."""
+  search: String
+
+  """Keep only flavours that provide one of the given definitions."""
+  hasDefinitions: [ID!]
 }
 
 input FlavourOrder @oneOf {
@@ -878,15 +902,25 @@ enum GithubRepoField {
 
 """Filter for tracked GitHub repositories."""
 input GithubRepoFilter {
-  ids: [ID!] = null
-  search: String = null
-  repo: String = null
-  user: String = null
-  branch: String = null
   AND: GithubRepoFilter
   OR: GithubRepoFilter
   NOT: GithubRepoFilter
   DISTINCT: Boolean
+
+  """Keep only repositories whose ID is in this list."""
+  ids: [ID!]
+
+  """Case-insensitive search on the repository name."""
+  search: String
+
+  """Case-insensitive match on the GitHub repository name."""
+  repo: String
+
+  """Case-insensitive match on the GitHub owner."""
+  user: String
+
+  """Case-insensitive match on the branch name."""
+  branch: String
 }
 
 input GithubRepoOrder @oneOf {
@@ -1155,13 +1189,19 @@ type Pod {
 
 """Filter for pods."""
 input PodFilter {
-  ids: [ID!] = null
-  search: String = null
-  backend: ID = null
   AND: PodFilter
   OR: PodFilter
   NOT: PodFilter
   DISTINCT: Boolean
+
+  """Keep only pods whose ID is in this list."""
+  ids: [ID!]
+
+  """Match pods by the name of their backend."""
+  search: String
+
+  """Keep only pods running on the given backend."""
+  backend: ID
 }
 
 input PodOrder @oneOf {
@@ -1274,14 +1314,18 @@ type Protocol {
   description: String!
 }
 
-"""Filter for Protocols"""
+"""Filter for protocols."""
 input ProtocolFilter {
-  ids: [ID!] = null
-  search: String = null
   AND: ProtocolFilter
   OR: ProtocolFilter
   NOT: ProtocolFilter
   DISTINCT: Boolean
+
+  """Keep only protocols whose ID is in this list."""
+  ids: [ID!]
+
+  """Case-insensitive search on the protocol name."""
+  search: String
 }
 
 input ProtocolOrder @oneOf {
@@ -1447,12 +1491,16 @@ type Release {
 
 """Filter for app releases."""
 input ReleaseFilter {
-  ids: [ID!] = null
-  search: String = null
   AND: ReleaseFilter
   OR: ReleaseFilter
   NOT: ReleaseFilter
   DISTINCT: Boolean
+
+  """Keep only releases whose ID is in this list."""
+  ids: [ID!]
+
+  """Case-insensitive search on the release version."""
+  search: String
 }
 
 input ReleaseOrder @oneOf {
@@ -1533,14 +1581,18 @@ type Resource {
   qualifiers: UntypedParams
 }
 
-"""Filter for Resources"""
+"""Filter for resources."""
 input ResourceFilter {
-  ids: [ID!] = null
-  search: String = null
   AND: ResourceFilter
   OR: ResourceFilter
   NOT: ResourceFilter
   DISTINCT: Boolean
+
+  """Keep only resources whose ID is in this list."""
+  ids: [ID!]
+
+  """Case-insensitive search on the resource name."""
+  search: String
 }
 
 input ResourceOrder @oneOf {

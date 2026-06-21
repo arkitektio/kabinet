@@ -21,6 +21,7 @@ dev-dependencies =  [
     "pytest-aiohttp>=1.0.4,<2",
     "ruff>=0.11",
     "dokker>=2.5",
+    "fakts-next>=3.1.2",
 ]
 
 
@@ -64,6 +65,7 @@ exclude = [
     "dist",
     "node_modules",
     "venv",
+    "tests",
 ]
 
 # Same as Black.
