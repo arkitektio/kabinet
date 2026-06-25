@@ -10,8 +10,8 @@ query GetPod($id: ID!) {
   }
 }
 
-query MyPodAt($instanceId: ID!, $localId: ID!) {
-  myPodAt(instanceId: $instanceId, localId: $localId) {
+query MyPodAt($localId: ID!) {
+  myPodAt(localId: $localId) {
     ...Pod
   }
 }

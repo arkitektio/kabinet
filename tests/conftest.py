@@ -1,13 +1,12 @@
 from typing import Generator
 import pytest
-from dokker import local, Deployment
+from dokker import testing, Deployment
 from dokker.log_watcher import LogWatcher
 import os
 from kabinet.kabinet import Kabinet
 from rath.links.auth import ComposedAuthLink
 from rath.links.aiohttp import AIOHttpLink
 from rath.links.graphql_ws import GraphQLWSLink
-from kabinet.kabinet import Kabinet
 from kabinet.rath import (
     KabinetRath,
     SplitLink,
@@ -19,7 +18,6 @@ from dataclasses import dataclass
 
 project_path = os.path.join(os.path.dirname(__file__), "integration")
 docker_compose_file = os.path.join(project_path, "docker-compose.yml")
-private_key = os.path.join(project_path, "private_key.pem")
 
 
 async def token_loader():
@@ -35,11 +33,14 @@ class DeployedKabinet:
 
 @pytest.fixture(scope="session")
 def deployed_app() -> Generator[DeployedKabinet, None, None]:
-    setup = local(docker_compose_file)
+    setup = testing(docker_compose_file)
     setup.pull_on_enter = False
     setup.up_on_enter = False
+    setup.health_on_enter = False
     setup.add_health_check(
-        url=lambda spec: f"http://localhost:{spec.services.get('kabinet').get_port_for_internal(80).published}/graphql",
+        url=lambda spec: (
+            f"http://localhost:{spec.services.get('kabinet').get_port_for_internal(80).published}/graphql"
+        ),
         service="kabinet",
         timeout=5,
         max_retries=15,
@@ -48,7 +49,6 @@ def deployed_app() -> Generator[DeployedKabinet, None, None]:
     watcher = setup.create_watcher("kabinet")
 
     with setup:
-        
         setup.pull()
         setup.down()
 

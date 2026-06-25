@@ -2,7 +2,7 @@ services:
   redis:
     image: redis:latest
   db:
-    image: jhnnsrs/daten:next
+    image: jhnnsrs/daten:dev
     restart: always
     environment:
       POSTGRES_MULTIPLE_DATABASES: kabinet
@@ -13,7 +13,7 @@ services:
     - redis
     - db
     - minio
-    image: jhnnsrs/kabinet:dev
+    image: jhnnsrs/kabinet:${KABINET_SERVICE_TAG:-next}
     command: bash run-debug.sh
     stop_grace_period: 1s
     ports:

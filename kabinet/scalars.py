@@ -98,15 +98,11 @@ class ValidatorFunction(str):
         """Validate the validator function"""
 
         if not (v.startswith("(") or ("=>" not in v)):
-            raise ValueError(
-                "ValidatorFunction must be an arrow function or block function"
-            )
+            raise ValueError("ValidatorFunction must be an arrow function or block function")
 
         args_match = re.match(r"\((.*?)\)", v)
         if args_match:
-            args = [
-                arg.strip() for arg in args_match.group(1).split(",") if arg.strip()
-            ]
+            args = [arg.strip() for arg in args_match.group(1).split(",") if arg.strip()]
 
             if not args:
                 raise ValueError("Function must have at least one argument")
@@ -117,9 +113,7 @@ class ValidatorFunction(str):
         """Retrieve the arguments of the validator function"""
         args_match = re.match(r"\((.*?)\)", self)
         if args_match:
-            return [
-                arg.strip() for arg in args_match.group(1).split(",") if arg.strip()
-            ]
+            return [arg.strip() for arg in args_match.group(1).split(",") if arg.strip()]
         return []
 
 
@@ -173,12 +167,10 @@ class SearchQuery(str):
         return core_schema.no_info_after_validator_function(cls.validate, handler(str))
 
     @classmethod
-    def validate(cls, v: Union[str, DocumentNode, Any]) -> "SearchQuery":
+    def validate(cls, v: Union[str, DocumentNode]) -> "SearchQuery":
         """Validate the search query"""
-        if not isinstance(v, str) and not isinstance(v, DocumentNode):
-            raise ValueError(
-                "Search query must be either a str or a graphql DocumentAction"
-            )
+        if not isinstance(v, str) and not isinstance(v, DocumentNode):  # pyright: ignore[reportUnnecessaryIsInstance] # noqa: ANN401
+            raise ValueError("Search query must be either a str or a graphql DocumentAction")
         if isinstance(v, str):
             v = parse_or_raise(v)
 
@@ -222,14 +214,10 @@ class SearchQuery(str):
         wrapped_query = definition.selection_set.selections[0]
 
         if not isinstance(wrapped_query, FieldNode):
-            raise ValueError(
-                f"Wrapped query should be a field node: Was given: {print_ast(v)}"
-            )
+            raise ValueError(f"Wrapped query should be a field node: Was given: {print_ast(v)}")
 
         options_value = (
-            wrapped_query.alias.value
-            if wrapped_query.alias
-            else wrapped_query.name.value
+            wrapped_query.alias.value if wrapped_query.alias else wrapped_query.name.value
         )
         if options_value != "options":
             raise ValueError(
