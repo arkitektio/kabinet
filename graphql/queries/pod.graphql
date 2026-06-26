@@ -16,10 +16,10 @@ query MyPodAt($localId: ID!) {
   }
 }
 
-query SearchPods($search: String, $values: [ID!], $backend: ID) {
+query SearchPods($search: String, $values: [ID!], $limit: Int, $offset: Int) {
   options: pods(
-    filters: { search: $search, ids: $values, backend: $backend }
-    pagination: { limit: 10 }
+    filters: { search: $search, ids: $values}
+    pagination: { limit: $limit, offset: $offset }
   ) {
     value: id
     label: name

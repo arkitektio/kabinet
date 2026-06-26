@@ -16,10 +16,10 @@ query GetDefinition($id: ID!) {
   }
 }
 
-query SearchDefinitions($search: String, $values: [ID!]) {
+query SearchDefinitions($search: String, $values: [ID!], $limit: Int, $offset: Int) {
   options: definitions(
     filters: { search: $search, ids: $values }
-    pagination: { limit: 10 }
+    pagination: { limit: $limit, offset: $offset }
   ) {
     value: id
     label: name

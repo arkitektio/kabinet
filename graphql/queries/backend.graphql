@@ -13,10 +13,10 @@ query GetBackend($id: ID!) {
   }
 }
 
-query SearchBackends($search: String, $values: [ID!]) {
+query SearchBackends($search: String, $values: [ID!], $limit: Int, $offset: Int) {
   options: backends(
     filters: { search: $search, ids: $values }
-    pagination: { limit: 10 }
+    pagination: { limit: $limit, offset: $offset }
   ) {
     value: id
     label: name
