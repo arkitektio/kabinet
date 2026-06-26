@@ -13,10 +13,10 @@ query GeResource($id: ID!) {
   }
 }
 
-query SearchResources($search: String, $values: [ID!]) {
+query SearchResources($search: String, $values: [ID!], $limit: Int, $offset: Int) {
   options: resources(
     filters: { search: $search, ids: $values }
-    pagination: { limit: 10 }
+    pagination: { limit: $limit, offset: $offset }
   ) {
     value: id
     label: name
