@@ -478,7 +478,7 @@ wheels = [
 
 [[package]]
 name = "kabinet"
-version = "1.0.1rc2"
+version = "1.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "rath" },
