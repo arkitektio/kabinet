@@ -6,6 +6,7 @@ authors = [{ name = "jhnnsrs", email = "jhnnsrs@gmail.com" }]
 requires-python = ">=3.11"
 readme = "README.md"
 dependencies = [
+    "koil>=1.0.0",
     "rath>=3.12",
     "websockets>=15.0.1",
 ]
@@ -13,6 +14,12 @@ dependencies = [
 [project.optional-dependencies]
 # Installed inside the semantic-release Docker action so build_command has uv.
 build = ["uv>=0.7.12"]
+
+[tool.uv.sources]
+# Dev-time only (published wheels keep the plain version specs): the service
+# tests need fakts_next.testing.TestingFakts, which is not on PyPI until the
+# next fakts-next release. TODO: drop this and floor fakts-next once released.
+fakts-next = { path = "../fakts-next", editable = true }
 
 [tool.uv]
 dev-dependencies =  [
@@ -78,6 +85,7 @@ exclude = [
 line-length = 100
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 markers = [
     "integration: marks tests that require a deployment via testcontainers",
 ]

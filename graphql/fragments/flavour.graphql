@@ -1,11 +1,33 @@
 fragment CudaSelector on CudaSelector {
+  computeCapability
   cudaVersion
+  memory
+  count
   cudaCores
 }
 
 fragment RocmSelector on RocmSelector {
   apiVersion
   apiThing
+}
+
+fragment CpuSelector on CPUSelector {
+  minCount
+  frequency
+  arch
+}
+
+fragment RamSelector on RAMSelector {
+  min
+}
+
+fragment OneApiSelector on OneApiSelector {
+  oneapiVersion
+}
+
+fragment LabelSelector on LabelSelector {
+  key
+  value
 }
 
 fragment ListFlavour on Flavour {
@@ -22,16 +44,19 @@ fragment ListFlavour on Flavour {
     description
     optional
   }
-  image {
-    imageString
-    buildAt
-  }
   repo {
     url
   }
   selectors {
+    kind
+    required
+    weight
     ...CudaSelector
     ...RocmSelector
+    ...CpuSelector
+    ...RamSelector
+    ...OneApiSelector
+    ...LabelSelector
   }
 }
 
@@ -44,7 +69,5 @@ fragment Flavour on Flavour {
       identifier
     }
     scopes
-    colour
-    description
   }
 }

@@ -1,4 +1,7 @@
 authentikate:
+  # authentikate 4.0 requires an audience; "*" accepts a token minted for any
+  # service, which is fine for the throwaway test stack.
+  audience: "*"
   issuers:
   - kind: rsa
     iss: lok

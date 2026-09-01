@@ -7,7 +7,7 @@ query ListResources(
   }
 }
 
-query GeResource($id: ID!) {
+query GetResource($id: ID!) {
   resource(id: $id) {
     ...Resource
   }

@@ -1,0 +1,23 @@
+subscription WatchPod($podId: ID!) {
+  pod(podId: $podId) {
+    create {
+      ...Pod
+    }
+    update {
+      ...Pod
+    }
+    delete
+  }
+}
+
+subscription WatchPods {
+  pods {
+    create {
+      ...Pod
+    }
+    update {
+      ...Pod
+    }
+    delete
+  }
+}

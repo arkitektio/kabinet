@@ -49,7 +49,11 @@ def deployed_app() -> Generator[DeployedKabinet, None, None]:
     watcher = setup.create_watcher("kabinet")
 
     with setup:
-        setup.pull()
+        # A KABINET_SERVICE_IMAGE override points at a locally built image
+        # (e.g. next-kabinet:latest from the deployment mount), which cannot
+        # be pulled from a registry.
+        if not os.environ.get("KABINET_SERVICE_IMAGE"):
+            setup.pull()
         setup.down()
 
         http_url = f"http://localhost:{setup.spec.services.get('kabinet').get_port_for_internal(80).published}/graphql"
@@ -71,7 +75,8 @@ def deployed_app() -> Generator[DeployedKabinet, None, None]:
         )
 
         setup.up()
-
+        
+    
         setup.check_health()
 
         with kab as kab:

@@ -1,9 +1,8 @@
 {
-    "schema_url": "http://localhost/kabinet/schema",
+    "schema": "/home/jhnnsrs/Code/deployments/next/mounts/kabinet/schema.graphql",
     "documents": "graphql/*/**.graphql",
     "extensions": {
         "turms": {
-            "pydantic_version": "v2",
             "domain": null,
             "out_dir": "kabinet/api",
             "dump_configuration": true,
@@ -42,6 +41,7 @@
             "coercible_scalars": {
                 "ID": "rath.scalars.IDCoercible"
             },
+            "coercible_inputs": {},
             "graphql_default_class": null,
             "deprecated_class": null,
             "document_field_metadata": true,
@@ -56,19 +56,17 @@
                 ],
                 "exclude": null,
                 "include": null,
-                "exclude_fields": [],
-                "include_fields": [],
                 "convert_list_to_tuple": true
             },
             "create_catchall": true,
             "options": {
                 "enabled": true,
                 "extra": "forbid",
-                "allow_mutation": null,
-                "allow_population_by_field_name": true,
-                "orm_mode": null,
+                "populate_by_name": true,
+                "from_attributes": null,
                 "use_enum_values": true,
                 "validate_assignment": null,
+                "alias_mode": "split",
                 "types": [
                     "input"
                 ],
@@ -76,10 +74,12 @@
                 "include": null
             },
             "skip_forwards": false,
+            "min_python_version": "3.10",
+            "type_annotation_style": "auto",
             "additional_bases": {},
             "additional_config": {},
             "force_plugin_order": true,
-            "omited_document_rules": [],
+            "omitted_document_rules": [],
             "parsers": [],
             "plugins": [
                 {

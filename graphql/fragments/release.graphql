@@ -5,8 +5,6 @@ fragment Release on Release {
     identifier
   }
   scopes
-  colour
-  description
   flavours {
     ...ListFlavour
   }
@@ -18,11 +16,8 @@ fragment ListRelease on Release {
   app {
     identifier
   }
-  installed
   scopes
   flavours {
     ...ListFlavour
   }
-  colour
-  description
 }

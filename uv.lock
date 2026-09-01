@@ -313,18 +313,40 @@ wheels = [
 
 [[package]]
 name = "fakts-next"
-version = "4.0.0"
-source = { registry = "https://pypi.org/simple" }
+version = "5.0.0rc1"
+source = { editable = "../fakts-next" }
 dependencies = [
     { name = "aiohttp" },
     { name = "certifi" },
     { name = "koil" },
-    { name = "oauthlib" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7d/5d/e00c1cab38721b7231bf80334af837d88ae480b7617abb642961a0726f0e/fakts_next-4.0.0.tar.gz", hash = "sha256:dd52d261d2fd26d516fb398e7299f7105d397105274c7663cd6f3866e032518d", size = 48718, upload-time = "2026-06-24T12:27:31.697Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/fb/a6/b476a8fff622ae052bf8b4914e6b64d50b7ef84ad1bf59676953df1335da/fakts_next-4.0.0-py3-none-any.whl", hash = "sha256:28e92d81ed456c44789ee6180b906489ae6a295e4738144bb2c85a0894efb2d6", size = 69744, upload-time = "2026-06-24T12:27:30.417Z" },
+
+[package.metadata]
+requires-dist = [
+    { name = "aiohttp", specifier = ">=3.11.18" },
+    { name = "certifi", specifier = ">=2025.4.26" },
+    { name = "cryptography", marker = "extra == 'crypto'", specifier = ">=42" },
+    { name = "koil", specifier = ">=3.3.1" },
+    { name = "pydantic", specifier = ">2" },
+    { name = "qtpy", marker = "extra == 'qt'", specifier = ">=2.4.3" },
+    { name = "rath", marker = "extra == 'rath'", specifier = ">=3.0" },
+    { name = "uv", marker = "extra == 'build'", specifier = ">=0.7.12" },
+]
+provides-extras = ["qt", "rath", "crypto", "build"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "basedpyright", specifier = ">=1.21" },
+    { name = "cryptography", specifier = ">=42" },
+    { name = "dokker", specifier = ">=2.5" },
+    { name = "pyqt5", specifier = ">=5.15.11" },
+    { name = "pytest", specifier = ">=8.3.5" },
+    { name = "pytest-asyncio", specifier = ">=0.26.0" },
+    { name = "pytest-cov", specifier = ">=6.1.1" },
+    { name = "pytest-qt", specifier = ">=4.4.0" },
+    { name = "python-semantic-release", specifier = ">=9.21.1" },
+    { name = "qtpy", specifier = ">=2.4.3" },
 ]
 
 [[package]]
@@ -481,6 +503,7 @@ name = "kabinet"
 version = "1.0.3"
 source = { editable = "." }
 dependencies = [
+    { name = "koil" },
     { name = "rath" },
     { name = "websockets" },
 ]
@@ -507,6 +530,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "koil", specifier = ">=1.0.0" },
     { name = "rath", specifier = ">=3.12" },
     { name = "uv", marker = "extra == 'build'", specifier = ">=0.7.12" },
     { name = "websockets", specifier = ">=15.0.1" },
@@ -519,7 +543,7 @@ dev = [
     { name = "autoflake", specifier = ">=1.7.7,<2" },
     { name = "basedpyright", specifier = ">=1.21" },
     { name = "dokker", specifier = ">=2.5" },
-    { name = "fakts-next", specifier = ">=4" },
+    { name = "fakts-next", editable = "../fakts-next" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-aiohttp", specifier = ">=1.0.4,<2" },
     { name = "pytest-asyncio", specifier = ">=0.26.0" },
@@ -700,15 +724,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/04/96/d931255cf9d11a84d6b54d882dba7434646467d568ccf070ea3418638df3/nodejs_wheel_binaries-24.16.0-py2.py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:f1a3d8f7b4491cbbd023ba3fc4e901fcca2d9fb80d57f24ba3890de8b1dbac03", size = 62841759, upload-time = "2026-05-30T16:51:59.407Z" },
     { url = "https://files.pythonhosted.org/packages/a2/7b/8b7a3f41bc255411be30b6d7d288aab8ffd9ea2055db8555ced3548007b9/nodejs_wheel_binaries-24.16.0-py2.py3-none-win_amd64.whl", hash = "sha256:bb136be9944f0662dcf1120f45193a6b75b13fac378971a95cc42c9f879a81aa", size = 42027734, upload-time = "2026-05-30T16:52:03.348Z" },
     { url = "https://files.pythonhosted.org/packages/17/66/1ed71f1f529b8ca727d42c7ceb9db0bef145ce4a13dfc86fb50aa44f3be6/nodejs_wheel_binaries-24.16.0-py2.py3-none-win_arm64.whl", hash = "sha256:8308940b5edd0a50dc5267ea36ba21c9f668e83fe0d9f293937174d3a7e31c36", size = 39714528, upload-time = "2026-05-30T16:52:06.421Z" },
-]
-
-[[package]]
-name = "oauthlib"
-version = "3.3.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/0b/5f/19930f824ffeb0ad4372da4812c50edbd1434f678c90c2733e1188edfc63/oauthlib-3.3.1.tar.gz", hash = "sha256:0f0f8aa759826a193cf66c12ea1af1637f87b9b4622d46e866952bb022e538c9", size = 185918, upload-time = "2025-06-19T22:48:08.269Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/9c/92789c596b8df838baa98fa71844d84283302f7604ed565dafe5a6b5041a/oauthlib-3.3.1-py3-none-any.whl", hash = "sha256:88119c938d2b8fb88561af5f6ee0eec8cc8d552b7bb1f712743136eb7523b7a1", size = 160065, upload-time = "2025-06-19T22:48:06.508Z" },
 ]
 
 [[package]]

@@ -1,0 +1,37 @@
+"""Unit test for the arkitekt service integration (``kabinet.arkitekt``).
+
+Uses a hot-plugged ``fakts_next.testing.TestingFakts`` — a real Fakts, no
+monkeypatching — to build the service the way ``easy()`` would. Skipped when
+``arkitekt_next`` is not installed (it is not one of kabinet's dev deps: it
+depends on kabinet itself).
+"""
+
+import pytest
+
+pytest.importorskip("arkitekt_next")
+fakts_next = pytest.importorskip("fakts_next")
+if not hasattr(fakts_next, "build_testing_fakts"):  # pragma: no cover
+    pytest.skip("installed fakts-next predates TestingFakts", allow_module_level=True)
+
+from fakts_next.testing import build_testing_fakts  # noqa: E402
+
+from kabinet.arkitekt import KabinetService  # noqa: E402
+from kabinet.kabinet import Kabinet  # noqa: E402
+
+
+def test_build_service_wires_fakts_into_the_links() -> None:
+    with build_testing_fakts(aliases={"kabinet": "http://testserver"}) as fakts:
+        service = KabinetService()
+        kabinet = service.build_service(fakts, {})
+
+    assert isinstance(kabinet, Kabinet)
+    composition = kabinet.rath.link
+    assert composition.auth.fakts is fakts
+    assert composition.split.left.fakts_group == "kabinet"
+    assert composition.split.right.fakts_group == "kabinet"
+
+
+def test_requirements_declare_the_kabinet_service() -> None:
+    (requirement,) = KabinetService().get_requirements()
+    assert requirement.key == "kabinet"
+    assert requirement.service == "live.arkitekt.kabinet"

@@ -13,7 +13,7 @@ services:
     - redis
     - db
     - minio
-    image: jhnnsrs/kabinet:${KABINET_SERVICE_TAG:-next}
+    image: ${KABINET_SERVICE_IMAGE:-jhnnsrs/kabinet:${KABINET_SERVICE_TAG:-next}}
     command: bash run-debug.sh
     stop_grace_period: 1s
     ports:

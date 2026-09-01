@@ -1,13 +1,3 @@
-query MatchFlavour($actions: [ActionHash!], $environment: EnvironmentInput) {
-  matchFlavour(input: { actions: $actions, environment: $environment }) {
-    id
-    image {
-      imageString
-      buildAt
-    }
-  }
-}
-
 query ListFlavours($filters: FlavourFilter, $pagination: OffsetPaginationInput, $ordering: [FlavourOrder!]) {
   flavours(filters: $filters, pagination: $pagination, ordering: $ordering) {
     ...ListFlavour
