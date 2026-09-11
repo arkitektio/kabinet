@@ -1,10 +1,10 @@
 """Rekuest integration for Kabinet. This module will register default structures when importing"""
 
-from rekuest_next.structures.default import (
+from rekuest.structures.default import (
     get_default_structure_registry,
     id_shrink,
 )
-from rekuest_next.widgets import SearchWidget
+from rekuest.widgets import SearchWidget
 
 from kabinet.api.schema import (
     Pod,

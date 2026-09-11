@@ -1,4 +1,4 @@
-"""This module mirros exactly the scalars used in the  rekuest_next library."""
+"""This module mirros exactly the scalars used in the  rekuest library."""
 
 from graphql import (
     DocumentNode,
