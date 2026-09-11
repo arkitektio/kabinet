@@ -1,5 +1,5 @@
 {
-    "schema": "/home/jhnnsrs/Code/deployments/next/mounts/kabinet/schema.graphql",
+    "schema": "http://jhnnsrs-lab/kabinet/schema",
     "documents": "graphql/*/**.graphql",
     "extensions": {
         "turms": {
@@ -35,7 +35,6 @@
                 "InstanceId": "kabinet.scalars.InstanceId",
                 "Identifier": "kabinet.scalars.Identifier",
                 "SearchQuery": "kabinet.scalars.SearchQuery",
-                "ValidatorFunction": "kabinet.scalars.ValidatorFunction",
                 "UntypedParams": "typing.Any"
             },
             "coercible_scalars": {

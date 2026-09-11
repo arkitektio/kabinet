@@ -14,7 +14,6 @@ from typing import Callable, Dict, Any, Union
 
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import CoreSchema, core_schema
-import re
 
 
 ActionHash = str
@@ -80,43 +79,6 @@ class Identifier(str):
         return Identifier(v)
 
 
-class ValidatorFunction(str):
-    """A validator function a string that represents a javascript function, That can handle
-    some validation logic on the frontend"""
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls,
-        source_type: Any,  # noqa: ANN401
-        handler: GetCoreSchemaHandler,  # noqa: ANN401
-    ) -> CoreSchema:
-        """Get the pydantic core schema for the validator function"""
-        return core_schema.no_info_after_validator_function(cls.validate, handler(str))
-
-    @classmethod
-    def validate(cls, v: str) -> str:
-        """Validate the validator function"""
-
-        if not (v.startswith("(") or ("=>" not in v)):
-            raise ValueError("ValidatorFunction must be an arrow function or block function")
-
-        args_match = re.match(r"\((.*?)\)", v)
-        if args_match:
-            args = [arg.strip() for arg in args_match.group(1).split(",") if arg.strip()]
-
-            if not args:
-                raise ValueError("Function must have at least one argument")
-
-        return v
-
-    def retrieve_args(self) -> list[str]:
-        """Retrieve the arguments of the validator function"""
-        args_match = re.match(r"\((.*?)\)", self)
-        if args_match:
-            return [arg.strip() for arg in args_match.group(1).split(",") if arg.strip()]
-        return []
-
-
 def parse_or_raise(v: str) -> DocumentNode:
     """Parse a string to a graphql DocumentAction. If it fails, raise a ValueError
     with the error message and the source location of the error.
@@ -148,7 +110,6 @@ class SearchQuery(str):
     - A single field with the name 'options'
     - A variable "$search" of type String
     - A variable "$values" of type [ID]
-
 
 
     Optionally the query can also contain the following elements:

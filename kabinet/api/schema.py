@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from kabinet.funcs import aexecute, asubscribe, execute, subscribe
 from kabinet.rath import KabinetRath
-from kabinet.scalars import ActionHash, JSONSerializable, SearchQuery, ValidatorFunction
+from kabinet.scalars import ActionHash, JSONSerializable, SearchQuery
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, TypeAdapter
 from rath.scalars import ID, IDCoercible
 from typing import Annotated, Any, AsyncIterator, Iterable, Iterator, Literal
@@ -60,6 +60,19 @@ class AssignWidgetKind(str, Enum):
     PROXY = 'PROXY'
     __str__ = str.__str__
 
+class DescriptorOperator(str, Enum):
+    """The operator of a requires/provides descriptor: how a port's constraint compares the object's value at `key` with `value`."""
+    MATCHES = 'MATCHES'
+    EXISTS = 'EXISTS'
+    LTE = 'LTE'
+    GTE = 'GTE'
+    EQUALS = 'EQUALS'
+    CONTAINS = 'CONTAINS'
+    NOT_EQUALS = 'NOT_EQUALS'
+    IN = 'IN'
+    NOT_IN = 'NOT_IN'
+    __str__ = str.__str__
+
 class EffectClass(str, Enum):
     """The effect class of an implementation — declared by the implementation, never the caller. NONE work is freely retryable/reclaimable; PHYSICAL work touches the real world (no UPSERT), so an ambiguous failure is terminal and must not be retried."""
     NONE = 'NONE'
@@ -102,55 +115,72 @@ class PodStatus(str, Enum):
     __str__ = str.__str__
 
 class PortKind(str, Enum):
-    """The kind of port."""
+    """The kind of a port: its structural type. Decides which of children, identifier and choices the port must, may or must not carry (see docs/design/ports.md)."""
     INT = 'INT'
+    'An integer. No children; choices optional.'
     STRING = 'STRING'
+    'A string. No children; choices optional.'
     STRUCTURE = 'STRUCTURE'
+    'A reference to an object held by a service, typed by `identifier` (@package/key, required). Values are ids. No children.'
     LIST = 'LIST'
+    "A list; exactly one child describes the item type (conventionally keyed '...')."
     BOOL = 'BOOL'
+    'A boolean. No children.'
     DICT = 'DICT'
+    "A string-keyed map. One child keyed '...' describes a homogeneous value type; several named children describe the known keys."
     FLOAT = 'FLOAT'
+    'A floating point number. No children; choices optional.'
     DATE = 'DATE'
+    'An ISO-8601 date or datetime string. No children.'
     UNION = 'UNION'
+    'One of several variants; at least two children, each a variant.'
     ENUM = 'ENUM'
+    'One of a fixed set of values; `choices` required.'
     MODEL = 'MODEL'
+    'An object with named fields; at least one child per field, `identifier` optional.'
     MEMORY_STRUCTURE = 'MEMORY_STRUCTURE'
+    "A reference to an object that lives in the agent's memory, typed by `identifier` (required). Makes the action LOCAL-scoped. No children."
     INTERFACE = 'INTERFACE'
+    'A reference to any object implementing an interface, typed by `identifier` (required). No children.'
     QUANTITY = 'QUANTITY'
-    __str__ = str.__str__
-
-class ProvidesOperator(str, Enum):
-    """The operator for matching descriptors."""
-    MATCHES = 'MATCHES'
-    EXISTS = 'EXISTS'
-    LTE = 'LTE'
-    GTE = 'GTE'
-    EQUALS = 'EQUALS'
-    CONTAINS = 'CONTAINS'
-    NOT_EQUALS = 'NOT_EQUALS'
-    IN = 'IN'
-    NOT_IN = 'NOT_IN'
-    __str__ = str.__str__
-
-class RequiresOperator(str, Enum):
-    """The operator for matching descriptors."""
-    MATCHES = 'MATCHES'
-    EXISTS = 'EXISTS'
-    LTE = 'LTE'
-    GTE = 'GTE'
-    EQUALS = 'EQUALS'
-    CONTAINS = 'CONTAINS'
-    NOT_EQUALS = 'NOT_EQUALS'
-    IN = 'IN'
-    NOT_IN = 'NOT_IN'
+    'A physical quantity with a unit; `reference_unit` required, `dimension` derived. No children.'
     __str__ = str.__str__
 
 class ReturnWidgetKind(str, Enum):
     """The kind of return widget."""
     CHOICE = 'CHOICE'
     CUSTOM = 'CUSTOM'
-    PROXY = 'PROXY'
     __str__ = str.__str__
+
+class WindowFunction(str, Enum):
+    """Aggregation computed over a tracked value within a window."""
+    MEAN = 'MEAN'
+    MIN = 'MIN'
+    MAX = 'MAX'
+    SUM = 'SUM'
+    COUNT = 'COUNT'
+    LAST = 'LAST'
+    FIRST = 'FIRST'
+    STD = 'STD'
+    __str__ = str.__str__
+
+class ChoiceAssignWidgetInput(BaseModel):
+    """A dropdown over the port's `choices`."""
+    kind: Literal['CHOICE'] = Field(default='CHOICE')
+    follow_value: str | None = Field(validation_alias=AliasChoices('follow_value', 'followValue'), serialization_alias='followValue', default=None, description='Port path of another port whose value this widget follows and mirrors.')
+    placeholder: str | None = Field(default=None, description="The placeholder text shown before a choice is made. The choices themselves are the port's `choices`.")
+
+    def model_post_init(self, context):
+        self.__pydantic_fields_set__.update({'kind'})
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
+class ChoiceReturnWidgetInput(BaseModel):
+    """Displays the port's `choices` label for a returned value."""
+    kind: Literal['CHOICE'] = Field(default='CHOICE')
+
+    def model_post_init(self, context):
+        self.__pydantic_fields_set__.update({'kind'})
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class CpuSelectorInput(BaseModel):
     """No documentation"""
@@ -184,6 +214,30 @@ class CudaSelectorInput(BaseModel):
         self.__pydantic_fields_set__.update({'kind'})
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
+class CustomAssignWidgetInput(BaseModel):
+    """A catalog component rendered as the port's widget."""
+    kind: Literal['CUSTOM'] = Field(default='CUSTOM')
+    follow_value: str | None = Field(validation_alias=AliasChoices('follow_value', 'followValue'), serialization_alias='followValue', default=None, description='Port path of another port whose value this widget follows and mirrors.')
+    component: str = Field(description='The catalog component to render. The port value is in scope as the reserved root `value`.')
+    props: tuple['ComponentPropInput', ...] | None = Field(default=None, description='Props of the component. value_paths may only reference `value` and `dependencies`; agent calls are not allowed.')
+    dependencies: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The other ports (port paths, `..` traverses children) whose values the props may reference.')
+    'The other ports (port paths, `..` traverses children) whose values the props may reference.\nDefault: []'
+    fallback: 'AssignWidgetInput | None' = Field(default=None, description='Widget to render when the UI has no such component in its catalog.')
+
+    def model_post_init(self, context):
+        self.__pydantic_fields_set__.update({'kind'})
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
+class CustomReturnWidgetInput(BaseModel):
+    """A catalog component rendered for a returned value."""
+    kind: Literal['CUSTOM'] = Field(default='CUSTOM')
+    component: str = Field(description='The catalog component to render. The returned value is in scope as the reserved root `value`.')
+    props: tuple['ComponentPropInput', ...] | None = Field(default=None, description='Props of the component; value_paths may only reference `value`, agent calls are not allowed.')
+
+    def model_post_init(self, context):
+        self.__pydantic_fields_set__.update({'kind'})
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
 class LabelSelectorInput(BaseModel):
     """No documentation"""
     kind: Literal['label'] = Field(default='label')
@@ -206,6 +260,18 @@ class OneApiSelectorInput(BaseModel):
     weight: Annotated[int | None, GraphQLDefault('1')] = Field(default=None, description='Scoring weight of a preferred (non-required) selector; deployers prefer candidates with the highest sum of satisfied weights.')
     'Scoring weight of a preferred (non-required) selector; deployers prefer candidates with the highest sum of satisfied weights.\nDefault: 1'
     oneapi_version: str | None = Field(validation_alias=AliasChoices('oneapi_version', 'oneapiVersion'), serialization_alias='oneapiVersion', default=None, description='The minimum oneAPI version required.')
+
+    def model_post_init(self, context):
+        self.__pydantic_fields_set__.update({'kind'})
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
+class ProxyAssignWidgetInput(BaseModel):
+    """Delegates the port to a port of another action."""
+    kind: Literal['PROXY'] = Field(default='PROXY')
+    follow_value: str | None = Field(validation_alias=AliasChoices('follow_value', 'followValue'), serialization_alias='followValue', default=None, description='Port path of another port whose value this widget follows and mirrors.')
+    target_port: str = Field(validation_alias=AliasChoices('target_port', 'targetPort'), serialization_alias='targetPort', description='The port key on the targeted action.')
+    target_action: str = Field(validation_alias=AliasChoices('target_action', 'targetAction'), serialization_alias='targetAction', description='The action to target: an action-dependency key of `target_dependency` when that is set.')
+    target_dependency: str | None = Field(validation_alias=AliasChoices('target_dependency', 'targetDependency'), serialization_alias='targetDependency', default=None, description='The agent dependency (by key) that provides the targeted action; omitted: the implementing agent itself.')
 
     def model_post_init(self, context):
         self.__pydantic_fields_set__.update({'kind'})
@@ -238,12 +304,65 @@ class RocmSelectorInput(BaseModel):
         self.__pydantic_fields_set__.update({'kind'})
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
+class SearchAssignWidgetInput(BaseModel):
+    """A search over a ward for STRUCTURE ports (or lists of them)."""
+    kind: Literal['SEARCH'] = Field(default='SEARCH')
+    follow_value: str | None = Field(validation_alias=AliasChoices('follow_value', 'followValue'), serialization_alias='followValue', default=None, description='Port path of another port whose value this widget follows and mirrors.')
+    query: SearchQuery = Field(description='The GraphQL query the ward executes to populate the choices. Must be a single `query` operation declaring `$search: String` and `$values: [ID!]`, plus one variable per filter port key.')
+    ward: str = Field(description='The ward (service) that executes the query.')
+    filters: tuple['ArgPortInput', ...] | None = Field(default=None, description='Filter ports whose values are passed to the query as variables named by their keys.')
+    dependencies: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The other ports (port paths, `..` traverses children) whose values the query may reference.')
+    'The other ports (port paths, `..` traverses children) whose values the query may reference.\nDefault: []'
+    placeholder: str | None = Field(default=None, description='The placeholder text.')
+
+    def model_post_init(self, context):
+        self.__pydantic_fields_set__.update({'kind'})
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
+class SliderAssignWidgetInput(BaseModel):
+    """A numeric slider for INT, FLOAT and QUANTITY ports."""
+    kind: Literal['SLIDER'] = Field(default='SLIDER')
+    follow_value: str | None = Field(validation_alias=AliasChoices('follow_value', 'followValue'), serialization_alias='followValue', default=None, description='Port path of another port whose value this widget follows and mirrors.')
+    min: float | None = Field(default=None, description='The minimum value.')
+    max: float | None = Field(default=None, description='The maximum value.')
+    step: float | None = Field(default=None, description='The step between selectable values; must be positive.')
+
+    def model_post_init(self, context):
+        self.__pydantic_fields_set__.update({'kind'})
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
+class StateChoiceAssignWidgetInput(BaseModel):
+    """A choice over entries of an agent's state."""
+    kind: Literal['STATE_CHOICE'] = Field(default='STATE_CHOICE')
+    follow_value: str | None = Field(validation_alias=AliasChoices('follow_value', 'followValue'), serialization_alias='followValue', default=None, description='Port path of another port whose value this widget follows and mirrors.')
+    dependency: str | None = Field(default=None, description="The agent dependency (by key) whose state provides the choices; omitted: the implementing agent's own state.")
+    state_path: str | None = Field(validation_alias=AliasChoices('state_path', 'statePath'), serialization_alias='statePath', default=None, description='Static JSON pointer into the state value that provides the choices. Mutually exclusive with `state_call`.')
+    state_call: 'UtilCallInput | None' = Field(validation_alias=AliasChoices('state_call', 'stateCall'), serialization_alias='stateCall', default=None, description='Pure UtilCall returning that pointer dynamically; may reference `state`, `value` and `dependencies`. Mutually exclusive with `state_path`.')
+    state_accessors: tuple['StateAccessorInput', ...] | None = Field(validation_alias=AliasChoices('state_accessors', 'stateAccessors'), serialization_alias='stateAccessors', default=None, description='How to read label/description/logo/value out of each state entry; each accessor is a static pointer or a pure call.')
+    dependencies: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The other ports (port paths, `..` traverses children) whose values the calls may reference.')
+    'The other ports (port paths, `..` traverses children) whose values the calls may reference.\nDefault: []'
+
+    def model_post_init(self, context):
+        self.__pydantic_fields_set__.update({'kind'})
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
+class StringAssignWidgetInput(BaseModel):
+    """A text input for STRING ports."""
+    kind: Literal['STRING'] = Field(default='STRING')
+    follow_value: str | None = Field(validation_alias=AliasChoices('follow_value', 'followValue'), serialization_alias='followValue', default=None, description='Port path of another port whose value this widget follows and mirrors.')
+    placeholder: str | None = Field(default=None, description='The placeholder text.')
+    as_paragraph: bool | None = Field(validation_alias=AliasChoices('as_paragraph', 'asParagraph'), serialization_alias='asParagraph', default=None, description='Render as a multi-line paragraph.')
+
+    def model_post_init(self, context):
+        self.__pydantic_fields_set__.update({'kind'})
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
 class ActionArgumentInput(BaseModel):
     """A JSON-serializable argument entry for a multi-agent action trigger."""
     key: str | None = Field(default=None, description='The argument property name.')
     value_literal: JSONSerializable | None = Field(validation_alias=AliasChoices('value_literal', 'valueLiteral'), serialization_alias='valueLiteral', default=None, description='Static literal value if not dynamically bound.')
     value_path: str | None = Field(validation_alias=AliasChoices('value_path', 'valuePath'), serialization_alias='valuePath', default=None, description='JSON Pointer referencing the shared Blok state to inject into this argument slot dynamically.')
-    agent_call: 'AgentCallInput | None' = Field(validation_alias=AliasChoices('agent_call', 'agentCall'), serialization_alias='agentCall', default=None, description='Defines a nested agent call if this argument should trigger an agent interaction.')
+    agent_call: 'AgentProbeInput | None' = Field(validation_alias=AliasChoices('agent_call', 'agentCall'), serialization_alias='agentCall', default=None, description='Defines a nested agent call if this argument should trigger an agent interaction.')
     util_call: 'UtilCallInput | None' = Field(validation_alias=AliasChoices('util_call', 'utilCall'), serialization_alias='utilCall', default=None, description='Defines a nested utility call if this argument should trigger a system utility interaction.')
     value_list: tuple['ActionArgumentInput', ...] | None = Field(validation_alias=AliasChoices('value_list', 'valueList'), serialization_alias='valueList', default=None, description='Defines a list of values if this argument should be an array.')
     value_dict: tuple['ActionArgumentInput', ...] | None = Field(validation_alias=AliasChoices('value_dict', 'valueDict'), serialization_alias='valueDict', default=None, description='Defines a list of key-value pairs if this argument should be a dictionary.')
@@ -280,13 +399,6 @@ class ActionDependencyInput(BaseModel):
     'Allow inactive nodes, defaults to true\nDefault: True'
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
-class AgentCallInput(BaseModel):
-    """Defines a callback that routes user interactions directly to an Arkitekt Agent via Rekuest."""
-    dependency: str = Field(description="The abstract agent dependency key declared in the Blok manifest (e.g., 'stage_dep').")
-    operation: str = Field(description="The target function name registered on that specific agent's worker thread loop.")
-    arguments: tuple[ActionArgumentInput, ...] | None = Field(default=None, description='Key-value arguments map compiled for the target agent call.')
-    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
-
 class AgentDependencyInput(BaseModel):
     """A dependency for a implementation. By defining dependencies, you can
     create a dependency graph for your implementations and actions"""
@@ -309,6 +421,13 @@ class AgentDependencyInput(BaseModel):
     'The policy used to pick which instance of the agent to assign to.\nDefault: BALANCED'
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
+class AgentProbeInput(BaseModel):
+    """Defines a callback that routes user interactions directly to an Arkitekt Agent via Rekuest."""
+    dependency: str = Field(description="The abstract agent dependency key declared in the Blok manifest (e.g., 'stage_dep').")
+    operation: str = Field(description="The target function name registered on that specific agent's worker thread loop.")
+    arguments: tuple[ActionArgumentInput, ...] | None = Field(default=None, description='Key-value arguments map compiled for the target agent call.')
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
 class AppImageInput(BaseModel):
     """Input describing a built app image to register (its manifest, image, selectors and inspection)."""
     flavour_name: str | None = Field(validation_alias=AliasChoices('flavour_name', 'flavourName'), serialization_alias='flavourName', default=None)
@@ -320,26 +439,14 @@ class AppImageInput(BaseModel):
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class ArgPortInput(BaseModel):
-    """Port
+    """A Port is a single input or output of an action, identified by its `key` and typed by its `kind`.
 
-    A Port is a single input or output of a action. It is composed of a key and a kind
-    which are used to uniquely identify the port.
-
-    If the Port is a structure, we need to define a identifier and scope,
-    Identifiers uniquely identify a specific type of model for the scopes (e.g
-    all the ports that have the identifier "@mikro/image" are of the same type, and
-    are hence compatible with each other). Scopes are used to define in which context
-    the identifier is valid (e.g. a port with the identifier "@mikro/image" and the
-    scope "local", can only be wired to other ports that have the same identifier and
-    are running in the same app). Global ports are ports that have the scope "global",
-    and can be wired to any other port that has the same identifier, as there exists a
-    mechanism to resolve and retrieve the object for each app. Please check the rekuest
-    documentation for more information on how this works.
-
-
+    STRUCTURE, MEMORY_STRUCTURE and INTERFACE ports carry an `identifier` of the form `@package/key`
+    (e.g. `@mikro/image`); ports with the same identifier are compatible. LIST and DICT ports have one
+    child (the item type), UNION ports two or more (the variants), MODEL ports one per field. ENUM ports
+    declare `choices`. See docs/design/ports.md for the full table.
     """
-    validators: tuple['ValidatorInput', ...] | None = Field(default=None, description='The validators for the port')
-    key: str = Field(description='The key of the port')
+    key: str = Field(description="The key of the port: unique among its siblings, free of '..', not 'value'. LIST/DICT item ports are conventionally keyed '...'.")
     label: str | None = Field(default=None, description='The label of the port. This is the text that is displayed in the UI')
     kind: PortKind = Field(description='The kind of the port. This is the type of the port. Can be either int, string, structure, list, bool, dict, float, date, union or model')
     description: str | None = Field(default=None, description='The description of the port. This is the text that is displayed in the UI when the user hovers over the port')
@@ -347,41 +454,17 @@ class ArgPortInput(BaseModel):
     nullable: Annotated[bool | None, GraphQLDefault('False')] = Field(default=None, description='Whether the port is nullable or not. If the port is nullable, it can be set to null. If the port is not nullable, it cannot be set to null')
     'Whether the port is nullable or not. If the port is nullable, it can be set to null. If the port is not nullable, it cannot be set to null\nDefault: False'
     effects: tuple['EffectInput', ...] | None = Field(default=None, description='The effects of the port')
-    default: Any | None = Field(default=None, description='The default value for the port.')
-    choices: tuple['ChoiceInput', ...] | None = Field(default=None, description='The options for the port. This is used for dropdowns and text inputs')
+    choices: tuple['ChoiceInput', ...] | None = Field(default=None, description='The values the port accepts (required for ENUM; optional for INT, FLOAT, STRING). Rendered by CHOICE widgets.')
     reference_unit: str | None = Field(validation_alias=AliasChoices('reference_unit', 'referenceUnit'), serialization_alias='referenceUnit', default=None, description='For QUANTITY ports: the canonical/reference unit of the physical quantity, e.g. "volt" or "farad". It is the default selection and the key used to resolve the concrete quantity type; other units of the same dimension are still allowed.')
     proposed_units: tuple[str, ...] | None = Field(validation_alias=AliasChoices('proposed_units', 'proposedUnits'), serialization_alias='proposedUnits', default=None, description='For QUANTITY ports: units offered as a dropdown in the UI, e.g. ["pF", "nF", "uF"]. Proposals only — any unit of the same dimension remains valid input.')
     dimension: str | None = Field(default=None, description='For QUANTITY ports: the pint dimensionality string, e.g. "[mass] * [length] ** 2 / [time] ** 3 / [current]". This is the wiring-compatibility key between quantity ports.')
     children: tuple['ArgPortInput', ...] | None = Field(default=None, description='The child ports (used for list, dict, union and model ports).')
-    widget: 'AssignWidgetInput | None' = Field(default=None, description='The assign widget to use for this port.')
+    validators: tuple['ValidatorInput', ...] | None = Field(default=None, description='The validators for the port')
+    default: Any | None = Field(default=None, description="The default value for the port; must fit the port's kind.")
+    widget: 'AssignWidgetInput | None' = Field(default=None, description='The assign widget to use for this port, discriminated by `kind`.')
     requires: tuple['RequiresInput', ...] | None = Field(default=None, description="The descriptors for the port. Descriptors are key-value pairs that can be used to add additional metadata to a port. When using rekuest's action search, you can filter actions based on their port descriptors")
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
-
-class AssignWidgetInput(BaseModel):
-    """No documentation"""
-    kind: AssignWidgetKind = Field(description='The kind of the assign widget. Can be either dropdown, text, slider, checkbox, radio or custom')
-    query: SearchQuery | None = Field(default=None, description='The query to run when searching for choices. This is used for dropdowns and text inputs')
-    choices: tuple['ChoiceInput', ...] | None = Field(default=None, description='The choices to display in the dropdown. This is used for dropdowns and text inputs')
-    state_choices: str | None = Field(validation_alias=AliasChoices('state_choices', 'stateChoices'), serialization_alias='stateChoices', default=None, description='The key of a state whose value provides the choices for this widget (state-driven choices).')
-    follow_value: str | None = Field(validation_alias=AliasChoices('follow_value', 'followValue'), serialization_alias='followValue', default=None, description='The key of another port whose value this widget should follow and mirror.')
-    min: float | None = Field(default=None, description='The minimum value of the slider (if a slider). This is used for sliders and text inputs')
-    max: float | None = Field(default=None, description='The maximum value of the slider (if a slider). This is used for sliders and text inputs')
-    step: float | None = Field(default=None, description='The step value of the slider (if a slider). This is used for sliders and text inputs')
-    placeholder: str | None = Field(default=None, description='The placeholder of the input. This is used for text inputs and dropdowns')
-    as_paragraph: bool | None = Field(validation_alias=AliasChoices('as_paragraph', 'asParagraph'), serialization_alias='asParagraph', default=None, description='Whether to display the input as a paragraph or not. This is used for text inputs and dropdowns')
-    hook: str | None = Field(default=None, description='The hook to run when the input is changed. This is used for custom assign widgets')
-    ward: str | None = Field(default=None, description='The ward that is responsible for handling querying the choices')
-    fallback: 'AssignWidgetInput | None' = Field(default=None, description='The fallback assign widget to use if the current one fails. This is used for custom assign widgets')
-    filters: tuple[ArgPortInput, ...] | None = Field(default=None, description='The filters to apply to a search widget. This is used for custom assign widgets')
-    dependencies: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description="The dependencies of the assign widget, which will be passed to the search or the hook widget. Use the .. syntax to traverse the tree of ports. For example, if you have a port with the key 'foo' and you want to reference a port with the key 'bar' that is a child of 'foo', you would use 'foo..bar'")
-    "The dependencies of the assign widget, which will be passed to the search or the hook widget. Use the .. syntax to traverse the tree of ports. For example, if you have a port with the key 'foo' and you want to reference a port with the key 'bar' that is a child of 'foo', you would use 'foo..bar'\nDefault: []"
-    dependency: str | None = Field(default=None, description='The dependency that we are going to use to fullfill the state choices. If none is provided its the own state that will be queried')
-    target_dependency: str | None = Field(validation_alias=AliasChoices('target_dependency', 'targetDependency'), serialization_alias='targetDependency', default=None, description='The dependency that we are going to target with a proxy widget. This is used for proxy widgets')
-    target_action: str | None = Field(validation_alias=AliasChoices('target_action', 'targetAction'), serialization_alias='targetAction', default=None, description='The action that we are going to target with a proxy widget. This is used for proxy widgets')
-    target_port: str | None = Field(validation_alias=AliasChoices('target_port', 'targetPort'), serialization_alias='targetPort', default=None, description='The port that we are going to target with a proxy widget. This is used for proxy widgets')
-    state_path: str | None = Field(validation_alias=AliasChoices('state_path', 'statePath'), serialization_alias='statePath', default=None, description='The path to the state value that we are going to use to fullfill the state choices. Always traverse from top to bottom level. i.e state.x for state.x and state.x.y for state.x.y. You can also use an arrow function to specify a dynamic path based on the other arguments, e.g. (args) => state[args.foo]')
-    state_accessors: tuple['StateAccessorInput', ...] | None = Field(validation_alias=AliasChoices('state_accessors', 'stateAccessors'), serialization_alias='stateAccessors', default=None, description='State accessors are used to specify how to access the state values that we are going to use to fullfill the state choices. This is used when the state value that we want to use is not the same as the one of the port, e.g. when we want to use a specific key of a state object, or when we want to use a dynamic key based on the other arguments. The option_key field is used to specify which part of the state accessor we want to use as the value for the assign widget (e.g. the key, the description, the logo, etc.)')
-    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+AssignWidgetInput = Annotated[ChoiceAssignWidgetInput | CustomAssignWidgetInput | ProxyAssignWidgetInput | SearchAssignWidgetInput | SliderAssignWidgetInput | StateChoiceAssignWidgetInput | StringAssignWidgetInput, Field(discriminator='kind')]
 
 class BackendFilter(BaseModel):
     """Filter for backends."""
@@ -414,7 +497,7 @@ text that is displayed in the dropdown. The description is the text
 that is displayed when the user hovers over the choice.
 
     """
-    value: Any = Field(description='The value of the choice. This is the value that is returned when the choice is selected')
+    value: Any = Field(description="The value of the choice (any JSON value); must fit the port's kind. This is the value that is returned when the choice is selected")
     label: str = Field(description='The label of the choice. This is the text that is displayed in the UI')
     image: str | None = Field(default=None, description='The image of the choice. This is the image that is displayed in the UI (must be a URL)')
     description: str | None = Field(default=None, description='The description of the choice. This is the text that is displayed in the UI when the user hovers over the choice')
@@ -434,7 +517,7 @@ class ComponentPropInput(BaseModel):
     static_value: JSONSerializable | None = Field(validation_alias=AliasChoices('static_value', 'staticValue'), serialization_alias='staticValue', default=None, description="A raw scalar or JSON-stringified literal configuration parameter (e.g. '40x' or True).")
     dynamic_value: 'DynamicValueInput | None' = Field(validation_alias=AliasChoices('dynamic_value', 'dynamicValue'), serialization_alias='dynamicValue', default=None, description='A reactive state data-binding rule.')
     declares_value: str | None = Field(validation_alias=AliasChoices('declares_value', 'declaresValue'), serialization_alias='declaresValue', default=None, description="If set, this prop declares a new 'value' in the Blok state that can be referenced by other props or actions. The value of this field should be the name of the declared value (e.g., 'selected_user').")
-    agent_call: AgentCallInput | None = Field(validation_alias=AliasChoices('agent_call', 'agentCall'), serialization_alias='agentCall', default=None, description='Defines an imperative interactive network action callback loop if this prop should trigger an agent interaction.')
+    agent_call: AgentProbeInput | None = Field(validation_alias=AliasChoices('agent_call', 'agentCall'), serialization_alias='agentCall', default=None, description='Defines an imperative interactive network action callback loop if this prop should trigger an agent interaction.')
     util_call: 'UtilCallInput | None' = Field(validation_alias=AliasChoices('util_call', 'utilCall'), serialization_alias='utilCall', default=None, description='Defines an imperative interactive network action callback loop if this prop should trigger a system utility interaction.')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
@@ -495,7 +578,6 @@ class DefinitionInput(BaseModel):
     collections: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The collections of the definition. This is used to group definitions together in the UI')
     'The collections of the definition. This is used to group definitions together in the UI\nDefault: []'
     key: str = Field(description='The key of the definition. This is used to uniquely identify the definition')
-    package: str | None = Field(default=None, description="The package of the function. Will default to the currents agent's app if not specified. This is used to group definitions together in the UI and provide a better user experience")
     version: str = Field(description='The version of the definition. This is used to differentiate if the underyling algorithm has changed, i.e we would expect different results for the same input')
     name: str = Field(description='The name of the actions. This is used to uniquely identify the definition')
     stateful: Annotated[bool | None, GraphQLDefault('False')] = Field(default=None, description='Whether the definition is stateful or not. If the definition is stateful, it can be used to create a stateful action. If the definition is not stateful, it cannot be used to create a stateful action')
@@ -504,21 +586,21 @@ class DefinitionInput(BaseModel):
     'Whether the action is pure: same args always produce the same result and no side effects — its results are replayable/cacheable. Implies idempotent. Incompatible with stateful and with a PHYSICAL effect class.\nDefault: False'
     idempotent: Annotated[bool | None, GraphQLDefault('False')] = Field(default=None, description='Whether the action is idempotent: safe to run multiple times with the same args without changing the outcome — on ambiguous executor loss it may be freely re-dispatched.')
     'Whether the action is idempotent: safe to run multiple times with the same args without changing the outcome — on ambiguous executor loss it may be freely re-dispatched.\nDefault: False'
+    allow_probe: Annotated[bool | None, GraphQLDefault('False')] = Field(validation_alias=AliasChoices('allow_probe', 'allowProbe'), serialization_alias='allowProbe', default=None, description='Whether the action may be invoked as a probe: zero persistence, redis-held state, no history/replay/recovery. Only actions declaring this are callable via the call mutation.')
+    'Whether the action may be invoked as a probe: zero persistence, redis-held state, no history/replay/recovery. Only actions declaring this are callable via the call mutation.\nDefault: False'
+    catalogs: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description="Names of the UI catalogs that extend the base catalog (`base@1`, always applied) for this definition's effect and validator calls. Unknown names yield an unknown_catalog warning; conflicting operation definitions across catalogs are a registration error.")
+    "Names of the UI catalogs that extend the base catalog (`base@1`, always applied) for this definition's effect and validator calls. Unknown names yield an unknown_catalog warning; conflicting operation definitions across catalogs are a registration error.\nDefault: []"
     port_groups: Annotated[tuple['PortGroupInput', ...] | None, GraphQLDefault('[]')] = Field(validation_alias=AliasChoices('port_groups', 'portGroups'), serialization_alias='portGroups', default=None, description='The port groups of the definition. This is used to group ports together in the UI')
     'The port groups of the definition. This is used to group ports together in the UI\nDefault: []'
     args: Annotated[tuple[ArgPortInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The args of the definition. This is the input ports of the definition')
     'The args of the definition. This is the input ports of the definition\nDefault: []'
     returns: Annotated[tuple['ReturnPortInput', ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The returns of the definition. This is the output ports of the definition')
     'The returns of the definition. This is the output ports of the definition\nDefault: []'
-    tests: ActionDependencyInput | None = None
     kind: ActionKind = Field(description='The kind of the definition. This is the type of the definition. Can be either a function or a generator')
-    is_test_for: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(validation_alias=AliasChoices('is_test_for', 'isTestFor'), serialization_alias='isTestFor', default=None, description='The tests for the definition. This is used to group definitions together in the UI')
-    'The tests for the definition. This is used to group definitions together in the UI\nDefault: []'
-    interfaces: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The interfaces of the definition. This is used to group definitions together in the UI')
-    'The interfaces of the definition. This is used to group definitions together in the UI\nDefault: []'
+    is_test_for: Annotated[tuple['TestTargetInput', ...] | None, GraphQLDefault('[]')] = Field(validation_alias=AliasChoices('is_test_for', 'isTestFor'), serialization_alias='isTestFor', default=None, description='The actions this definition is a test for, each identified by hash or by (app, key, version).')
+    'The actions this definition is a test for, each identified by hash or by (app, key, version).\nDefault: []'
     is_dev: Annotated[bool | None, GraphQLDefault('False')] = Field(validation_alias=AliasChoices('is_dev', 'isDev'), serialization_alias='isDev', default=None, description='Whether the definition is a dev definition or not. If the definition is a dev definition, it can be used to create a dev action. If the definition is not a dev definition, it cannot be used to create a dev action')
     'Whether the definition is a dev definition or not. If the definition is a dev definition, it can be used to create a dev action. If the definition is not a dev definition, it cannot be used to create a dev action\nDefault: False'
-    logo: str | None = Field(default=None, description='The logo of the definition. This is used to display the logo in the UI')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class DeletePodInput(BaseModel):
@@ -546,28 +628,29 @@ class DumpLogsInput(BaseModel):
 
 class DynamicValueInput(BaseModel):
     """A bound state pointer referencing a variable inside a Blok state instance."""
+    literal: str | None = Field(default=None, description='A static fallback literal value (serialized string or JSON primitive) used when `path` does not resolve.')
     path: str | None = Field(default=None, description="JSON Pointer to a variable inside the Blok's isolated data model (e.g., '/microscope/exposure').")
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class EffectInput(BaseModel):
     """
-                 An effect is a way to modify a port based on a condition. For example,
-    you could have an effect that sets a port to null if another port is null.
+    An effect is a way to modify a port based on a condition. For example,
+    you could have an effect that hides the port if another port meets a condition,
+    e.g. when the user selects a certain option in a dropdown, another port is hidden.
 
-    Or, you could have an effect that hides the port if another port meets a condition.
-    E.g when the user selects a certain option in a dropdown, another port is hidden.
-
-
+    The condition is a pure blok UtilCall (`call`) evaluated client-side against the
+    catalog; it must return a boolean deciding whether the effect applies. `dependencies`
+    is the authoritative list of other ports the call may reference (plus `value` for the
+    port's own value).
     """
-    function: ValidatorFunction = Field(description='The function to run to determine if the effect should be applied')
-    dependencies: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description="The dependencies of the effect. Use the .. syntax to traverse the tree of ports. For example, if you have a port with the key 'foo' and you want to reference a port with the key 'bar' that is a child of 'foo', you would use 'foo..bar'")
-    "The dependencies of the effect. Use the .. syntax to traverse the tree of ports. For example, if you have a port with the key 'foo' and you want to reference a port with the key 'bar' that is a child of 'foo', you would use 'foo..bar'\nDefault: []"
+    call: 'UtilCallInput' = Field(description="The pure blok UtilCall, evaluated client-side against the catalog, that decides whether the effect applies. It must return a boolean. Argument value_paths may only reference names listed in `dependencies`, plus `value` for the port's own value.")
+    dependencies: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description="The form-field subscription list of the effect: the keys of the other ports whose values the call may reference. This list is authoritative: a value_path in the call may only reference these names (plus `value` for the port's own value). Use the .. syntax to traverse the tree of ports, e.g. 'foo..bar' for the child 'bar' of port 'foo'.")
+    "The form-field subscription list of the effect: the keys of the other ports whose values the call may reference. This list is authoritative: a value_path in the call may only reference these names (plus `value` for the port's own value). Use the .. syntax to traverse the tree of ports, e.g. 'foo..bar' for the child 'bar' of port 'foo'.\nDefault: []"
     message: str | None = Field(default=None, description='The message to display when the effect is applied (if it is a message effect)')
     kind: EffectKind = Field(description='The kind of the effect. Can be either message, hide or custom')
     fade: Annotated[bool | None, GraphQLDefault('True')] = Field(default=None, description='Whether to fade out the port when the effect is applied (if it is a hide effect)')
     'Whether to fade out the port when the effect is applied (if it is a hide effect)\nDefault: True'
-    hook: str | None = Field(default=None, description='The hook to run when the effect is applied (if it is a custom effect)')
-    ward: str | None = Field(default=None, description='The ward to run when the effect is applied (if it is a custom effect)')
+    source: str | None = Field(default=None, description='The authoring expression the call was compiled from (informational; never parsed or validated by the server).')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class FlavourFilter(BaseModel):
@@ -596,9 +679,6 @@ class ImplementationInput(BaseModel):
     interface: str | None = Field(default=None, description='The interface of the implementation. This is used to group implementations together in the UI')
     params: Any | None = Field(default=None, description='The params of the implementation. This is used to pass parameters to the implementation')
     instance_id: str | None = Field(validation_alias=AliasChoices('instance_id', 'instanceId'), serialization_alias='instanceId', default=None, description='The instance id of the agent this implementation is bound to.')
-    dynamic: Annotated[bool | None, GraphQLDefault('False')] = Field(default=None, description='Whether the implementation is dynamic or not. If the implementation is dynamic, it can be used to create a dynamic action. If the implementation is not dynamic, it cannot be used to create a dynamic action')
-    'Whether the implementation is dynamic or not. If the implementation is dynamic, it can be used to create a dynamic action. If the implementation is not dynamic, it cannot be used to create a dynamic action\nDefault: False'
-    logo: str | None = Field(default=None, description="The logo of the implementation. This is used to display the logo in the UI either it should be 'custom:svg-paths' or a lucide icon name like 'lucide:activity' urls are not supported at the moment")
     locks: tuple[str, ...] | None = Field(default=None, description='The locks of the implementation. This is used to specify which resources the implementation needs to run')
     optimistics: tuple['OptimisticInput', ...] | None = Field(default=None, description='The optimistics of the definition. This is used to optimistically set state values when the action is assigned, to provide a better user experience.')
     manipulates: tuple[str, ...] | None = Field(default=None, description='The states that the implementation manipulates. This is used to identify which states are manipulated by the implementation, and can be use to enhance state safety in the system')
@@ -656,19 +736,20 @@ class OptimisticInput(BaseModel):
 
 """
     state: str = Field(description='The state to optimistically set when the action is assigned')
-    path: str = Field(description='The path to the state.value to optimistically set the value, always traverse from top to bottom level. i.e state.x for state.x and state.x.y for state.x.y. You can also use an arrow function to specify a dynamic path based on the other arguments, e.g. (args) => state[args.foo]')
-    accessor: str | None = Field(default=None, description='The accessor to get the value to optimistically set. This is used when the value to optimistically set is not the same as the value of the port')
+    path: str | None = Field(default=None, description='Static JSON pointer into the state value to set. Mutually exclusive with `path_call`.')
+    path_call: 'UtilCallInput | None' = Field(validation_alias=AliasChoices('path_call', 'pathCall'), serialization_alias='pathCall', default=None, description='Pure UtilCall returning the pointer dynamically; may reference `args` (the assignment arguments). Mutually exclusive with `path`.')
+    accessor: str | None = Field(default=None, description='Static JSON pointer into the assignment args for the value to set; omitted: the whole args.')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class PortGroupInput(BaseModel):
     """A Port Group is a group of ports that are related to each other. It is used to group ports together in the UI and provide a better user experience."""
     key: str = Field(description='The key of the port group. This is used to uniquely identify the port group')
-    title: str | None = None
-    description: str | None = None
-    effects: Annotated[tuple[EffectInput, ...] | None, GraphQLDefault('[]')] = None
-    'Default: []'
-    ports: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = None
-    'Default: []'
+    title: str | None = Field(default=None, description='The title of the port group, displayed in the UI')
+    description: str | None = Field(default=None, description='The description of the port group, displayed in the UI')
+    effects: Annotated[tuple[EffectInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The effects applied to the port group as a whole')
+    'The effects applied to the port group as a whole\nDefault: []'
+    ports: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The keys of the root arg ports in this group; a port belongs to at most one group')
+    'The keys of the root arg ports in this group; a port belongs to at most one group\nDefault: []'
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class PortMatchInput(BaseModel):
@@ -688,9 +769,9 @@ class PortMatchInput(BaseModel):
 
 class ProvidesInput(BaseModel):
     """No documentation"""
-    key: str = Field(description='The key of the provision. This is used to uniquely identify the provision')
-    operator: ProvidesOperator = Field(description='The operator for the provision')
-    value: Any = Field(description='The value of the provision. This can be any JSON serializable value')
+    key: str = Field(description='The key of the provision: the path into the object the constraint reads')
+    operator: DescriptorOperator = Field(description='The operator for the provision')
+    value: Any | None = Field(default=None, description='The value of the provision. This can be any JSON serializable value; IN/NOT_IN take a list, LTE/GTE a number, EXISTS none')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class QualifierInput(BaseModel):
@@ -710,9 +791,9 @@ class RequirementInput(BaseModel):
 
 class RequiresInput(BaseModel):
     """No documentation"""
-    key: str = Field(description='The key of the requirement. This is used to uniquely identify the requirement')
-    operator: RequiresOperator = Field(description='The operator for the requirement')
-    value: Any = Field(description='The value of the requirement. This can be any JSON serializable value')
+    key: str = Field(description='The key of the requirement: the path into the object the constraint reads')
+    operator: DescriptorOperator = Field(description='The operator for the requirement')
+    value: Any | None = Field(default=None, description='The value of the requirement. This can be any JSON serializable value; IN/NOT_IN take a list, LTE/GTE a number, EXISTS none')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class ResourceFilter(BaseModel):
@@ -726,26 +807,14 @@ class ResourceFilter(BaseModel):
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class ReturnPortInput(BaseModel):
-    """Port
+    """A Port is a single input or output of an action, identified by its `key` and typed by its `kind`.
 
-    A Port is a single input or output of a action. It is composed of a key and a kind
-    which are used to uniquely identify the port.
-
-    If the Port is a structure, we need to define a identifier and scope,
-    Identifiers uniquely identify a specific type of model for the scopes (e.g
-    all the ports that have the identifier "@mikro/image" are of the same type, and
-    are hence compatible with each other). Scopes are used to define in which context
-    the identifier is valid (e.g. a port with the identifier "@mikro/image" and the
-    scope "local", can only be wired to other ports that have the same identifier and
-    are running in the same app). Global ports are ports that have the scope "global",
-    and can be wired to any other port that has the same identifier, as there exists a
-    mechanism to resolve and retrieve the object for each app. Please check the rekuest
-    documentation for more information on how this works.
-
-
+    STRUCTURE, MEMORY_STRUCTURE and INTERFACE ports carry an `identifier` of the form `@package/key`
+    (e.g. `@mikro/image`); ports with the same identifier are compatible. LIST and DICT ports have one
+    child (the item type), UNION ports two or more (the variants), MODEL ports one per field. ENUM ports
+    declare `choices`. See docs/design/ports.md for the full table.
     """
-    validators: tuple['ValidatorInput', ...] | None = Field(default=None, description='The validators for the port')
-    key: str = Field(description='The key of the port')
+    key: str = Field(description="The key of the port: unique among its siblings, free of '..', not 'value'. LIST/DICT item ports are conventionally keyed '...'.")
     label: str | None = Field(default=None, description='The label of the port. This is the text that is displayed in the UI')
     kind: PortKind = Field(description='The kind of the port. This is the type of the port. Can be either int, string, structure, list, bool, dict, float, date, union or model')
     description: str | None = Field(default=None, description='The description of the port. This is the text that is displayed in the UI when the user hovers over the port')
@@ -753,46 +822,22 @@ class ReturnPortInput(BaseModel):
     nullable: Annotated[bool | None, GraphQLDefault('False')] = Field(default=None, description='Whether the port is nullable or not. If the port is nullable, it can be set to null. If the port is not nullable, it cannot be set to null')
     'Whether the port is nullable or not. If the port is nullable, it can be set to null. If the port is not nullable, it cannot be set to null\nDefault: False'
     effects: tuple[EffectInput, ...] | None = Field(default=None, description='The effects of the port')
-    default: Any | None = Field(default=None, description='The default value for the port.')
-    choices: tuple[ChoiceInput, ...] | None = Field(default=None, description='The options for the port. This is used for dropdowns and text inputs')
+    choices: tuple[ChoiceInput, ...] | None = Field(default=None, description='The values the port accepts (required for ENUM; optional for INT, FLOAT, STRING). Rendered by CHOICE widgets.')
     reference_unit: str | None = Field(validation_alias=AliasChoices('reference_unit', 'referenceUnit'), serialization_alias='referenceUnit', default=None, description='For QUANTITY ports: the canonical/reference unit of the physical quantity, e.g. "volt" or "farad". It is the default selection and the key used to resolve the concrete quantity type; other units of the same dimension are still allowed.')
     proposed_units: tuple[str, ...] | None = Field(validation_alias=AliasChoices('proposed_units', 'proposedUnits'), serialization_alias='proposedUnits', default=None, description='For QUANTITY ports: units offered as a dropdown in the UI, e.g. ["pF", "nF", "uF"]. Proposals only — any unit of the same dimension remains valid input.')
     dimension: str | None = Field(default=None, description='For QUANTITY ports: the pint dimensionality string, e.g. "[mass] * [length] ** 2 / [time] ** 3 / [current]". This is the wiring-compatibility key between quantity ports.')
     children: tuple['ReturnPortInput', ...] | None = Field(default=None, description='The child ports (used for list, dict, union and model ports).')
-    widget: 'ReturnWidgetInput | None' = Field(default=None, description='The return widget to use for this port.')
+    widget: 'ReturnWidgetInput | None' = Field(default=None, description='The return widget to use for this port, discriminated by `kind`.')
     provides: tuple[ProvidesInput, ...] | None = Field(default=None, description="The provisions for the port. Provisions are key-value pairs that can be used to add additional metadata to a port. When using rekuest's action search, you can filter actions based on their port provisions")
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
-
-class ReturnWidgetInput(BaseModel):
-    """A Return Widget is a UI element that is used to display the value of a port.
-
-    Return Widgets get displayed both if we show the return values of an assignment,
-    but also when we inspect the given arguments of a previous run task. Their primary
-    usecase is to adequately display the value of a port, in a user readable way.
-
-    Return Widgets are often overwriten by the underlying UI framework (e.g. Orkestrator)
-    to provide a better user experience. For example, a return widget that displays a
-    date could be overwriten to display a calendar widget.
-
-    Return Widgets provide more a way to customize this overwriten behavior.
-
-    """
-    kind: ReturnWidgetKind = Field(description='The kind of the return widget. Can be either dropdown, text, slider, checkbox, radio or custom')
-    query: SearchQuery | None = Field(default=None, description='The query to run when searching for choices. This is used for dropdowns and text inputs')
-    choices: tuple[ChoiceInput, ...] | None = Field(default=None, description='The choices to display in the dropdown. This is used for dropdowns and text inputs')
-    min: int | None = Field(default=None, description='The minimum value to display (if a slider).')
-    max: int | None = Field(default=None, description='The maximum value to display (if a slider).')
-    step: int | None = Field(default=None, description='The step value to display (if a slider).')
-    placeholder: str | None = Field(default=None, description='The placeholder text of the return widget.')
-    hook: str | None = Field(default=None, description='The hook to run (if it is a custom return widget).')
-    ward: str | None = Field(default=None, description='The ward responsible for handling the return widget.')
-    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+ReturnWidgetInput = Annotated[ChoiceReturnWidgetInput | CustomReturnWidgetInput, Field(discriminator='kind')]
 SelectorInput = Annotated[CpuSelectorInput | CudaSelectorInput | LabelSelectorInput | OneApiSelectorInput | RamSelectorInput | RocmSelectorInput, Field(discriminator='kind')]
 
 class StateAccessorInput(BaseModel):
     """No documentation"""
     option_key: OptionKey = Field(validation_alias=AliasChoices('option_key', 'optionKey'), serialization_alias='optionKey', description='The part of the state accessor to use as the value for the assign widget (e.g. the key, the description, the logo, etc.)')
-    sub_path: str | None = Field(validation_alias=AliasChoices('sub_path', 'subPath'), serialization_alias='subPath', default=None, description='The sub path to access a specific part of the state value. Always traverse from top to bottom level. i.e state.x for state.x and state.x.y for state.x.y. You can also use an arrow function to specify a dynamic path based on the other arguments, e.g. (args) => state[args.foo]')
+    path: str | None = Field(default=None, description="Static JSON pointer into the state value ('/x/y'). Omit for the whole value. Mutually exclusive with `call`.")
+    call: 'UtilCallInput | None' = Field(default=None, description="Pure UtilCall returning the pointer string dynamically. May reference `state`, `value` and the widget's `dependencies`. Mutually exclusive with `path`.")
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class StateDefinitionInput(BaseModel):
@@ -832,6 +877,14 @@ class StateImplementationInput(BaseModel):
     definition: StateDefinitionInput = Field(description='The schema of the state implementation. This is used to define the structure of the state')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
+class TestTargetInput(BaseModel):
+    """A test target: the action a test action tests, identified by exact hash or by an (app, key, version) coordinate. app defaults to the registering agent's app; omitting version matches every version."""
+    hash: str | None = Field(default=None, description='The exact hash of the target action.')
+    app: str | None = Field(default=None, description="The app identifier owning the target action. Defaults to the registering agent's app.")
+    key: str | None = Field(default=None, description='The key of the target action. Matches every version unless version is given.')
+    version: str | None = Field(default=None, description='Restrict a key target to one specific version.')
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
 class TrackInput(BaseModel):
     """A value that is being tracked over time during the runtime of an action. This is the state of a dependency"""
     dependency_key: str | None = Field(validation_alias=AliasChoices('dependency_key', 'dependencyKey'), serialization_alias='dependencyKey', default=None, description='The key of the dependency whose state is being tracked.')
@@ -857,25 +910,26 @@ class UtilCallInput(BaseModel):
 
 class ValidatorInput(BaseModel):
     """
-A validating function for a port. Can specify a function that will run when validating values of the port.
-If outside dependencies are needed they need to be specified in the dependencies field. With the .. syntax
-when transversing the tree of ports.
-
+A validator for a port. `call` is a pure blok UtilCall evaluated client-side against the
+catalog; it must return a boolean meaning 'valid'. Other ports the call references must be
+listed in `dependencies` (the authoritative subscription list); `value` refers to the port's
+own value. Use the .. syntax when traversing the tree of ports.
 """
-    function: ValidatorFunction = Field(description='The function to run when validating the port')
-    dependencies: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description="The dependencies of the function. Use the .. syntax to traverse the tree of ports. For example, if you have a port with the key 'foo' and you want to reference a port with the key 'bar' that is a child of 'foo', you would use 'foo..bar'")
-    "The dependencies of the function. Use the .. syntax to traverse the tree of ports. For example, if you have a port with the key 'foo' and you want to reference a port with the key 'bar' that is a child of 'foo', you would use 'foo..bar'\nDefault: []"
+    call: UtilCallInput = Field(description="The pure blok UtilCall, evaluated client-side against the catalog, that validates the port value. It must return a boolean meaning 'valid'. Argument value_paths may only reference names listed in `dependencies`, plus `value` for the port's own value.")
+    dependencies: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description="The form-field subscription list of the validator: the keys of the other ports whose values the call may reference. This list is authoritative: a value_path in the call may only reference these names (plus `value` for the port's own value). Use the .. syntax to traverse the tree of ports, e.g. 'foo..bar' for the child 'bar' of port 'foo'.")
+    "The form-field subscription list of the validator: the keys of the other ports whose values the call may reference. This list is authoritative: a value_path in the call may only reference these names (plus `value` for the port's own value). Use the .. syntax to traverse the tree of ports, e.g. 'foo..bar' for the child 'bar' of port 'foo'.\nDefault: []"
     label: str | None = Field(default=None, description='An optional human-readable label for the validator.')
     error_message: str | None = Field(validation_alias=AliasChoices('error_message', 'errorMessage'), serialization_alias='errorMessage', default=None, description='The error message to display when the validation fails')
+    source: str | None = Field(default=None, description='The authoring expression the call was compiled from (informational; never parsed or validated by the server).')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class WindowInput(BaseModel):
     """A window that is calculated"""
-    window_function: str = Field(validation_alias=AliasChoices('window_function', 'windowFunction'), serialization_alias='windowFunction', description='The window function to apply over the tracked value.')
+    window_function: WindowFunction = Field(validation_alias=AliasChoices('window_function', 'windowFunction'), serialization_alias='windowFunction', description='The aggregation to compute over the tracked value within the window.')
     label: str | None = Field(default=None, description='An optional human-readable label for the window.')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
-def action_argument_input(key: str | None | UnsetType=UNSET, value_literal: JSONSerializable | None | UnsetType=UNSET, value_path: str | None | UnsetType=UNSET, agent_call: AgentCallInput | None | UnsetType=UNSET, util_call: UtilCallInput | None | UnsetType=UNSET, value_list: Iterable[ActionArgumentInput] | None | UnsetType=UNSET, value_dict: Iterable[ActionArgumentInput] | None | UnsetType=UNSET) -> ActionArgumentInput:
+def action_argument_input(key: str | None | UnsetType=UNSET, value_literal: JSONSerializable | None | UnsetType=UNSET, value_path: str | None | UnsetType=UNSET, agent_call: AgentProbeInput | None | UnsetType=UNSET, util_call: UtilCallInput | None | UnsetType=UNSET, value_list: Iterable[ActionArgumentInput] | None | UnsetType=UNSET, value_dict: Iterable[ActionArgumentInput] | None | UnsetType=UNSET) -> ActionArgumentInput:
     """Creates a ActionArgumentInput
 
 Arguments:
@@ -972,21 +1026,6 @@ Arguments:
         data['allowInactive'] = allow_inactive
     return ActionDependencyInput(**data)
 
-def agent_call_input(dependency: str, operation: str, arguments: Iterable[ActionArgumentInput] | None | UnsetType=UNSET) -> AgentCallInput:
-    """Creates a AgentCallInput
-
-Arguments:
-    dependency: The abstract agent dependency key declared in the Blok manifest (e.g., 'stage_dep').
-    operation: The target function name registered on that specific agent's worker thread loop.
-    arguments: Key-value arguments map compiled for the target agent call.
-"""
-    data: dict[str, Any] = {}
-    data['dependency'] = dependency
-    data['operation'] = operation
-    if arguments is not UNSET:
-        data['arguments'] = arguments
-    return AgentCallInput(**data)
-
 def agent_dependency_input(key: str, optional: bool, auto_resolvable: bool, assign_policy: AssignPolicy, app: str | None | UnsetType=UNSET, version: str | None | UnsetType=UNSET, name: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, action_dependencies: Iterable[ActionDependencyInput] | None | UnsetType=UNSET, state_dependencies: Iterable[StateDependencyInput] | None | UnsetType=UNSET, mutually_exclusive_keys: Iterable[str] | None | UnsetType=UNSET, min_viable_instances: int | None | UnsetType=UNSET, max_viable_instances: int | None | UnsetType=UNSET, prefered_instances: int | None | UnsetType=UNSET) -> AgentDependencyInput:
     """Creates a AgentDependencyInput
 
@@ -1033,6 +1072,21 @@ Arguments:
     data['assignPolicy'] = assign_policy
     return AgentDependencyInput(**data)
 
+def agent_probe_input(dependency: str, operation: str, arguments: Iterable[ActionArgumentInput] | None | UnsetType=UNSET) -> AgentProbeInput:
+    """Creates a AgentProbeInput
+
+Arguments:
+    dependency: The abstract agent dependency key declared in the Blok manifest (e.g., 'stage_dep').
+    operation: The target function name registered on that specific agent's worker thread loop.
+    arguments: Key-value arguments map compiled for the target agent call.
+"""
+    data: dict[str, Any] = {}
+    data['dependency'] = dependency
+    data['operation'] = operation
+    if arguments is not UNSET:
+        data['arguments'] = arguments
+    return AgentProbeInput(**data)
+
 def app_image_input(manifest: ManifestInput, selectors: Iterable[SelectorInput], app_image_id: str, inspection: InspectionInput, image: DockerImageInput, flavour_name: str | None | UnsetType=UNSET) -> AppImageInput:
     """Creates a AppImageInput
 
@@ -1054,30 +1108,28 @@ Arguments:
     data['image'] = image
     return AppImageInput(**data)
 
-def arg_port_input(key: str, kind: PortKind, nullable: bool, validators: Iterable[ValidatorInput] | None | UnsetType=UNSET, label: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, identifier: str | None | UnsetType=UNSET, effects: Iterable[EffectInput] | None | UnsetType=UNSET, default: Any | None | UnsetType=UNSET, choices: Iterable[ChoiceInput] | None | UnsetType=UNSET, reference_unit: str | None | UnsetType=UNSET, proposed_units: Iterable[str] | None | UnsetType=UNSET, dimension: str | None | UnsetType=UNSET, children: Iterable[ArgPortInput] | None | UnsetType=UNSET, widget: AssignWidgetInput | None | UnsetType=UNSET, requires: Iterable[RequiresInput] | None | UnsetType=UNSET) -> ArgPortInput:
+def arg_port_input(key: str, kind: PortKind, nullable: bool, label: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, identifier: str | None | UnsetType=UNSET, effects: Iterable[EffectInput] | None | UnsetType=UNSET, choices: Iterable[ChoiceInput] | None | UnsetType=UNSET, reference_unit: str | None | UnsetType=UNSET, proposed_units: Iterable[str] | None | UnsetType=UNSET, dimension: str | None | UnsetType=UNSET, children: Iterable[ArgPortInput] | None | UnsetType=UNSET, validators: Iterable[ValidatorInput] | None | UnsetType=UNSET, default: Any | None | UnsetType=UNSET, widget: AssignWidgetInput | None | UnsetType=UNSET, requires: Iterable[RequiresInput] | None | UnsetType=UNSET) -> ArgPortInput:
     """Creates a ArgPortInput
 
 Arguments:
-    validators: The validators for the port
-    key: The key of the port
+    key: The key of the port: unique among its siblings, free of '..', not 'value'. LIST/DICT item ports are conventionally keyed '...'.
     label: The label of the port. This is the text that is displayed in the UI
     kind: The kind of the port. This is the type of the port. Can be either int, string, structure, list, bool, dict, float, date, union or model
     description: The description of the port. This is the text that is displayed in the UI when the user hovers over the port
     identifier: The identifier of a structure port. This is used to uniquely identify a specific type of structure.
     nullable: Whether the port is nullable or not. If the port is nullable, it can be set to null. If the port is not nullable, it cannot be set to null
     effects: The effects of the port
-    default: The default value for the port.
-    choices: The options for the port. This is used for dropdowns and text inputs
+    choices: The values the port accepts (required for ENUM; optional for INT, FLOAT, STRING). Rendered by CHOICE widgets.
     reference_unit: For QUANTITY ports: the canonical/reference unit of the physical quantity, e.g. "volt" or "farad". It is the default selection and the key used to resolve the concrete quantity type; other units of the same dimension are still allowed.
     proposed_units: For QUANTITY ports: units offered as a dropdown in the UI, e.g. ["pF", "nF", "uF"]. Proposals only — any unit of the same dimension remains valid input.
     dimension: For QUANTITY ports: the pint dimensionality string, e.g. "[mass] * [length] ** 2 / [time] ** 3 / [current]". This is the wiring-compatibility key between quantity ports.
     children: The child ports (used for list, dict, union and model ports).
-    widget: The assign widget to use for this port.
+    validators: The validators for the port
+    default: The default value for the port; must fit the port's kind.
+    widget: The assign widget to use for this port, discriminated by `kind`.
     requires: The descriptors for the port. Descriptors are key-value pairs that can be used to add additional metadata to a port. When using rekuest's action search, you can filter actions based on their port descriptors
 """
     data: dict[str, Any] = {}
-    if validators is not UNSET:
-        data['validators'] = validators
     data['key'] = key
     if label is not UNSET:
         data['label'] = label
@@ -1089,8 +1141,6 @@ Arguments:
     data['nullable'] = nullable
     if effects is not UNSET:
         data['effects'] = effects
-    if default is not UNSET:
-        data['default'] = default
     if choices is not UNSET:
         data['choices'] = choices
     if reference_unit is not UNSET:
@@ -1101,46 +1151,44 @@ Arguments:
         data['dimension'] = dimension
     if children is not UNSET:
         data['children'] = children
+    if validators is not UNSET:
+        data['validators'] = validators
+    if default is not UNSET:
+        data['default'] = default
     if widget is not UNSET:
         data['widget'] = widget
     if requires is not UNSET:
         data['requires'] = requires
     return ArgPortInput(**data)
 
-def assign_widget_input(kind: AssignWidgetKind, query: SearchQuery | None | UnsetType=UNSET, choices: Iterable[ChoiceInput] | None | UnsetType=UNSET, state_choices: str | None | UnsetType=UNSET, follow_value: str | None | UnsetType=UNSET, min: float | None | UnsetType=UNSET, max: float | None | UnsetType=UNSET, step: float | None | UnsetType=UNSET, placeholder: str | None | UnsetType=UNSET, as_paragraph: bool | None | UnsetType=UNSET, hook: str | None | UnsetType=UNSET, ward: str | None | UnsetType=UNSET, fallback: AssignWidgetInput | None | UnsetType=UNSET, filters: Iterable[ArgPortInput] | None | UnsetType=UNSET, dependencies: Iterable[str] | None | UnsetType=UNSET, dependency: str | None | UnsetType=UNSET, target_dependency: str | None | UnsetType=UNSET, target_action: str | None | UnsetType=UNSET, target_port: str | None | UnsetType=UNSET, state_path: str | None | UnsetType=UNSET, state_accessors: Iterable[StateAccessorInput] | None | UnsetType=UNSET) -> AssignWidgetInput:
+def assign_widget_input(kind: AssignWidgetKind, follow_value: str | None | UnsetType=UNSET, min: float | None | UnsetType=UNSET, max: float | None | UnsetType=UNSET, step: float | None | UnsetType=UNSET, placeholder: str | None | UnsetType=UNSET, as_paragraph: bool | None | UnsetType=UNSET, query: SearchQuery | None | UnsetType=UNSET, ward: str | None | UnsetType=UNSET, filters: Iterable[ArgPortInput] | None | UnsetType=UNSET, dependencies: Iterable[str] | None | UnsetType=UNSET, component: str | None | UnsetType=UNSET, props: Iterable[ComponentPropInput] | None | UnsetType=UNSET, fallback: AssignWidgetInput | None | UnsetType=UNSET, dependency: str | None | UnsetType=UNSET, state_path: str | None | UnsetType=UNSET, state_call: UtilCallInput | None | UnsetType=UNSET, state_accessors: Iterable[StateAccessorInput] | None | UnsetType=UNSET, target_port: str | None | UnsetType=UNSET, target_action: str | None | UnsetType=UNSET, target_dependency: str | None | UnsetType=UNSET) -> AssignWidgetInput:
     """Creates a AssignWidgetInput
 
 Arguments:
-    kind: The kind of the assign widget. Can be either dropdown, text, slider, checkbox, radio or custom
-    query: The query to run when searching for choices. This is used for dropdowns and text inputs
-    choices: The choices to display in the dropdown. This is used for dropdowns and text inputs
-    state_choices: The key of a state whose value provides the choices for this widget (state-driven choices).
-    follow_value: The key of another port whose value this widget should follow and mirror.
-    min: The minimum value of the slider (if a slider). This is used for sliders and text inputs
-    max: The maximum value of the slider (if a slider). This is used for sliders and text inputs
-    step: The step value of the slider (if a slider). This is used for sliders and text inputs
-    placeholder: The placeholder of the input. This is used for text inputs and dropdowns
-    as_paragraph: Whether to display the input as a paragraph or not. This is used for text inputs and dropdowns
-    hook: The hook to run when the input is changed. This is used for custom assign widgets
-    ward: The ward that is responsible for handling querying the choices
-    fallback: The fallback assign widget to use if the current one fails. This is used for custom assign widgets
-    filters: The filters to apply to a search widget. This is used for custom assign widgets
-    dependencies: The dependencies of the assign widget, which will be passed to the search or the hook widget. Use the .. syntax to traverse the tree of ports. For example, if you have a port with the key 'foo' and you want to reference a port with the key 'bar' that is a child of 'foo', you would use 'foo..bar'
-    dependency: The dependency that we are going to use to fullfill the state choices. If none is provided its the own state that will be queried
-    target_dependency: The dependency that we are going to target with a proxy widget. This is used for proxy widgets
-    target_action: The action that we are going to target with a proxy widget. This is used for proxy widgets
-    target_port: The port that we are going to target with a proxy widget. This is used for proxy widgets
-    state_path: The path to the state value that we are going to use to fullfill the state choices. Always traverse from top to bottom level. i.e state.x for state.x and state.x.y for state.x.y. You can also use an arrow function to specify a dynamic path based on the other arguments, e.g. (args) => state[args.foo]
-    state_accessors: State accessors are used to specify how to access the state values that we are going to use to fullfill the state choices. This is used when the state value that we want to use is not the same as the one of the port, e.g. when we want to use a specific key of a state object, or when we want to use a dynamic key based on the other arguments. The option_key field is used to specify which part of the state accessor we want to use as the value for the assign widget (e.g. the key, the description, the logo, etc.)
+    kind: Which kind of assign widget this is; decides which other fields are read.
+    follow_value: (SLIDER, CHOICE, STRING, SEARCH, CUSTOM, STATE_CHOICE, PROXY) Port path of another port whose value this widget follows and mirrors.
+    min: (SLIDER) The minimum value.
+    max: (SLIDER) The maximum value.
+    step: (SLIDER) The step between selectable values; must be positive.
+    placeholder: (CHOICE, STRING, SEARCH) The placeholder text shown before a choice is made. The choices themselves are the port's `choices`.
+    as_paragraph: (STRING) Render as a multi-line paragraph.
+    query: (SEARCH) The GraphQL query the ward executes to populate the choices. Must be a single `query` operation declaring `$search: String` and `$values: [ID!]`, plus one variable per filter port key.
+    ward: (SEARCH) The ward (service) that executes the query.
+    filters: (SEARCH) Filter ports whose values are passed to the query as variables named by their keys.
+    dependencies: (SEARCH, CUSTOM, STATE_CHOICE) The other ports (port paths, `..` traverses children) whose values the query may reference.
+    component: (CUSTOM) The catalog component to render. The port value is in scope as the reserved root `value`.
+    props: (CUSTOM) Props of the component. value_paths may only reference `value` and `dependencies`; agent calls are not allowed.
+    fallback: (CUSTOM) Widget to render when the UI has no such component in its catalog.
+    dependency: (STATE_CHOICE) The agent dependency (by key) whose state provides the choices; omitted: the implementing agent's own state.
+    state_path: (STATE_CHOICE) Static JSON pointer into the state value that provides the choices. Mutually exclusive with `state_call`.
+    state_call: (STATE_CHOICE) Pure UtilCall returning that pointer dynamically; may reference `state`, `value` and `dependencies`. Mutually exclusive with `state_path`.
+    state_accessors: (STATE_CHOICE) How to read label/description/logo/value out of each state entry; each accessor is a static pointer or a pure call.
+    target_port: (PROXY) The port key on the targeted action.
+    target_action: (PROXY) The action to target: an action-dependency key of `target_dependency` when that is set.
+    target_dependency: (PROXY) The agent dependency (by key) that provides the targeted action; omitted: the implementing agent itself.
 """
     data: dict[str, Any] = {}
     data['kind'] = kind
-    if query is not UNSET:
-        data['query'] = query
-    if choices is not UNSET:
-        data['choices'] = choices
-    if state_choices is not UNSET:
-        data['stateChoices'] = state_choices
     if follow_value is not UNSET:
         data['followValue'] = follow_value
     if min is not UNSET:
@@ -1153,29 +1201,35 @@ Arguments:
         data['placeholder'] = placeholder
     if as_paragraph is not UNSET:
         data['asParagraph'] = as_paragraph
-    if hook is not UNSET:
-        data['hook'] = hook
+    if query is not UNSET:
+        data['query'] = query
     if ward is not UNSET:
         data['ward'] = ward
-    if fallback is not UNSET:
-        data['fallback'] = fallback
     if filters is not UNSET:
         data['filters'] = filters
     if dependencies is not UNSET:
         data['dependencies'] = dependencies
+    if component is not UNSET:
+        data['component'] = component
+    if props is not UNSET:
+        data['props'] = props
+    if fallback is not UNSET:
+        data['fallback'] = fallback
     if dependency is not UNSET:
         data['dependency'] = dependency
-    if target_dependency is not UNSET:
-        data['targetDependency'] = target_dependency
-    if target_action is not UNSET:
-        data['targetAction'] = target_action
-    if target_port is not UNSET:
-        data['targetPort'] = target_port
     if state_path is not UNSET:
         data['statePath'] = state_path
+    if state_call is not UNSET:
+        data['stateCall'] = state_call
     if state_accessors is not UNSET:
         data['stateAccessors'] = state_accessors
-    return AssignWidgetInput(**data)
+    if target_port is not UNSET:
+        data['targetPort'] = target_port
+    if target_action is not UNSET:
+        data['targetAction'] = target_action
+    if target_dependency is not UNSET:
+        data['targetDependency'] = target_dependency
+    return TypeAdapter(AssignWidgetInput).validate_python(data)
 
 def backend_filter(and_: BackendFilter | None | UnsetType=UNSET, or_: BackendFilter | None | UnsetType=UNSET, not_: BackendFilter | None | UnsetType=UNSET, distinct: bool | None | UnsetType=UNSET, ids: Iterable[IDCoercible] | None | UnsetType=UNSET, search: str | None | UnsetType=UNSET) -> BackendFilter:
     """Creates a BackendFilter
@@ -1230,7 +1284,7 @@ def choice_input(value: Any, label: str, image: str | None | UnsetType=UNSET, de
     """Creates a ChoiceInput
 
 Arguments:
-    value: The value of the choice. This is the value that is returned when the choice is selected
+    value: The value of the choice (any JSON value); must fit the port's kind. This is the value that is returned when the choice is selected
     label: The label of the choice. This is the text that is displayed in the UI
     image: The image of the choice. This is the image that is displayed in the UI (must be a URL)
     description: The description of the choice. This is the text that is displayed in the UI when the user hovers over the choice
@@ -1262,7 +1316,7 @@ Arguments:
         data['children'] = children
     return ComponentNodeInput(**data)
 
-def component_prop_input(key: str, static_value: JSONSerializable | None | UnsetType=UNSET, dynamic_value: DynamicValueInput | None | UnsetType=UNSET, declares_value: str | None | UnsetType=UNSET, agent_call: AgentCallInput | None | UnsetType=UNSET, util_call: UtilCallInput | None | UnsetType=UNSET) -> ComponentPropInput:
+def component_prop_input(key: str, static_value: JSONSerializable | None | UnsetType=UNSET, dynamic_value: DynamicValueInput | None | UnsetType=UNSET, declares_value: str | None | UnsetType=UNSET, agent_call: AgentProbeInput | None | UnsetType=UNSET, util_call: UtilCallInput | None | UnsetType=UNSET) -> ComponentPropInput:
     """Creates a ComponentPropInput
 
 Arguments:
@@ -1379,53 +1433,46 @@ Arguments:
         data['qualifiers'] = qualifiers
     return DeclareResourceInput(**data)
 
-def definition_input(collections: Iterable[str], key: str, version: str, name: str, stateful: bool, pure: bool, idempotent: bool, port_groups: Iterable[PortGroupInput], args: Iterable[ArgPortInput], returns: Iterable[ReturnPortInput], kind: ActionKind, is_test_for: Iterable[str], interfaces: Iterable[str], is_dev: bool, description: str | None | UnsetType=UNSET, package: str | None | UnsetType=UNSET, tests: ActionDependencyInput | None | UnsetType=UNSET, logo: str | None | UnsetType=UNSET) -> DefinitionInput:
+def definition_input(collections: Iterable[str], key: str, version: str, name: str, stateful: bool, pure: bool, idempotent: bool, allow_probe: bool, port_groups: Iterable[PortGroupInput], args: Iterable[ArgPortInput], returns: Iterable[ReturnPortInput], kind: ActionKind, is_test_for: Iterable[TestTargetInput], is_dev: bool, description: str | None | UnsetType=UNSET, catalogs: Iterable[str] | None | UnsetType=UNSET) -> DefinitionInput:
     """Creates a DefinitionInput
 
 Arguments:
     description: The description of the definition. This is the text that is displayed in the UI
     collections: The collections of the definition. This is used to group definitions together in the UI
     key: The key of the definition. This is used to uniquely identify the definition
-    package: The package of the function. Will default to the currents agent's app if not specified. This is used to group definitions together in the UI and provide a better user experience
     version: The version of the definition. This is used to differentiate if the underyling algorithm has changed, i.e we would expect different results for the same input
     name: The name of the actions. This is used to uniquely identify the definition
     stateful: Whether the definition is stateful or not. If the definition is stateful, it can be used to create a stateful action. If the definition is not stateful, it cannot be used to create a stateful action
     pure: Whether the action is pure: same args always produce the same result and no side effects — its results are replayable/cacheable. Implies idempotent. Incompatible with stateful and with a PHYSICAL effect class.
     idempotent: Whether the action is idempotent: safe to run multiple times with the same args without changing the outcome — on ambiguous executor loss it may be freely re-dispatched.
+    allow_probe: Whether the action may be invoked as a probe: zero persistence, redis-held state, no history/replay/recovery. Only actions declaring this are callable via the call mutation.
+    catalogs: Names of the UI catalogs that extend the base catalog (`base@1`, always applied) for this definition's effect and validator calls. Unknown names yield an unknown_catalog warning; conflicting operation definitions across catalogs are a registration error.
     port_groups: The port groups of the definition. This is used to group ports together in the UI
     args: The args of the definition. This is the input ports of the definition
     returns: The returns of the definition. This is the output ports of the definition
-    tests: A named action requirement of a dependency: a slot key plus the demand the
-    resolved action must satisfy, and resolution-lifecycle filters.
     kind: The kind of the definition. This is the type of the definition. Can be either a function or a generator
-    is_test_for: The tests for the definition. This is used to group definitions together in the UI
-    interfaces: The interfaces of the definition. This is used to group definitions together in the UI
+    is_test_for: The actions this definition is a test for, each identified by hash or by (app, key, version).
     is_dev: Whether the definition is a dev definition or not. If the definition is a dev definition, it can be used to create a dev action. If the definition is not a dev definition, it cannot be used to create a dev action
-    logo: The logo of the definition. This is used to display the logo in the UI
 """
     data: dict[str, Any] = {}
     if description is not UNSET:
         data['description'] = description
     data['collections'] = collections
     data['key'] = key
-    if package is not UNSET:
-        data['package'] = package
     data['version'] = version
     data['name'] = name
     data['stateful'] = stateful
     data['pure'] = pure
     data['idempotent'] = idempotent
+    data['allowProbe'] = allow_probe
+    if catalogs is not UNSET:
+        data['catalogs'] = catalogs
     data['portGroups'] = port_groups
     data['args'] = args
     data['returns'] = returns
-    if tests is not UNSET:
-        data['tests'] = tests
     data['kind'] = kind
     data['isTestFor'] = is_test_for
-    data['interfaces'] = interfaces
     data['isDev'] = is_dev
-    if logo is not UNSET:
-        data['logo'] = logo
     return DefinitionInput(**data)
 
 def delete_pod_input(id: IDCoercible) -> DeletePodInput:
@@ -1474,31 +1521,33 @@ Arguments:
     data['logs'] = logs
     return DumpLogsInput(**data)
 
-def dynamic_value_input(path: str | None | UnsetType=UNSET) -> DynamicValueInput:
+def dynamic_value_input(literal: str | None | UnsetType=UNSET, path: str | None | UnsetType=UNSET) -> DynamicValueInput:
     """Creates a DynamicValueInput
 
 Arguments:
+    literal: A static fallback literal value (serialized string or JSON primitive) used when `path` does not resolve.
     path: JSON Pointer to a variable inside the Blok's isolated data model (e.g., '/microscope/exposure').
 """
     data: dict[str, Any] = {}
+    if literal is not UNSET:
+        data['literal'] = literal
     if path is not UNSET:
         data['path'] = path
     return DynamicValueInput(**data)
 
-def effect_input(function: ValidatorFunction, kind: EffectKind, dependencies: Iterable[str] | None | UnsetType=UNSET, message: str | None | UnsetType=UNSET, fade: bool | None | UnsetType=UNSET, hook: str | None | UnsetType=UNSET, ward: str | None | UnsetType=UNSET) -> EffectInput:
+def effect_input(call: UtilCallInput, kind: EffectKind, dependencies: Iterable[str] | None | UnsetType=UNSET, message: str | None | UnsetType=UNSET, fade: bool | None | UnsetType=UNSET, source: str | None | UnsetType=UNSET) -> EffectInput:
     """Creates a EffectInput
 
 Arguments:
-    function: The function to run to determine if the effect should be applied
-    dependencies: The dependencies of the effect. Use the .. syntax to traverse the tree of ports. For example, if you have a port with the key 'foo' and you want to reference a port with the key 'bar' that is a child of 'foo', you would use 'foo..bar'
+    call: The pure blok UtilCall, evaluated client-side against the catalog, that decides whether the effect applies. It must return a boolean. Argument value_paths may only reference names listed in `dependencies`, plus `value` for the port's own value.
+    dependencies: The form-field subscription list of the effect: the keys of the other ports whose values the call may reference. This list is authoritative: a value_path in the call may only reference these names (plus `value` for the port's own value). Use the .. syntax to traverse the tree of ports, e.g. 'foo..bar' for the child 'bar' of port 'foo'.
     message: The message to display when the effect is applied (if it is a message effect)
     kind: The kind of the effect. Can be either message, hide or custom
     fade: Whether to fade out the port when the effect is applied (if it is a hide effect)
-    hook: The hook to run when the effect is applied (if it is a custom effect)
-    ward: The ward to run when the effect is applied (if it is a custom effect)
+    source: The authoring expression the call was compiled from (informational; never parsed or validated by the server).
 """
     data: dict[str, Any] = {}
-    data['function'] = function
+    data['call'] = call
     if dependencies is not UNSET:
         data['dependencies'] = dependencies
     if message is not UNSET:
@@ -1506,10 +1555,8 @@ Arguments:
     data['kind'] = kind
     if fade is not UNSET:
         data['fade'] = fade
-    if hook is not UNSET:
-        data['hook'] = hook
-    if ward is not UNSET:
-        data['ward'] = ward
+    if source is not UNSET:
+        data['source'] = source
     return EffectInput(**data)
 
 def flavour_filter(and_: FlavourFilter | None | UnsetType=UNSET, or_: FlavourFilter | None | UnsetType=UNSET, not_: FlavourFilter | None | UnsetType=UNSET, distinct: bool | None | UnsetType=UNSET, ids: Iterable[IDCoercible] | None | UnsetType=UNSET, search: str | None | UnsetType=UNSET, has_definitions: Iterable[IDCoercible] | None | UnsetType=UNSET) -> FlavourFilter:
@@ -1552,7 +1599,7 @@ Arguments:
         data['releasedAt'] = released_at
     return FlavourOrder(**data)
 
-def implementation_input(definition: DefinitionInput, dependencies: Iterable[AgentDependencyInput], dynamic: bool, needs_token: bool, effect: EffectClass, tracks: Iterable[TrackInput] | None | UnsetType=UNSET, interface: str | None | UnsetType=UNSET, params: Any | None | UnsetType=UNSET, instance_id: str | None | UnsetType=UNSET, logo: str | None | UnsetType=UNSET, locks: Iterable[str] | None | UnsetType=UNSET, optimistics: Iterable[OptimisticInput] | None | UnsetType=UNSET, manipulates: Iterable[str] | None | UnsetType=UNSET, provenance_audience: Iterable[str] | None | UnsetType=UNSET) -> ImplementationInput:
+def implementation_input(definition: DefinitionInput, dependencies: Iterable[AgentDependencyInput], needs_token: bool, effect: EffectClass, tracks: Iterable[TrackInput] | None | UnsetType=UNSET, interface: str | None | UnsetType=UNSET, params: Any | None | UnsetType=UNSET, instance_id: str | None | UnsetType=UNSET, locks: Iterable[str] | None | UnsetType=UNSET, optimistics: Iterable[OptimisticInput] | None | UnsetType=UNSET, manipulates: Iterable[str] | None | UnsetType=UNSET, provenance_audience: Iterable[str] | None | UnsetType=UNSET) -> ImplementationInput:
     """Creates a ImplementationInput
 
 Arguments:
@@ -1562,8 +1609,6 @@ Arguments:
     interface: The interface of the implementation. This is used to group implementations together in the UI
     params: The params of the implementation. This is used to pass parameters to the implementation
     instance_id: The instance id of the agent this implementation is bound to.
-    dynamic: Whether the implementation is dynamic or not. If the implementation is dynamic, it can be used to create a dynamic action. If the implementation is not dynamic, it cannot be used to create a dynamic action
-    logo: The logo of the implementation. This is used to display the logo in the UI either it should be 'custom:svg-paths' or a lucide icon name like 'lucide:activity' urls are not supported at the moment
     locks: The locks of the implementation. This is used to specify which resources the implementation needs to run
     optimistics: The optimistics of the definition. This is used to optimistically set state values when the action is assigned, to provide a better user experience.
     manipulates: The states that the implementation manipulates. This is used to identify which states are manipulated by the implementation, and can be use to enhance state safety in the system
@@ -1582,9 +1627,6 @@ Arguments:
         data['params'] = params
     if instance_id is not UNSET:
         data['instanceId'] = instance_id
-    data['dynamic'] = dynamic
-    if logo is not UNSET:
-        data['logo'] = logo
     if locks is not UNSET:
         data['locks'] = locks
     if optimistics is not UNSET:
@@ -1678,38 +1720,34 @@ Arguments:
         data['limit'] = limit
     return OffsetPaginationInput(**data)
 
-def optimistic_input(state: str, path: str, accessor: str | None | UnsetType=UNSET) -> OptimisticInput:
+def optimistic_input(state: str, path: str | None | UnsetType=UNSET, path_call: UtilCallInput | None | UnsetType=UNSET, accessor: str | None | UnsetType=UNSET) -> OptimisticInput:
     """Creates a OptimisticInput
 
 Arguments:
     state: The state to optimistically set when the action is assigned
-    path: The path to the state.value to optimistically set the value, always traverse from top to bottom level. i.e state.x for state.x and state.x.y for state.x.y. You can also use an arrow function to specify a dynamic path based on the other arguments, e.g. (args) => state[args.foo]
-    accessor: The accessor to get the value to optimistically set. This is used when the value to optimistically set is not the same as the value of the port
+    path: Static JSON pointer into the state value to set. Mutually exclusive with `path_call`.
+    path_call: Pure UtilCall returning the pointer dynamically; may reference `args` (the assignment arguments). Mutually exclusive with `path`.
+    accessor: Static JSON pointer into the assignment args for the value to set; omitted: the whole args.
 """
     data: dict[str, Any] = {}
     data['state'] = state
-    data['path'] = path
+    if path is not UNSET:
+        data['path'] = path
+    if path_call is not UNSET:
+        data['pathCall'] = path_call
     if accessor is not UNSET:
         data['accessor'] = accessor
     return OptimisticInput(**data)
 
-def port_group_input(key: str, title: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, effects: Iterable[EffectInput] | None | UnsetType=UNSET, ports: Iterable[str] | None | UnsetType=UNSET) -> PortGroupInput:
+def port_group_input(key: str, ports: Iterable[str], title: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, effects: Iterable[EffectInput] | None | UnsetType=UNSET) -> PortGroupInput:
     """Creates a PortGroupInput
 
 Arguments:
     key: The key of the port group. This is used to uniquely identify the port group
-    title: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
-    description: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
-    effects: 
-                 An effect is a way to modify a port based on a condition. For example,
-    you could have an effect that sets a port to null if another port is null.
-
-    Or, you could have an effect that hides the port if another port meets a condition.
-    E.g when the user selects a certain option in a dropdown, another port is hidden.
-
-
-     (required) (list)
-    ports: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required) (list)
+    title: The title of the port group, displayed in the UI
+    description: The description of the port group, displayed in the UI
+    effects: The effects applied to the port group as a whole
+    ports: The keys of the root arg ports in this group; a port belongs to at most one group
 """
     data: dict[str, Any] = {}
     data['key'] = key
@@ -1719,8 +1757,7 @@ Arguments:
         data['description'] = description
     if effects is not UNSET:
         data['effects'] = effects
-    if ports is not UNSET:
-        data['ports'] = ports
+    data['ports'] = ports
     return PortGroupInput(**data)
 
 def port_match_input(at: int | None | UnsetType=UNSET, key: str | None | UnsetType=UNSET, kind: PortKind | None | UnsetType=UNSET, identifier: str | None | UnsetType=UNSET, nullable: bool | None | UnsetType=UNSET, dimension: str | None | UnsetType=UNSET, descriptors: Iterable[DescriptorInput] | None | UnsetType=UNSET, children: Iterable[PortMatchInput] | None | UnsetType=UNSET) -> PortMatchInput:
@@ -1755,18 +1792,19 @@ Arguments:
         data['children'] = children
     return PortMatchInput(**data)
 
-def provides_input(key: str, operator: ProvidesOperator, value: Any) -> ProvidesInput:
+def provides_input(key: str, operator: DescriptorOperator, value: Any | None | UnsetType=UNSET) -> ProvidesInput:
     """Creates a ProvidesInput
 
 Arguments:
-    key: The key of the provision. This is used to uniquely identify the provision
+    key: The key of the provision: the path into the object the constraint reads
     operator: The operator for the provision
-    value: The value of the provision. This can be any JSON serializable value
+    value: The value of the provision. This can be any JSON serializable value; IN/NOT_IN take a list, LTE/GTE a number, EXISTS none
 """
     data: dict[str, Any] = {}
     data['key'] = key
     data['operator'] = operator
-    data['value'] = value
+    if value is not UNSET:
+        data['value'] = value
     return ProvidesInput(**data)
 
 def qualifier_input(key: str, value: str) -> QualifierInput:
@@ -1798,18 +1836,19 @@ Arguments:
         data['description'] = description
     return RequirementInput(**data)
 
-def requires_input(key: str, operator: RequiresOperator, value: Any) -> RequiresInput:
+def requires_input(key: str, operator: DescriptorOperator, value: Any | None | UnsetType=UNSET) -> RequiresInput:
     """Creates a RequiresInput
 
 Arguments:
-    key: The key of the requirement. This is used to uniquely identify the requirement
+    key: The key of the requirement: the path into the object the constraint reads
     operator: The operator for the requirement
-    value: The value of the requirement. This can be any JSON serializable value
+    value: The value of the requirement. This can be any JSON serializable value; IN/NOT_IN take a list, LTE/GTE a number, EXISTS none
 """
     data: dict[str, Any] = {}
     data['key'] = key
     data['operator'] = operator
-    data['value'] = value
+    if value is not UNSET:
+        data['value'] = value
     return RequiresInput(**data)
 
 def resource_filter(and_: ResourceFilter | None | UnsetType=UNSET, or_: ResourceFilter | None | UnsetType=UNSET, not_: ResourceFilter | None | UnsetType=UNSET, distinct: bool | None | UnsetType=UNSET, ids: Iterable[IDCoercible] | None | UnsetType=UNSET, search: str | None | UnsetType=UNSET) -> ResourceFilter:
@@ -1838,30 +1877,26 @@ Arguments:
         data['search'] = search
     return ResourceFilter(**data)
 
-def return_port_input(key: str, kind: PortKind, nullable: bool, validators: Iterable[ValidatorInput] | None | UnsetType=UNSET, label: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, identifier: str | None | UnsetType=UNSET, effects: Iterable[EffectInput] | None | UnsetType=UNSET, default: Any | None | UnsetType=UNSET, choices: Iterable[ChoiceInput] | None | UnsetType=UNSET, reference_unit: str | None | UnsetType=UNSET, proposed_units: Iterable[str] | None | UnsetType=UNSET, dimension: str | None | UnsetType=UNSET, children: Iterable[ReturnPortInput] | None | UnsetType=UNSET, widget: ReturnWidgetInput | None | UnsetType=UNSET, provides: Iterable[ProvidesInput] | None | UnsetType=UNSET) -> ReturnPortInput:
+def return_port_input(key: str, kind: PortKind, nullable: bool, label: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, identifier: str | None | UnsetType=UNSET, effects: Iterable[EffectInput] | None | UnsetType=UNSET, choices: Iterable[ChoiceInput] | None | UnsetType=UNSET, reference_unit: str | None | UnsetType=UNSET, proposed_units: Iterable[str] | None | UnsetType=UNSET, dimension: str | None | UnsetType=UNSET, children: Iterable[ReturnPortInput] | None | UnsetType=UNSET, widget: ReturnWidgetInput | None | UnsetType=UNSET, provides: Iterable[ProvidesInput] | None | UnsetType=UNSET) -> ReturnPortInput:
     """Creates a ReturnPortInput
 
 Arguments:
-    validators: The validators for the port
-    key: The key of the port
+    key: The key of the port: unique among its siblings, free of '..', not 'value'. LIST/DICT item ports are conventionally keyed '...'.
     label: The label of the port. This is the text that is displayed in the UI
     kind: The kind of the port. This is the type of the port. Can be either int, string, structure, list, bool, dict, float, date, union or model
     description: The description of the port. This is the text that is displayed in the UI when the user hovers over the port
     identifier: The identifier of a structure port. This is used to uniquely identify a specific type of structure.
     nullable: Whether the port is nullable or not. If the port is nullable, it can be set to null. If the port is not nullable, it cannot be set to null
     effects: The effects of the port
-    default: The default value for the port.
-    choices: The options for the port. This is used for dropdowns and text inputs
+    choices: The values the port accepts (required for ENUM; optional for INT, FLOAT, STRING). Rendered by CHOICE widgets.
     reference_unit: For QUANTITY ports: the canonical/reference unit of the physical quantity, e.g. "volt" or "farad". It is the default selection and the key used to resolve the concrete quantity type; other units of the same dimension are still allowed.
     proposed_units: For QUANTITY ports: units offered as a dropdown in the UI, e.g. ["pF", "nF", "uF"]. Proposals only — any unit of the same dimension remains valid input.
     dimension: For QUANTITY ports: the pint dimensionality string, e.g. "[mass] * [length] ** 2 / [time] ** 3 / [current]". This is the wiring-compatibility key between quantity ports.
     children: The child ports (used for list, dict, union and model ports).
-    widget: The return widget to use for this port.
+    widget: The return widget to use for this port, discriminated by `kind`.
     provides: The provisions for the port. Provisions are key-value pairs that can be used to add additional metadata to a port. When using rekuest's action search, you can filter actions based on their port provisions
 """
     data: dict[str, Any] = {}
-    if validators is not UNSET:
-        data['validators'] = validators
     data['key'] = key
     if label is not UNSET:
         data['label'] = label
@@ -1873,8 +1908,6 @@ Arguments:
     data['nullable'] = nullable
     if effects is not UNSET:
         data['effects'] = effects
-    if default is not UNSET:
-        data['default'] = default
     if choices is not UNSET:
         data['choices'] = choices
     if reference_unit is not UNSET:
@@ -1891,39 +1924,21 @@ Arguments:
         data['provides'] = provides
     return ReturnPortInput(**data)
 
-def return_widget_input(kind: ReturnWidgetKind, query: SearchQuery | None | UnsetType=UNSET, choices: Iterable[ChoiceInput] | None | UnsetType=UNSET, min: int | None | UnsetType=UNSET, max: int | None | UnsetType=UNSET, step: int | None | UnsetType=UNSET, placeholder: str | None | UnsetType=UNSET, hook: str | None | UnsetType=UNSET, ward: str | None | UnsetType=UNSET) -> ReturnWidgetInput:
+def return_widget_input(kind: ReturnWidgetKind, component: str | None | UnsetType=UNSET, props: Iterable[ComponentPropInput] | None | UnsetType=UNSET) -> ReturnWidgetInput:
     """Creates a ReturnWidgetInput
 
 Arguments:
-    kind: The kind of the return widget. Can be either dropdown, text, slider, checkbox, radio or custom
-    query: The query to run when searching for choices. This is used for dropdowns and text inputs
-    choices: The choices to display in the dropdown. This is used for dropdowns and text inputs
-    min: The minimum value to display (if a slider).
-    max: The maximum value to display (if a slider).
-    step: The step value to display (if a slider).
-    placeholder: The placeholder text of the return widget.
-    hook: The hook to run (if it is a custom return widget).
-    ward: The ward responsible for handling the return widget.
+    kind: Which kind of return widget this is; decides which other fields are read.
+    component: (CUSTOM) The catalog component to render. The returned value is in scope as the reserved root `value`.
+    props: (CUSTOM) Props of the component; value_paths may only reference `value`, agent calls are not allowed.
 """
     data: dict[str, Any] = {}
     data['kind'] = kind
-    if query is not UNSET:
-        data['query'] = query
-    if choices is not UNSET:
-        data['choices'] = choices
-    if min is not UNSET:
-        data['min'] = min
-    if max is not UNSET:
-        data['max'] = max
-    if step is not UNSET:
-        data['step'] = step
-    if placeholder is not UNSET:
-        data['placeholder'] = placeholder
-    if hook is not UNSET:
-        data['hook'] = hook
-    if ward is not UNSET:
-        data['ward'] = ward
-    return ReturnWidgetInput(**data)
+    if component is not UNSET:
+        data['component'] = component
+    if props is not UNSET:
+        data['props'] = props
+    return TypeAdapter(ReturnWidgetInput).validate_python(data)
 
 def selector_input(kind: str, required: bool | None | UnsetType=UNSET, weight: int | None | UnsetType=UNSET, min_count: int | None | UnsetType=UNSET, frequency: float | None | UnsetType=UNSET, arch: str | None | UnsetType=UNSET, min: int | None | UnsetType=UNSET, compute_capability: str | None | UnsetType=UNSET, cuda_version: str | None | UnsetType=UNSET, memory: int | None | UnsetType=UNSET, count: int | None | UnsetType=UNSET, cuda_cores: int | None | UnsetType=UNSET, api_version: str | None | UnsetType=UNSET, api_thing: str | None | UnsetType=UNSET, oneapi_version: str | None | UnsetType=UNSET, key: str | None | UnsetType=UNSET, value: str | None | UnsetType=UNSET) -> SelectorInput:
     """Creates a SelectorInput
@@ -1983,17 +1998,20 @@ Arguments:
         data['value'] = value
     return TypeAdapter(SelectorInput).validate_python(data)
 
-def state_accessor_input(option_key: OptionKey, sub_path: str | None | UnsetType=UNSET) -> StateAccessorInput:
+def state_accessor_input(option_key: OptionKey, path: str | None | UnsetType=UNSET, call: UtilCallInput | None | UnsetType=UNSET) -> StateAccessorInput:
     """Creates a StateAccessorInput
 
 Arguments:
     option_key: The part of the state accessor to use as the value for the assign widget (e.g. the key, the description, the logo, etc.)
-    sub_path: The sub path to access a specific part of the state value. Always traverse from top to bottom level. i.e state.x for state.x and state.x.y for state.x.y. You can also use an arrow function to specify a dynamic path based on the other arguments, e.g. (args) => state[args.foo]
+    path: Static JSON pointer into the state value ('/x/y'). Omit for the whole value. Mutually exclusive with `call`.
+    call: Pure UtilCall returning the pointer string dynamically. May reference `state`, `value` and the widget's `dependencies`. Mutually exclusive with `path`.
 """
     data: dict[str, Any] = {}
     data['optionKey'] = option_key
-    if sub_path is not UNSET:
-        data['subPath'] = sub_path
+    if path is not UNSET:
+        data['path'] = path
+    if call is not UNSET:
+        data['call'] = call
     return StateAccessorInput(**data)
 
 def state_definition_input(ports: Iterable[ReturnPortInput], name: str) -> StateDefinitionInput:
@@ -2070,6 +2088,26 @@ Arguments:
     data['definition'] = definition
     return StateImplementationInput(**data)
 
+def test_target_input(hash: str | None | UnsetType=UNSET, app: str | None | UnsetType=UNSET, key: str | None | UnsetType=UNSET, version: str | None | UnsetType=UNSET) -> TestTargetInput:
+    """Creates a TestTargetInput
+
+Arguments:
+    hash: The exact hash of the target action.
+    app: The app identifier owning the target action. Defaults to the registering agent's app.
+    key: The key of the target action. Matches every version unless version is given.
+    version: Restrict a key target to one specific version.
+"""
+    data: dict[str, Any] = {}
+    if hash is not UNSET:
+        data['hash'] = hash
+    if app is not UNSET:
+        data['app'] = app
+    if key is not UNSET:
+        data['key'] = key
+    if version is not UNSET:
+        data['version'] = version
+    return TestTargetInput(**data)
+
 def track_input(state_key: str, value_key: str, dependency_key: str | None | UnsetType=UNSET, label: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, windows: Iterable[WindowInput] | None | UnsetType=UNSET) -> TrackInput:
     """Creates a TrackInput
 
@@ -2123,30 +2161,33 @@ Arguments:
         data['arguments'] = arguments
     return UtilCallInput(**data)
 
-def validator_input(function: ValidatorFunction, dependencies: Iterable[str] | None | UnsetType=UNSET, label: str | None | UnsetType=UNSET, error_message: str | None | UnsetType=UNSET) -> ValidatorInput:
+def validator_input(call: UtilCallInput, dependencies: Iterable[str] | None | UnsetType=UNSET, label: str | None | UnsetType=UNSET, error_message: str | None | UnsetType=UNSET, source: str | None | UnsetType=UNSET) -> ValidatorInput:
     """Creates a ValidatorInput
 
 Arguments:
-    function: The function to run when validating the port
-    dependencies: The dependencies of the function. Use the .. syntax to traverse the tree of ports. For example, if you have a port with the key 'foo' and you want to reference a port with the key 'bar' that is a child of 'foo', you would use 'foo..bar'
+    call: The pure blok UtilCall, evaluated client-side against the catalog, that validates the port value. It must return a boolean meaning 'valid'. Argument value_paths may only reference names listed in `dependencies`, plus `value` for the port's own value.
+    dependencies: The form-field subscription list of the validator: the keys of the other ports whose values the call may reference. This list is authoritative: a value_path in the call may only reference these names (plus `value` for the port's own value). Use the .. syntax to traverse the tree of ports, e.g. 'foo..bar' for the child 'bar' of port 'foo'.
     label: An optional human-readable label for the validator.
     error_message: The error message to display when the validation fails
+    source: The authoring expression the call was compiled from (informational; never parsed or validated by the server).
 """
     data: dict[str, Any] = {}
-    data['function'] = function
+    data['call'] = call
     if dependencies is not UNSET:
         data['dependencies'] = dependencies
     if label is not UNSET:
         data['label'] = label
     if error_message is not UNSET:
         data['errorMessage'] = error_message
+    if source is not UNSET:
+        data['source'] = source
     return ValidatorInput(**data)
 
-def window_input(window_function: str, label: str | None | UnsetType=UNSET) -> WindowInput:
+def window_input(window_function: WindowFunction, label: str | None | UnsetType=UNSET) -> WindowInput:
     """Creates a WindowInput
 
 Arguments:
-    window_function: The window function to apply over the tracked value.
+    window_function: The aggregation to compute over the tracked value within the window.
     label: An optional human-readable label for the window.
 """
     data: dict[str, Any] = {}
@@ -4613,17 +4654,23 @@ ActionDemandInput.model_rebuild()
 AgentDependencyInput.model_rebuild()
 AppImageInput.model_rebuild()
 ArgPortInput.model_rebuild()
-AssignWidgetInput.model_rebuild()
 BackendFilter.model_rebuild()
 BlokImplementationInput.model_rebuild()
 ComponentNodeInput.model_rebuild()
 ComponentPropInput.model_rebuild()
+CustomAssignWidgetInput.model_rebuild()
+CustomReturnWidgetInput.model_rebuild()
 DeclareResourceInput.model_rebuild()
 DefinitionInput.model_rebuild()
+EffectInput.model_rebuild()
 FlavourFilter.model_rebuild()
 ImplementationInput.model_rebuild()
 InspectionInput.model_rebuild()
+OptimisticInput.model_rebuild()
 PortMatchInput.model_rebuild()
 ResourceFilter.model_rebuild()
 ReturnPortInput.model_rebuild()
+SearchAssignWidgetInput.model_rebuild()
+StateAccessorInput.model_rebuild()
+StateChoiceAssignWidgetInput.model_rebuild()
 TrackInput.model_rebuild()
