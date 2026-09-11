@@ -10,7 +10,7 @@ from fakts_next.contrib.rath.graphql_ws import FaktsGraphQLWSLink
 from graphql import OperationType
 from fakts_next import Fakts
 
-from arkitekt_next.service_registry import (
+from arkitekt.service_registry import (
     BaseArkitektService,
     Params,
     get_default_service_registry,

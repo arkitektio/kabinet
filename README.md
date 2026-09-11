@@ -32,7 +32,7 @@ This client can be use to manage and retrive defintions of applications on the a
 tide to the arkitekt platform and we wouldn't recommend using it outside of its orignal scope just yet.
 
 ```python
-from arkitekt_next import easy
+from arkitekt import easy
 from kabient.api.schema import create_github_repo
 
 with easy():

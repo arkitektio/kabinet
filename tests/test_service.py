@@ -2,13 +2,13 @@
 
 Uses a hot-plugged ``fakts_next.testing.TestingFakts`` — a real Fakts, no
 monkeypatching — to build the service the way ``easy()`` would. Skipped when
-``arkitekt_next`` is not installed (it is not one of kabinet's dev deps: it
+``arkitekt`` is not installed (it is not one of kabinet's dev deps: it
 depends on kabinet itself).
 """
 
 import pytest
 
-pytest.importorskip("arkitekt_next")
+pytest.importorskip("arkitekt")
 fakts_next = pytest.importorskip("fakts_next")
 if not hasattr(fakts_next, "build_testing_fakts"):  # pragma: no cover
     pytest.skip("installed fakts-next predates TestingFakts", allow_module_level=True)
