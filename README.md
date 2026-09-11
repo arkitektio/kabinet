@@ -58,7 +58,7 @@ uv run pytest                        # full suite: spins the dokker compose stac
 The unit layer proves the wire contract through a rath `AsyncMockLink`
 (camelCase aliases, `@oneOf` ordering variants, the six-kind selector union,
 the `PodEvent` subscription shape) and the arkitekt service wiring via a
-hot-plugged `fakts_next.testing.TestingFakts`. The `integration`-marked tests
+hot-plugged `fakts.testing.TestingFakts`. The `integration`-marked tests
 run the same operations against the composed server image; until a
 new-generation `jhnnsrs/kabinet:next` is pushed, point them at a locally
 built image with `KABINET_SERVICE_IMAGE=next-kabinet:latest uv run pytest`.

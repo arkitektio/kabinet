@@ -312,41 +312,18 @@ wheels = [
 ]
 
 [[package]]
-name = "fakts-next"
-version = "5.0.0rc1"
-source = { editable = "../fakts-next" }
+name = "fakts"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "certifi" },
     { name = "koil" },
     { name = "pydantic" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiohttp", specifier = ">=3.11.18" },
-    { name = "certifi", specifier = ">=2025.4.26" },
-    { name = "cryptography", marker = "extra == 'crypto'", specifier = ">=42" },
-    { name = "koil", specifier = ">=3.3.1" },
-    { name = "pydantic", specifier = ">2" },
-    { name = "qtpy", marker = "extra == 'qt'", specifier = ">=2.4.3" },
-    { name = "rath", marker = "extra == 'rath'", specifier = ">=3.0" },
-    { name = "uv", marker = "extra == 'build'", specifier = ">=0.7.12" },
-]
-provides-extras = ["qt", "rath", "crypto", "build"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "basedpyright", specifier = ">=1.21" },
-    { name = "cryptography", specifier = ">=42" },
-    { name = "dokker", specifier = ">=2.5" },
-    { name = "pyqt5", specifier = ">=5.15.11" },
-    { name = "pytest", specifier = ">=8.3.5" },
-    { name = "pytest-asyncio", specifier = ">=0.26.0" },
-    { name = "pytest-cov", specifier = ">=6.1.1" },
-    { name = "pytest-qt", specifier = ">=4.4.0" },
-    { name = "python-semantic-release", specifier = ">=9.21.1" },
-    { name = "qtpy", specifier = ">=2.4.3" },
+sdist = { url = "https://files.pythonhosted.org/packages/cc/8a/51bc35d234a1513f727c7845a96cb4a4835d7f84f699808088792f147721/fakts-2.0.0.tar.gz", hash = "sha256:379c5a3479bcb8b66fd3ae940493925bffad7a970ba2f774401a2b3fa2c85af2", size = 72890, upload-time = "2026-09-11T10:31:07.199Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/86/95/9225ea24e15ebac0a3d733d89bffebed2b38361f11d374fce5f6cc0840ad/fakts-2.0.0-py3-none-any.whl", hash = "sha256:0acbca458339aed58f360009903c121f824e3ec98a9bb4cbb54646194936c065", size = 90421, upload-time = "2026-09-11T10:31:06.144Z" },
 ]
 
 [[package]]
@@ -519,7 +496,7 @@ dev = [
     { name = "autoflake" },
     { name = "basedpyright" },
     { name = "dokker" },
-    { name = "fakts-next" },
+    { name = "fakts" },
     { name = "pytest" },
     { name = "pytest-aiohttp" },
     { name = "pytest-asyncio" },
@@ -543,7 +520,7 @@ dev = [
     { name = "autoflake", specifier = ">=1.7.7,<2" },
     { name = "basedpyright", specifier = ">=1.21" },
     { name = "dokker", specifier = ">=2.5" },
-    { name = "fakts-next", editable = "../fakts-next" },
+    { name = "fakts", specifier = ">=2" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-aiohttp", specifier = ">=1.0.4,<2" },
     { name = "pytest-asyncio", specifier = ">=0.26.0" },
@@ -554,14 +531,14 @@ dev = [
 
 [[package]]
 name = "koil"
-version = "3.3.1"
+version = "3.3.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f6/f2/c803075854fda0c08201a280358a694206b4dcbc1c1f19981eec73b0f107/koil-3.3.1.tar.gz", hash = "sha256:18415e55b9f87651127db9aed284fca5bdfdd8d9c5fa9e44b0acdfdccf7fccf6", size = 40936, upload-time = "2026-06-11T14:59:26.835Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c3/15/5f88e495d03f4a75a4b20ee174c34ebb4deba9c3431e8103164fa6e6683d/koil-3.3.2.tar.gz", hash = "sha256:0d8cdb2f96264d105376924a0ede2976f1c03750cef1a24519662e8f579a5257", size = 41955, upload-time = "2026-07-07T11:40:06.151Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/64/0b/af9f50f28c16a5378f23096766a7983b0904026fad24eee09a1b1eb17265/koil-3.3.1-py3-none-any.whl", hash = "sha256:603bb640c85bb70e9c9f08bbb90b2bf3196c8e15a3f287d79525539d5e34c3ab", size = 47270, upload-time = "2026-06-11T14:59:27.885Z" },
+    { url = "https://files.pythonhosted.org/packages/cc/ad/9c2553d38abcf601aa2a42c55659b84122263fc20401478407132ee89bd3/koil-3.3.2-py3-none-any.whl", hash = "sha256:4cbbebea4cf2357728ee81efd894cf63dddfb66d15805fb92f5cda8294b0cb2e", size = 48268, upload-time = "2026-07-07T11:40:05.217Z" },
 ]
 
 [[package]]

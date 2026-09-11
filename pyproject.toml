@@ -15,12 +15,6 @@ dependencies = [
 # Installed inside the semantic-release Docker action so build_command has uv.
 build = ["uv>=0.7.12"]
 
-[tool.uv.sources]
-# Dev-time only (published wheels keep the plain version specs): the service
-# tests need fakts_next.testing.TestingFakts, which is not on PyPI until the
-# next fakts-next release. TODO: drop this and floor fakts-next once released.
-fakts-next = { path = "../fakts-next", editable = true }
-
 [tool.uv]
 dev-dependencies =  [
     "pytest-asyncio>=0.26.0",
@@ -32,7 +26,7 @@ dev-dependencies =  [
     "pytest-aiohttp>=1.0.4,<2",
     "ruff>=0.11",
     "dokker>=2.5",
-    "fakts-next>=4",
+    "fakts>=2",
     "basedpyright>=1.21",
 ]
 
