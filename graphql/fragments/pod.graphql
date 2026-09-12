@@ -6,6 +6,8 @@ fragment ListPod on Pod {
 fragment Pod on Pod {
   id
   podId
+  status
+  clientId
   deployment {
     flavour {
       ...Flavour
