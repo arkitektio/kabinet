@@ -1,10 +1,8 @@
 """The graphql rath client for  kabinet"""
 
 from types import TracebackType
-from typing import Optional
 from pydantic import Field
 from rath import rath
-import contextvars
 
 from rath.links.auth import AuthTokenLink
 
@@ -12,10 +10,6 @@ from rath.links.compose import TypedComposedLink
 from rath.links.dictinglink import DictingLink
 from rath.links.shrink import ShrinkingLink
 from rath.links.split import SplitLink
-
-current_kabinet_rath: contextvars.ContextVar[Optional["KabinetRath"]] = contextvars.ContextVar(
-    "current_kabinet_rath", default=None
-)
 
 
 class KabinetLinkComposition(TypedComposedLink):
@@ -35,9 +29,12 @@ class KabinetRath(rath.Rath):
     """
 
     async def __aenter__(self) -> "KabinetRath":
-        """Set the current Rekuest Next Rath client in the context variable."""
+        """Enter the client.
+
+        Entering does not make it "the current client": nothing is. Calls go
+        through the ``Kabinet`` client they are made on.
+        """
         await super().__aenter__()
-        current_kabinet_rath.set(self)
         return self
 
     async def __aexit__(
@@ -46,6 +43,5 @@ class KabinetRath(rath.Rath):
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        """Unset the current Rekuest Next Rath client in the context variable."""
+        """Exit the client"""
         await super().__aexit__(exc_type, exc_val, exc_tb)
-        current_kabinet_rath.set(None)

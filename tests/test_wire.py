@@ -21,12 +21,15 @@ from kabinet.api.schema import (
     ListFlavourSelectorsBaseOneApiSelector,
     ListFlavourSelectorsBaseRAMSelector,
     Ordering,
-    adeclare_backend,
-    alist_flavours,
-    awatch_pods,
     flavour_order,
 )
+from kabinet.kabinet import Kabinet
 from kabinet.rath import KabinetRath
+
+
+def client(link: AsyncMockLink) -> Kabinet:
+    """A client whose rath ends in ``link``: calls are its methods."""
+    return Kabinet(rath=KabinetRath(link=link))
 
 
 def flavour_payload(selectors: list | None = None, **overrides: Any) -> dict:
@@ -71,10 +74,8 @@ async def test_declare_backend_serializes_input() -> None:
         captured.update(operation.variables)
         return {"id": "1", "name": "my-backend"}
 
-    async with KabinetRath(
-        link=AsyncMockLink(mutation_resolver={"declareBackend": resolve})
-    ) as rath:
-        backend = await adeclare_backend(name="my-backend", kind="docker", rath=rath)
+    async with client(AsyncMockLink(mutation_resolver={"declareBackend": resolve})) as kabinet:
+        backend = await kabinet.adeclare_backend(name="my-backend", kind="docker")
 
     assert captured["input"] == {"name": "my-backend", "kind": "docker"}
     assert backend.name == "my-backend"
@@ -88,12 +89,8 @@ async def test_oneof_flavour_ordering_serializes_single_key() -> None:
         captured.update(operation.variables)
         return []
 
-    async with KabinetRath(
-        link=AsyncMockLink(query_resolver={"flavours": resolve})
-    ) as rath:
-        await alist_flavours(
-            ordering=[flavour_order(released_at=Ordering.DESC)], rath=rath
-        )
+    async with client(AsyncMockLink(query_resolver={"flavours": resolve})) as kabinet:
+        await kabinet.alist_flavours(ordering=[flavour_order(released_at=Ordering.DESC)])
 
     assert captured["ordering"] == [{"releasedAt": "DESC"}]
 
@@ -120,10 +117,8 @@ async def test_selector_union_parses_all_kinds() -> None:
     async def resolve(operation: Operation) -> list:
         return [flavour_payload(selectors=selectors)]
 
-    async with KabinetRath(
-        link=AsyncMockLink(query_resolver={"flavours": resolve})
-    ) as rath:
-        flavours = await alist_flavours(rath=rath)
+    async with client(AsyncMockLink(query_resolver={"flavours": resolve})) as kabinet:
+        flavours = await kabinet.alist_flavours()
 
     parsed = flavours[0].selectors
     assert isinstance(parsed[0], ListFlavourSelectorsBaseCudaSelector)
@@ -153,10 +148,8 @@ async def test_watch_pods_yields_pod_events() -> None:
         yield {"create": pod_payload("1"), "update": None, "delete": None}
         yield {"create": None, "update": None, "delete": "1"}
 
-    async with KabinetRath(
-        link=AsyncMockLink(subscription_resolver={"pods": events})
-    ) as rath:
-        seen = [event async for event in awatch_pods(rath=rath)]
+    async with client(AsyncMockLink(subscription_resolver={"pods": events})) as kabinet:
+        seen = [event async for event in kabinet.awatch_pods()]
 
     assert seen[0].create is not None and seen[0].create.pod_id == "pod-1"
     assert seen[0].delete is None

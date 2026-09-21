@@ -87,3 +87,9 @@ def deployed_app() -> Generator[DeployedKabinet, None, None]:
             )
 
             yield deployed
+
+
+@pytest.fixture(scope="session")
+def kabinet(deployed_app: DeployedKabinet) -> Kabinet:
+    """The deployment's client: API calls are its methods, nothing is ambient."""
+    return deployed_app.kabinet

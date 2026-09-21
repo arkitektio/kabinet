@@ -8,6 +8,7 @@ readme = "README.md"
 dependencies = [
     "koil>=1.0.0",
     "rath>=3.12",
+    "rekuest>=3",
     "websockets>=15.0.1",
 ]
 

@@ -97,45 +97,13 @@
                     "type": "turms.plugins.operations.OperationsPlugin"
                 },
                 {
-                    "type": "turms.plugins.funcs.FuncsPlugin",
+                    "type": "turms.plugins.client.ClientPlugin",
+                    "client_class": "KabinetApi",
+                    "reserved_from": [
+                        "kabinet.kabinet.Kabinet"
+                    ],
                     "expand_input_types": [
                         "input"
-                    ],
-                    "global_kwargs": [
-                        {
-                            "type": "kabinet.rath.KabinetRath",
-                            "key": "rath",
-                            "description": "The client we want to use (defaults to the currently active client)"
-                        }
-                    ],
-                    "definitions": [
-                        {
-                            "type": "subscription",
-                            "is_async": true,
-                            "use": "kabinet.funcs.asubscribe"
-                        },
-                        {
-                            "type": "query",
-                            "is_async": true,
-                            "use": "kabinet.funcs.aexecute"
-                        },
-                        {
-                            "type": "mutation",
-                            "is_async": true,
-                            "use": "kabinet.funcs.aexecute"
-                        },
-                        {
-                            "type": "subscription",
-                            "use": "kabinet.funcs.subscribe"
-                        },
-                        {
-                            "type": "query",
-                            "use": "kabinet.funcs.execute"
-                        },
-                        {
-                            "type": "mutation",
-                            "use": "kabinet.funcs.execute"
-                        }
                     ]
                 }
             ],
