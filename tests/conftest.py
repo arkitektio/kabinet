@@ -34,9 +34,9 @@ class DeployedKabinet:
 @pytest.fixture(scope="session")
 def deployed_app() -> Generator[DeployedKabinet, None, None]:
     setup = testing(docker_compose_file)
-    setup.pull_on_enter = False
-    setup.up_on_enter = False
-    setup.health_on_enter = False
+    # No `*_on_enter` flags: dokker 2.8 made entering a Deployment do nothing at
+    # all and removed the fields, so setting them raises. The body below already
+    # drives the lifecycle explicitly, which is what they were protecting.
     setup.add_health_check(
         url=lambda spec: (
             f"http://localhost:{spec.services.get('kabinet').get_port_for_internal(80).published}/graphql"
@@ -55,6 +55,7 @@ def deployed_app() -> Generator[DeployedKabinet, None, None]:
         if not os.environ.get("KABINET_SERVICE_IMAGE"):
             setup.pull()
         setup.down()
+        setup.inspect()
 
         http_url = f"http://localhost:{setup.spec.services.get('kabinet').get_port_for_internal(80).published}/graphql"
         ws_url = f"ws://localhost:{setup.spec.services.get('kabinet').get_port_for_internal(80).published}/graphql"

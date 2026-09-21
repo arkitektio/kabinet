@@ -24,7 +24,7 @@ dev-dependencies =  [
     "aiohttp>=3.8.3,<4",
     "pytest-aiohttp>=1.0.4,<2",
     "ruff>=0.11",
-    "dokker>=2.5",
+    "dokker>=2.8",
     "fakts>=3",
     "basedpyright>=1.21",
 ]
