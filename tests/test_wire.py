@@ -60,9 +60,14 @@ def full_flavour_payload() -> dict:
 
 
 def pod_payload(id: str = "1") -> dict:
+    # Every field the `Pod` fragment selects. `status` and `clientId` are part
+    # of it -- a payload missing `status` fails validation, which is the point:
+    # this is a wire test, so the fake has to be shaped like the real thing.
     return {
         "id": id,
         "podId": f"pod-{id}",
+        "status": "RUNNING",
+        "clientId": f"client-{id}",
         "deployment": {"flavour": full_flavour_payload()},
     }
 
