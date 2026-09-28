@@ -16,7 +16,7 @@ if not hasattr(fakts, "build_testing_fakts"):  # pragma: no cover
 from fakts.testing import build_testing_fakts  # noqa: E402
 
 from koil import unkoil  # noqa: E402
-from rekuest.app import AppRegistry  # noqa: E402
+from arkitekt_spec.declare.app import AppRegistry  # noqa: E402
 
 from kabinet.arkitekt import kabinet as kabinet_service  # noqa: E402
 from kabinet.kabinet import Kabinet  # noqa: E402
