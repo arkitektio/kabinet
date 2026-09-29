@@ -29,10 +29,7 @@ def release(kabinet: Kabinet) -> Release:
     """A fresh release with one flavour, unique to the test."""
     identifier = f"com.example.approved-{uuid.uuid4().hex[:8]}"
     return kabinet.create_app_image(
-        # entrypoint is optional in the schema but the server fails without it.
-        manifest=ManifestInput(
-            identifier=identifier, version="1.0.0", scopes=["read"], entrypoint="app"
-        ),
+        manifest=ManifestInput(identifier=identifier, version="1.0.0", scopes=["read"]),
         selectors=[],
         app_image_id=uuid.uuid4().hex,
         inspection=InspectionInput(
