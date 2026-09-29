@@ -263,6 +263,32 @@ type App {
 
   """The globally unique, reverse-domain identifier of the app."""
   identifier: String!
+
+  """
+  The versions of this app. Filter, order and paginate them exactly like the root `releases` query -- an app page reads them from here instead of fetching every release and grouping client-side. There is no implicit ordering; ask for `releasedAt` to get them newest first.
+  """
+  releases(filters: ReleaseFilter, ordering: [ReleaseOrder!]! = [], pagination: OffsetPaginationInput): [Release!]!
+
+  """
+  This app's stored vector, as `<model id>:<floats>`. Null until it has been indexed.
+  """
+  embedding: Embedding
+}
+
+"""Filter for apps."""
+input AppFilter {
+  AND: AppFilter
+  OR: AppFilter
+  NOT: AppFilter
+  DISTINCT: Boolean
+
+  """Keep only apps whose ID is in this list."""
+  ids: [ID!]
+
+  """
+  Search by identifier: a case-insensitive substring, or semantic similarity of the query to it. Substring matches rank first, then by similarity; an explicit `ordering` replaces that ranking.
+  """
+  search: String
 }
 
 """
@@ -275,6 +301,35 @@ input AppImageInput {
   appImageId: String!
   inspection: InspectionInput!
   image: DockerImageInput!
+}
+
+input AppOrder @oneOf {
+  id: Ordering
+  identifier: Ordering
+}
+
+"""
+Record that you pre-authorized a release (via a lok mandate) so deployers may install it.
+"""
+input ApproveReleaseInput {
+  """The release to approve."""
+  release: ID!
+
+  """
+  The lok mandate (createMandate) that lets the agent provision this release as you.
+  """
+  mandate: ID!
+
+  """Identifier of the deployer app the mandate names."""
+  agent: String!
+
+  """
+  The release's approvalDigest you reviewed; refused if the release changed since.
+  """
+  digest: String!
+
+  """Backends allowed to deploy under this approval. Omit for any."""
+  backends: [ID!] = null
 }
 
 """The `Arg` scalar type represents a an Argument in a Action assignment"""
@@ -827,6 +882,9 @@ input CreateDeploymentInput {
   """The ID of the flavour to deploy."""
   flavour: ID!
 
+  """The release approval this deployment is made under."""
+  approval: ID!
+
   """When the flavour's image was last pulled, if known."""
   lastPulled: DateTime = null
 
@@ -1085,6 +1143,16 @@ type Definition {
 
   """The output ports (return values) of this action."""
   returns: [ReturnPort!]!
+
+  """
+  This definition's stored vector, as `<model id>:<floats>`. Null until it has been indexed.
+  """
+  embedding: Embedding
+
+  """
+  Other action definitions closest to this one in meaning, nearest first (cosine distance between their vectors, this definition excluded) -- the same action shipped under two names, or the neighbourhood a definition belongs to. `filters` narrows the candidates like `definitions` does; `maxDistance` (0 identical, 1 unrelated) cuts the tail, otherwise the nearest `limit` come back however far away they are. Empty while this definition has no vector yet or semantic indexing is off. One vector scan per definition resolved, so ask for it on a definition, not on every row of a long list.
+  """
+  similarDefinitions(filters: DefinitionFilter = null, limit: Int! = 10, maxDistance: Float = null): [Definition!]!
 }
 
 """Filter for action definitions."""
@@ -1098,9 +1166,57 @@ input DefinitionFilter {
   ids: [ID!]
 
   """
-  Search by name: a case-insensitive substring, or semantic similarity of the query to the definition's name and description. Substring matches rank first, then by similarity; an explicit `ordering` replaces that ranking.
+  Search by text: a case-insensitive substring of the name or the description, or semantic similarity of the query to both. Substring matches rank first, then by similarity; an explicit `ordering` replaces that ranking.
   """
   search: String
+
+  """
+  Order by closeness in meaning to the given definition, nearest first, keeping only definitions that can be compared to it (the same grouping as `Definition.similar`). Nothing is cut off at a fixed neighbourhood size, so this composes with the other filters and with pagination; an explicit `ordering` replaces the ranking. Empty when the given definition cannot be found in this organization, or has not been indexed for similarity yet. Combined with `search` it ranks that search's matches by closeness instead -- the two rankings do not stack.
+  """
+  similarTo: ID
+
+  """Keep only definitions of these kinds (function, generator, ...)."""
+  kinds: [ActionKind!]
+
+  """Keep only definitions with one of these data scopes."""
+  scopes: [ActionScope!]
+
+  """
+  Keep only pure definitions (their result can be cached), or only impure ones.
+  """
+  pure: Boolean
+
+  """Keep only idempotent definitions, or only non-idempotent ones."""
+  idempotent: Boolean
+
+  """Keep only definitions in these collections."""
+  collections: [ID!]
+
+  """Keep only definitions implementing these protocols."""
+  protocols: [ID!]
+
+  """Keep only definitions provided by these flavours."""
+  flavours: [ID!]
+
+  """Keep only definitions provided by these apps."""
+  apps: [ID!]
+
+  """Keep only definitions that declare all of these interfaces."""
+  interfaces: [String!]
+
+  """Keep only definitions that are tests for these definitions."""
+  isTestFor: [ID!]
+
+  """
+  Keep only definitions that have at least one test, or only those that have none.
+  """
+  hasTests: Boolean
+
+  """Keep only definitions first defined at or after this moment."""
+  definedAfter: DateTime
+
+  """Keep only definitions first defined at or before this moment."""
+  definedBefore: DateTime
 
   """Keep only definitions whose ports satisfy all of the given demands."""
   demands: [PortDemandInput!]
@@ -1187,8 +1303,11 @@ input DefinitionInput {
   isDev: Boolean! = false
 }
 
+"""Order for action definitions."""
 input DefinitionOrder @oneOf {
   definedAt: Ordering
+  name: Ordering
+  kind: Ordering
 }
 
 """Input for deleting a pod."""
@@ -1217,6 +1336,9 @@ type Deployment {
 
   """The current lifecycle status of this deployment."""
   status: PodStatus!
+
+  """The approval this deployment was made under."""
+  approval: ReleaseApproval
 
   """
   The display name of this deployment, combining backend and flavour names.
@@ -1383,6 +1505,11 @@ enum EffectKind {
 }
 
 """
+A stored vector, as `<model id>:<comma-separated floats>` -- e.g. `potion-base-8M:0.0123,-0.0456,...`. The model id is part of the value because vectors from different models are not comparable. Null when the row has no vector yet (it carries no text, or indexing has not caught up with it).
+"""
+scalar Embedding
+
+"""
 A buildable variant of a release: a specific Docker image together with the selectors and requirements needed to run it.
 """
 type Flavour {
@@ -1391,14 +1518,8 @@ type Flavour {
   """The name of this flavour (e.g. 'vanilla', 'cuda')."""
   name: String!
 
-  """The stored logo of this flavour."""
-  logo: String
-
   """The Docker image this flavour deploys."""
   image: DockerImage!
-
-  """The original (upstream) logo URL of this flavour."""
-  originalLogo: String
 
   """The release this flavour belongs to."""
   release: Release!
@@ -1416,6 +1537,19 @@ type Flavour {
   Blok implementation manifests declared by this flavour's inspection, as submitted (rekuest_core BlokImplementationInput shape).
   """
   bloks: UntypedParams!
+
+  """
+  This flavour's stored vector, as `<model id>:<floats>`. Null until it has been indexed.
+  """
+  embedding: Embedding
+
+  """The stored logo of this flavour, which is its release's."""
+  logo: String
+
+  """
+  The original (upstream) logo URL of this flavour, which is its release's.
+  """
+  originalLogo: String
 
   """
   The GitHub repository this flavour was built from, if it came from one.
@@ -1441,7 +1575,9 @@ input FlavourFilter {
   """Keep only flavours whose ID is in this list."""
   ids: [ID!]
 
-  """Case-insensitive search on the flavour name."""
+  """
+  Search by name: a case-insensitive substring, or semantic similarity of the query to the flavour's name and the app it was built from. Substring matches rank first, then by similarity; an explicit `ordering` replaces that ranking.
+  """
   search: String
 
   """Keep only flavours that provide one of the given definitions."""
@@ -1482,6 +1618,11 @@ type GithubRepo {
   """The organization that owns this repository."""
   organization: Organization!
 
+  """
+  This repository's stored vector, as `<model id>:<floats>`. Null until it has been indexed.
+  """
+  embedding: Embedding
+
   """The URL for opening a new issue against this repository on GitHub."""
   issueUrl: String!
 
@@ -1504,7 +1645,9 @@ input GithubRepoFilter {
   """Keep only repositories whose ID is in this list."""
   ids: [ID!]
 
-  """Case-insensitive search on the repository name."""
+  """
+  Search by name: a case-insensitive substring, or semantic similarity of the query to the repository's name. Substring matches rank first, then by similarity; an explicit `ordering` replaces that ranking.
+  """
   search: String
 
   """Case-insensitive match on the GitHub repository name."""
@@ -1790,6 +1933,14 @@ type Mutation {
 
   """Delete a pod and return its ID."""
   deletePod(input: DeletePodInput!): ID!
+
+  """
+  Record a standing approval of a release (backed by a lok mandate) so deployers may install it.
+  """
+  approveRelease(input: ApproveReleaseInput!): ReleaseApproval!
+
+  """Withdraw a release approval."""
+  revokeApproval(input: RevokeApprovalInput!): ReleaseApproval!
 
   """
   Register a built app image, creating its release and flavour as needed.
@@ -2194,6 +2345,9 @@ input QualifierInput {
 }
 
 type Query {
+  """Return a single app by its ID."""
+  app(id: ID!): App!
+
   """Return a single tracked GitHub repository by its ID."""
   githubRepo(id: ID!): GithubRepo!
 
@@ -2224,6 +2378,9 @@ type Query {
   """List all flavours visible to the current organization."""
   flavours(filters: FlavourFilter, ordering: [FlavourOrder!]! = [], pagination: OffsetPaginationInput): [Flavour!]!
 
+  """List all apps visible to the current organization."""
+  apps(filters: AppFilter, ordering: [AppOrder!]! = [], pagination: OffsetPaginationInput): [App!]!
+
   """List all app releases visible to the current organization."""
   releases(filters: ReleaseFilter, ordering: [ReleaseOrder!]! = [], pagination: OffsetPaginationInput): [Release!]!
 
@@ -2246,6 +2403,12 @@ type Query {
 
   """List all backends visible to the current organization."""
   backends(filters: BackendFilter, ordering: [BackendOrder!]! = [], pagination: OffsetPaginationInput): [Backend!]!
+
+  """List all release approvals of the current organization."""
+  releaseApprovals(filters: ReleaseApprovalFilter, pagination: OffsetPaginationInput): [ReleaseApproval!]!
+
+  """Return a single release approval by its ID."""
+  releaseApproval(id: ID!): ReleaseApproval!
 
   """Stats about github repos"""
   githubRepoStats(filters: GithubRepoFilter = null): GithubRepoStats!
@@ -2308,9 +2471,6 @@ type Release {
   """The OAuth2 scopes this release requires."""
   scopes: [String!]!
 
-  """The stored logo of this release."""
-  logo: String
-
   """The original (upstream) logo URL of this release."""
   originalLogo: String
 
@@ -2323,8 +2483,93 @@ type Release {
   """The deployments that run a flavour of this release."""
   deployments(filters: DeploymentFilter, ordering: [DeploymentOrder!]! = [], pagination: OffsetPaginationInput): [Deployment!]!
 
+  """Standing approvals to run this release, newest first."""
+  approvals(filters: ReleaseApprovalFilter, pagination: OffsetPaginationInput): [ReleaseApproval!]!
+
+  """
+  The stored logo of this release: the path of the ingested media, or null while none has been ingested.
+  """
+  logo: String
+
   """The display name of this release, in the form 'identifier:version'."""
   name: String!
+
+  """
+  The digest an approval of this release is pinned to (identity, scopes, requirements, images). Changes whenever the release is re-published differently.
+  """
+  approvalDigest: String!
+
+  """
+  Whether every flavour image is addressed by content digest. If not, a rebuild pushed under the same tag is not detected by the approval digest.
+  """
+  digestPinned: Boolean!
+
+  """
+  The subject manifest to pre-authorize in lok (createMandate): identifier, version, scopes and the union of flavour requirements.
+  """
+  mandateManifest: UntypedParams!
+}
+
+"""
+A user's standing approval to run a release, backed by a lok mandate that lets a deployer provision it as them.
+"""
+type ReleaseApproval {
+  id: ID!
+
+  """The approved release."""
+  release: Release!
+
+  """The user the deployed release will act as."""
+  approver: User!
+
+  """The lok mandate backing this approval."""
+  mandateId: ID!
+
+  """The deployer app the mandate names."""
+  agent: String!
+
+  """The release digest at approval time."""
+  digest: String!
+
+  """Backends allowed to deploy under this approval. Empty means any."""
+  backends(filters: BackendFilter, ordering: [BackendOrder!]! = [], pagination: OffsetPaginationInput): [Backend!]!
+  createdAt: DateTime!
+
+  """When the approval was withdrawn."""
+  revokedAt: DateTime
+
+  """
+  The release changed since approval; nothing new may be deployed from this approval.
+  """
+  isStale: Boolean!
+
+  """A display name: the approved release and who approved it."""
+  name: String!
+
+  """Not revoked and not stale: deployable."""
+  isActive: Boolean!
+}
+
+"""Filter for release approvals."""
+input ReleaseApprovalFilter {
+  AND: ReleaseApprovalFilter
+  OR: ReleaseApprovalFilter
+  NOT: ReleaseApprovalFilter
+  DISTINCT: Boolean
+
+  """Keep only approvals whose ID is in this list."""
+  ids: [ID!]
+
+  """Case-insensitive search on the approved app identifier or version."""
+  search: String
+
+  """Keep only approvals of this release."""
+  release: ID
+
+  """
+  Keep only approvals that are not revoked. Staleness depends on the live release and is read from `isStale`.
+  """
+  revoked: Boolean
 }
 
 """Filter for app releases."""
@@ -2339,6 +2584,17 @@ input ReleaseFilter {
 
   """Case-insensitive search on the release version."""
   search: String
+
+  """Keep only the releases of this app."""
+  app: ID
+
+  """Keep only the releases of these apps."""
+  apps: [ID!]
+
+  """
+  Keep only releases whose app identifier contains this text, case-insensitively.
+  """
+  identifier: String
 }
 
 input ReleaseOrder @oneOf {
@@ -2545,6 +2801,13 @@ input ReturnWidgetInput {
 enum ReturnWidgetKind {
   CHOICE
   CUSTOM
+}
+
+"""
+Withdraw a release approval. Revoke the lok mandate as well to stop running pods.
+"""
+input RevokeApprovalInput {
+  id: ID!
 }
 
 """Requires a ROCm-capable (AMD) GPU on the backend."""

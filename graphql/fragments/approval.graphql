@@ -1,0 +1,18 @@
+fragment ReleaseApproval on ReleaseApproval {
+  id
+  mandateId
+  agent
+  digest
+  isActive
+  isStale
+  revokedAt
+  approver {
+    sub
+  }
+  backends {
+    id
+  }
+  release {
+    ...Release
+  }
+}

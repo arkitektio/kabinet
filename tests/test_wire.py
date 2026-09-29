@@ -68,7 +68,7 @@ def pod_payload(id: str = "1") -> dict:
         "podId": f"pod-{id}",
         "status": "RUNNING",
         "clientId": f"client-{id}",
-        "deployment": {"flavour": full_flavour_payload()},
+        "deployment": {"id": f"dep-{id}", "approval": {"id": f"approval-{id}"}, "flavour": full_flavour_payload()},
     }
 
 

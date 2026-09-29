@@ -24,10 +24,12 @@ from kabinet.api.schema import (
     Flavour,
     Pod,
     Release,
+    ReleaseApproval,
     SearchDefinitionsQuery,
     SearchDeploymentsQuery,
     SearchFlavoursQuery,
     SearchPodsQuery,
+    SearchReleaseApprovalsQuery,
     SearchReleasesQuery,
 )
 from kabinet.kabinet import Kabinet
@@ -91,6 +93,12 @@ async def expand_deployment(id: str, kabinet: Kabinet) -> Deployment:
 async def expand_release(id: str, kabinet: Kabinet) -> Release:
     """A release, by id."""
     return await kabinet.aget_release(id)
+
+
+@registry.structure("@kabinet/approval", widget=_search(SearchReleaseApprovalsQuery))
+async def expand_release_approval(id: str, kabinet: Kabinet) -> ReleaseApproval:
+    """A user's standing approval to run a release, by id."""
+    return await kabinet.aget_release_approval(id)
 
 
 @registry.structure("@kabinet/definition", widget=_search(SearchDefinitionsQuery)

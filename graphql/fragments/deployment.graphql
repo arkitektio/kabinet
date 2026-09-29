@@ -1,6 +1,9 @@
 fragment Deployment on Deployment {
   id
   localId
+  approval {
+    id
+  }
 }
 
 fragment ListDeployment on Deployment {

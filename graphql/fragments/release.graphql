@@ -5,6 +5,8 @@ fragment Release on Release {
     identifier
   }
   scopes
+  approvalDigest
+  mandateManifest
   flavours {
     ...ListFlavour
   }

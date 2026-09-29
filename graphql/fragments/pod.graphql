@@ -9,6 +9,10 @@ fragment Pod on Pod {
   status
   clientId
   deployment {
+    id
+    approval {
+      id
+    }
     flavour {
       ...Flavour
     }

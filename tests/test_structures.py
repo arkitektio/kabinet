@@ -17,6 +17,7 @@ from kabinet import arkitekt as declared  # noqa: E402
 #: The identifiers kabinet puts on the wire. Changing one is a cross-service change,
 #: so they are written out rather than derived from the thing under test.
 IDENTIFIERS = {
+    "@kabinet/approval",
     "@kabinet/definition",
     "@kabinet/deployment",
     "@kabinet/flavour",
