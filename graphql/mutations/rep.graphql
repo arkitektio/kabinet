@@ -3,3 +3,9 @@ mutation CreateGithubRepo($input: CreateGithubRepoInput!) {
     ...GithubRepo
   }
 }
+
+mutation ImportRepo($input: ImportRepoInput!) {
+  importRepo(input: $input) {
+    ...OciRepo
+  }
+}

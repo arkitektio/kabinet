@@ -698,6 +698,12 @@ class ImplementationInput(BaseModel):
     'The effect class of this implementation. NONE work is freely retryable/reclaimable; PHYSICAL work touches the real world and an ambiguous failure is terminal (never retried). Declared by the implementation here — never by the caller.\nDefault: NONE'
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
+class ImportRepoInput(BaseModel):
+    """Input for importing an OCI repository, or reading an imported one again."""
+    reference: str = Field(description="The repository, e.g. 'ghcr.io/org/app'. No tag, no digest.")
+    channels: tuple[str, ...] | None = Field(default=None, description="The channels to follow besides the releases, e.g. ['main']. Omit to keep what is followed.")
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
 class InspectionInput(BaseModel):
     """No documentation"""
     size: int | None = None
@@ -723,7 +729,6 @@ class LockImplementationInput(BaseModel):
 
 class ManifestInput(BaseModel):
     """No documentation"""
-    entrypoint: str | None = Field(default=None, description="The entrypoint of the app, defaults to 'app'")
     identifier: str
     version: str
     author: Annotated[str | None, GraphQLDefault('unknown')] = None
@@ -731,6 +736,7 @@ class ManifestInput(BaseModel):
     logo: str | None = None
     scopes: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = None
     'Default: []'
+    entrypoint: str | None = None
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class OffsetPaginationInput(BaseModel):
@@ -1669,6 +1675,19 @@ Arguments:
     _data['effect'] = effect
     return ImplementationInput.model_validate(_data)
 
+def import_repo_input(reference: str, channels: Iterable[str] | None | UnsetType=UNSET) -> ImportRepoInput:
+    """Creates a ImportRepoInput
+
+Arguments:
+    reference: The repository, e.g. 'ghcr.io/org/app'. No tag, no digest.
+    channels: The channels to follow besides the releases, e.g. ['main']. Omit to keep what is followed.
+"""
+    _data: dict[str, builtins.object] = {}
+    _data['reference'] = reference
+    if channels is not UNSET:
+        _data['channels'] = channels
+    return ImportRepoInput.model_validate(_data)
+
 def inspection_input(locks: Iterable[LockImplementationInput], implementations: Iterable[ImplementationInput], states: Iterable[StateImplementationInput], bloks: Iterable[BlokImplementationInput], requirements: Iterable[RequirementInput], size: int | None | UnsetType=UNSET) -> InspectionInput:
     """Creates a InspectionInput
 
@@ -1715,26 +1734,26 @@ Arguments:
     _data['definition'] = definition
     return LockImplementationInput.model_validate(_data)
 
-def manifest_input(identifier: str, version: str, author: str, scopes: Iterable[str], entrypoint: str | None | UnsetType=UNSET, logo: str | None | UnsetType=UNSET) -> ManifestInput:
+def manifest_input(identifier: str, version: str, author: str, scopes: Iterable[str], logo: str | None | UnsetType=UNSET, entrypoint: str | None | UnsetType=UNSET) -> ManifestInput:
     """Creates a ManifestInput
 
 Arguments:
-    entrypoint: The entrypoint of the app, defaults to 'app'
     identifier: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
     version: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
     author: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
     logo: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
     scopes: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required) (list) (required)
+    entrypoint: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
 """
     _data: dict[str, builtins.object] = {}
-    if entrypoint is not UNSET:
-        _data['entrypoint'] = entrypoint
     _data['identifier'] = identifier
     _data['version'] = version
     _data['author'] = author
     if logo is not UNSET:
         _data['logo'] = logo
     _data['scopes'] = scopes
+    if entrypoint is not UNSET:
+        _data['entrypoint'] = entrypoint
     return ManifestInput.model_validate(_data)
 
 def offset_pagination_input(offset: int, limit: int | None | UnsetType=UNSET) -> OffsetPaginationInput:
@@ -2465,6 +2484,50 @@ class GithubRepo(BaseModel):
         name = 'GithubRepo'
         type = 'GithubRepo'
 
+class OciRepoFlavoursRelease(BaseModel):
+    """A specific version of an app, bundling the flavours that can be deployed for it."""
+    typename: Literal['Release'] = Field(alias='__typename', default='Release', exclude=True)
+    id: ID
+    version: str
+    'The semantic version of this release.'
+    channel: str | None = Field(default=None)
+    'The channel this is the latest build of. Null for a release proper, which never changes.'
+    model_config = ConfigDict(frozen=True)
+
+class OciRepoFlavours(BaseModel):
+    """A buildable variant of a release: a specific Docker image together with the selectors and requirements needed to run it."""
+    typename: Literal['Flavour'] = Field(alias='__typename', default='Flavour', exclude=True)
+    id: ID
+    name: str
+    "The name of this flavour (e.g. 'vanilla', 'cuda')."
+    release: OciRepoFlavoursRelease
+    'The release this flavour belongs to.'
+    model_config = ConfigDict(frozen=True)
+
+class OciRepo(BaseModel):
+    """A repository on an OCI registry that carries an app's releases beside its images. Importing it is how an app is installed."""
+    typename: Literal['OciRepo'] = Field(alias='__typename', default='OciRepo', exclude=True)
+    id: ID
+    reference: str
+    'The repository as an image reference starts: `registry/repository`.'
+    registry: str
+    'The registry host, e.g. ghcr.io.'
+    repository: str
+    'The repository path on the registry, e.g. org/app.'
+    channels: tuple[str, ...]
+    'The channels followed besides the releases.'
+    scanned_at: datetime | None = Field(default=None, alias='scannedAt')
+    'When the registry was last read.'
+    flavours: tuple[OciRepoFlavours, ...]
+    'The flavours read from this repository.'
+    model_config = ConfigDict(frozen=True)
+
+    class Meta:
+        """Meta class for OciRepo"""
+        document = 'fragment OciRepo on OciRepo {\n  id\n  reference\n  registry\n  repository\n  channels\n  scannedAt\n  flavours {\n    id\n    name\n    release {\n      id\n      version\n      channel\n      __typename\n    }\n    __typename\n  }\n  __typename\n}'
+        name = 'OciRepo'
+        type = 'OciRepo'
+
 class ResourceBackend(BaseModel):
     """A deployment target (agent) registered by a client that runs pods on behalf of an organization."""
     typename: Literal['Backend'] = Field(alias='__typename', default='Backend', exclude=True)
@@ -2662,6 +2725,10 @@ class Release(BaseModel):
     id: ID
     version: str
     'The semantic version of this release.'
+    channel: str | None = Field(default=None)
+    'The channel this is the latest build of. Null for a release proper, which never changes.'
+    revision: str | None = Field(default=None)
+    'The source revision this release was built from, when its publisher said.'
     app: ReleaseApp
     'The app this release belongs to.'
     scopes: tuple[str, ...]
@@ -2676,7 +2743,7 @@ class Release(BaseModel):
 
     class Meta:
         """Meta class for Release"""
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}'
         name = 'Release'
         type = 'Release'
 
@@ -2693,6 +2760,10 @@ class ListRelease(BaseModel):
     id: ID
     version: str
     'The semantic version of this release.'
+    channel: str | None = Field(default=None)
+    'The channel this is the latest build of. Null for a release proper, which never changes.'
+    revision: str | None = Field(default=None)
+    'The source revision this release was built from, when its publisher said.'
     app: ListReleaseApp
     'The app this release belongs to.'
     scopes: tuple[str, ...]
@@ -2703,7 +2774,7 @@ class ListRelease(BaseModel):
 
     class Meta:
         """Meta class for ListRelease"""
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}'
         name = 'ListRelease'
         type = 'Release'
 
@@ -2782,7 +2853,7 @@ class ReleaseApproval(BaseModel):
 
     class Meta:
         """Meta class for ReleaseApproval"""
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}'
         name = 'ReleaseApproval'
         type = 'ReleaseApproval'
 
@@ -2797,7 +2868,7 @@ class ApproveReleaseMutation(BaseModel):
 
     class Meta:
         """Meta class for ApproveRelease """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nmutation ApproveRelease($input: ApproveReleaseInput!) {\n  approveRelease(input: $input) {\n    ...ReleaseApproval\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nmutation ApproveRelease($input: ApproveReleaseInput!) {\n  approveRelease(input: $input) {\n    ...ReleaseApproval\n    __typename\n  }\n}'
 
 class RevokeApprovalMutation(BaseModel):
     """No documentation found for this operation."""
@@ -2810,7 +2881,7 @@ class RevokeApprovalMutation(BaseModel):
 
     class Meta:
         """Meta class for RevokeApproval """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nmutation RevokeApproval($id: ID!) {\n  revokeApproval(input: {id: $id}) {\n    ...ReleaseApproval\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nmutation RevokeApproval($id: ID!) {\n  revokeApproval(input: {id: $id}) {\n    ...ReleaseApproval\n    __typename\n  }\n}'
 
 class DeclareBackendMutation(BaseModel):
     """No documentation found for this operation."""
@@ -2849,7 +2920,7 @@ class CreateAppImageMutation(BaseModel):
 
     class Meta:
         """Meta class for CreateAppImage """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n    __typename\n  }\n}'
 
 class CreatePodMutation(BaseModel):
     """No documentation found for this operation."""
@@ -2931,6 +3002,19 @@ class CreateGithubRepoMutation(BaseModel):
         """Meta class for CreateGithubRepo """
         document = 'fragment GithubRepo on GithubRepo {\n  id\n  branch\n  user\n  repo\n  flavours {\n    definitions {\n      id\n      hash\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n\nmutation CreateGithubRepo($input: CreateGithubRepoInput!) {\n  createGithubRepo(input: $input) {\n    ...GithubRepo\n    __typename\n  }\n}'
 
+class ImportRepoMutation(BaseModel):
+    """No documentation found for this operation."""
+    import_repo: OciRepo = Field(alias='importRepo')
+    "Import an OCI repository that carries an app's releases (e.g. ghcr.io/org/app), or read an imported one again."
+
+    class Arguments(BaseModel):
+        """Arguments for ImportRepo """
+        input: ImportRepoInput
+
+    class Meta:
+        """Meta class for ImportRepo """
+        document = 'fragment OciRepo on OciRepo {\n  id\n  reference\n  registry\n  repository\n  channels\n  scannedAt\n  flavours {\n    id\n    name\n    release {\n      id\n      version\n      channel\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n\nmutation ImportRepo($input: ImportRepoInput!) {\n  importRepo(input: $input) {\n    ...OciRepo\n    __typename\n  }\n}'
+
 class DeclareResourceMutation(BaseModel):
     """No documentation found for this operation."""
     declare_resource: Resource = Field(alias='declareResource')
@@ -2955,7 +3039,7 @@ class GetReleaseApprovalQuery(BaseModel):
 
     class Meta:
         """Meta class for GetReleaseApproval """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nquery GetReleaseApproval($id: ID!) {\n  releaseApproval(id: $id) {\n    ...ReleaseApproval\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nquery GetReleaseApproval($id: ID!) {\n  releaseApproval(id: $id) {\n    ...ReleaseApproval\n    __typename\n  }\n}'
 
 class ListReleaseApprovalsQuery(BaseModel):
     """No documentation found for this operation."""
@@ -2968,7 +3052,7 @@ class ListReleaseApprovalsQuery(BaseModel):
 
     class Meta:
         """Meta class for ListReleaseApprovals """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nquery ListReleaseApprovals {\n  releaseApprovals {\n    ...ReleaseApproval\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nquery ListReleaseApprovals {\n  releaseApprovals {\n    ...ReleaseApproval\n    __typename\n  }\n}'
 
 class SearchReleaseApprovalsQueryOptions(BaseModel):
     """A user's standing approval to run a release, backed by a lok mandate that lets a deployer provision it as them."""
@@ -3284,7 +3368,7 @@ class ListReleasesQuery(BaseModel):
 
     class Meta:
         """Meta class for ListReleases """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment ListRelease on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nquery ListReleases {\n  releases {\n    ...ListRelease\n    __typename\n  }\n}'
 
 class GetReleaseQuery(BaseModel):
     """No documentation found for this operation."""
@@ -3297,7 +3381,7 @@ class GetReleaseQuery(BaseModel):
 
     class Meta:
         """Meta class for GetRelease """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n    __typename\n  }\n}'
 
 class SearchReleasesQueryOptions(BaseModel):
     """A specific version of an app, bundling the flavours that can be deployed for it."""
@@ -3322,6 +3406,19 @@ class SearchReleasesQuery(BaseModel):
     class Meta:
         """Meta class for SearchReleases """
         document = 'query SearchReleases($search: String, $values: [ID!], $limit: Int, $offset: Int) {\n  options: releases(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: $limit, offset: $offset}\n  ) {\n    value: id\n    label: name\n    __typename\n  }\n}'
+
+class OciReposQuery(BaseModel):
+    """No documentation found for this operation."""
+    oci_repos: tuple[OciRepo, ...] = Field(alias='ociRepos')
+    'List all imported OCI repositories visible to the current organization.'
+
+    class Arguments(BaseModel):
+        """Arguments for OciRepos """
+        pass
+
+    class Meta:
+        """Meta class for OciRepos """
+        document = 'fragment OciRepo on OciRepo {\n  id\n  reference\n  registry\n  repository\n  channels\n  scannedAt\n  flavours {\n    id\n    name\n    release {\n      id\n      version\n      channel\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n\nquery OciRepos {\n  ociRepos {\n    ...OciRepo\n    __typename\n  }\n}'
 
 class ListResourcesQuery(BaseModel):
     """No documentation found for this operation."""
@@ -3890,6 +3987,46 @@ Returns:
             _input['autoScan'] = auto_scan
         variables['input'] = _input
         return self.execute(CreateGithubRepoMutation, variables).create_github_repo
+
+    async def aimport_repo(self, reference: str, channels: Iterable[str] | None | UnsetType=UNSET) -> OciRepo:
+        """ImportRepo 
+
+Import an OCI repository that carries an app's releases (e.g. ghcr.io/org/app), or read an imported one again.
+
+Args:
+    reference: The repository, e.g. 'ghcr.io/org/app'. No tag, no digest.
+    channels: The channels to follow besides the releases, e.g. ['main']. Omit to keep what is followed.
+
+Returns:
+    OciRepo
+"""
+        variables: dict[str, builtins.object] = {}
+        _input: dict[str, builtins.object] = {}
+        _input['reference'] = reference
+        if channels is not UNSET:
+            _input['channels'] = channels
+        variables['input'] = _input
+        return (await self.aexecute(ImportRepoMutation, variables)).import_repo
+
+    def import_repo(self, reference: str, channels: Iterable[str] | None | UnsetType=UNSET) -> OciRepo:
+        """ImportRepo 
+
+Import an OCI repository that carries an app's releases (e.g. ghcr.io/org/app), or read an imported one again.
+
+Args:
+    reference: The repository, e.g. 'ghcr.io/org/app'. No tag, no digest.
+    channels: The channels to follow besides the releases, e.g. ['main']. Omit to keep what is followed.
+
+Returns:
+    OciRepo
+"""
+        variables: dict[str, builtins.object] = {}
+        _input: dict[str, builtins.object] = {}
+        _input['reference'] = reference
+        if channels is not UNSET:
+            _input['channels'] = channels
+        variables['input'] = _input
+        return self.execute(ImportRepoMutation, variables).import_repo
 
     async def adeclare_resource(self, backend: IDCoercible, local_id: str, name: str | None | UnsetType=UNSET, qualifiers: Iterable[QualifierInput] | None | UnsetType=UNSET) -> Resource:
         """DeclareResource 
@@ -4774,6 +4911,32 @@ Returns:
         if offset is not UNSET:
             variables['offset'] = offset
         return self.execute(SearchReleasesQuery, variables).options
+
+    async def aoci_repos(self) -> tuple[OciRepo, ...]:
+        """OciRepos 
+
+List all imported OCI repositories visible to the current organization.
+
+Args:
+
+Returns:
+    list[OciRepo]
+"""
+        variables: dict[str, builtins.object] = {}
+        return (await self.aexecute(OciReposQuery, variables)).oci_repos
+
+    def oci_repos(self) -> tuple[OciRepo, ...]:
+        """OciRepos 
+
+List all imported OCI repositories visible to the current organization.
+
+Args:
+
+Returns:
+    list[OciRepo]
+"""
+        variables: dict[str, builtins.object] = {}
+        return self.execute(OciReposQuery, variables).oci_repos
 
     async def alist_resources(self, filters: ResourceFilter | None | UnsetType=UNSET, pagination: OffsetPaginationInput | None | UnsetType=UNSET) -> tuple[ListResource, ...]:
         """ListResources 

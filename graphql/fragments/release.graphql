@@ -1,6 +1,8 @@
 fragment Release on Release {
   id
   version
+  channel
+  revision
   app {
     identifier
   }
@@ -15,6 +17,8 @@ fragment Release on Release {
 fragment ListRelease on Release {
   id
   version
+  channel
+  revision
   app {
     identifier
   }

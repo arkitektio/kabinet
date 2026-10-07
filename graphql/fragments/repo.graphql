@@ -10,3 +10,21 @@ fragment GithubRepo on GithubRepo {
         }
     }
 }
+
+fragment OciRepo on OciRepo {
+    id
+    reference
+    registry
+    repository
+    channels
+    scannedAt
+    flavours {
+        id
+        name
+        release {
+            id
+            version
+            channel
+        }
+    }
+}
