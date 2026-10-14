@@ -14,6 +14,10 @@ from kabinet.rath import (
 )
 from graphql import OperationType
 from dataclasses import dataclass
+import uuid
+from datetime import datetime
+
+from kabinet.api.schema import DockerImageInput, InspectionInput, ManifestInput, Release
 
 
 project_path = os.path.join(os.path.dirname(__file__), "integration")
@@ -94,3 +98,23 @@ def deployed_app() -> Generator[DeployedKabinet, None, None]:
 def kabinet(deployed_app: DeployedKabinet) -> Kabinet:
     """The deployment's client: API calls are its methods, nothing is ambient."""
     return deployed_app.kabinet
+
+
+@pytest.fixture
+def release(kabinet: Kabinet) -> Release:
+    """A fresh release with one flavour, unique to the test."""
+    identifier = f"com.example.approved-{uuid.uuid4().hex[:8]}"
+    return kabinet.create_app_image(
+        manifest=ManifestInput(identifier=identifier, version="1.0.0", scopes=["read"]),
+        selectors=[],
+        app_image_id=uuid.uuid4().hex,
+        inspection=InspectionInput(
+            size=1,
+            locks=[],
+            implementations=[],
+            states=[],
+            requirements=[],
+        ),
+        image=DockerImageInput(image_string=f"example/{identifier}:1.0.0", build_at=datetime.now()),
+        flavour_name="vanilla",
+    )

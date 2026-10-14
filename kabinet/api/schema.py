@@ -39,15 +39,6 @@ class ActionKind(str, Enum):
     GENERATOR = 'GENERATOR'
     __str__ = str.__str__
 
-class AssignPolicy(str, Enum):
-    """No documentation"""
-    AUTOMATIC = 'AUTOMATIC'
-    BALANCED = 'BALANCED'
-    ROUND_ROBIN = 'ROUND_ROBIN'
-    LEAST_BUSY = 'LEAST_BUSY'
-    FASTEST_RESPONSE = 'FASTEST_RESPONSE'
-    __str__ = str.__str__
-
 class AssignWidgetKind(str, Enum):
     """The kind of assign widget."""
     SEARCH = 'SEARCH'
@@ -72,17 +63,25 @@ class DescriptorOperator(str, Enum):
     NOT_IN = 'NOT_IN'
     __str__ = str.__str__
 
-class EffectClass(str, Enum):
-    """The effect class of an implementation — declared by the implementation, never the caller. NONE work is freely retryable/reclaimable; PHYSICAL work touches the real world (no UPSERT), so an ambiguous failure is terminal and must not be retried."""
-    NONE = 'NONE'
-    PHYSICAL = 'PHYSICAL'
-    __str__ = str.__str__
-
 class EffectKind(str, Enum):
     """The kind of effect."""
     MESSAGE = 'MESSAGE'
     HIDE = 'HIDE'
     CUSTOM = 'CUSTOM'
+    __str__ = str.__str__
+
+class Effects(str, Enum):
+    """What running an implementation again would do to the world. Purely informational: shown to whoever decides about a lost task."""
+    NONE = 'NONE'
+    REPEATABLE = 'REPEATABLE'
+    UNKNOWN = 'UNKNOWN'
+    IRREVERSIBLE = 'IRREVERSIBLE'
+    __str__ = str.__str__
+
+class Execution(str, Enum):
+    """How an implementation runs: a WORKFLOW may call other actions and is resumed from its journal when its agent dies; a PLAIN one's task ends LOST."""
+    PLAIN = 'PLAIN'
+    WORKFLOW = 'WORKFLOW'
     __str__ = str.__str__
 
 class OptionKey(str, Enum):
@@ -416,8 +415,6 @@ class AgentDependencyInput(BaseModel):
     min_viable_instances: int | None = Field(validation_alias=AliasChoices('min_viable_instances', 'minViableInstances'), serialization_alias='minViableInstances', default=None, description='The minimum amount of viable instances for the agent. This is used to identify the demand in the system.')
     max_viable_instances: int | None = Field(validation_alias=AliasChoices('max_viable_instances', 'maxViableInstances'), serialization_alias='maxViableInstances', default=None, description='The maximum amount of viable instances for the agent. This is used to identify the demand in the system.')
     prefered_instances: int | None = Field(validation_alias=AliasChoices('prefered_instances', 'preferedInstances'), serialization_alias='preferedInstances', default=None, description='The prefered amount of instances for the agent. This is used to identify the demand in the system.')
-    assign_policy: Annotated[AssignPolicy | None, GraphQLDefault('BALANCED')] = Field(validation_alias=AliasChoices('assign_policy', 'assignPolicy'), serialization_alias='assignPolicy', default=None, description='The policy used to pick which instance of the agent to assign to.')
-    'The policy used to pick which instance of the agent to assign to.\nDefault: BALANCED'
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class AgentProbeInput(BaseModel):
@@ -458,7 +455,7 @@ class ArgPortInput(BaseModel):
     label: str | None = Field(default=None, description='The label of the port. This is the text that is displayed in the UI')
     kind: PortKind = Field(description='The kind of the port. This is the type of the port. Can be either int, string, structure, list, bool, dict, float, date, union or model')
     description: str | None = Field(default=None, description='The description of the port. This is the text that is displayed in the UI when the user hovers over the port')
-    identifier: str | None = Field(default=None, description='The identifier of a structure port. This is used to uniquely identify a specific type of structure.')
+    identifier: str | None = Field(default=None, description="The identifier of the port's type, of the form @package/key. Required for STRUCTURE, MEMORY_STRUCTURE and INTERFACE, where it is the only identity a value has; optional for MODEL and ENUM, where it names the class or enum the port was built from so that agents can map a value back to it.")
     nullable: Annotated[bool | None, GraphQLDefault('False')] = Field(default=None, description='Whether the port is nullable or not. If the port is nullable, it can be set to null. If the port is not nullable, it cannot be set to null')
     'Whether the port is nullable or not. If the port is nullable, it can be set to null. If the port is not nullable, it cannot be set to null\nDefault: False'
     effects: tuple['EffectInput', ...] | None = Field(default=None, description='The effects of the port')
@@ -591,8 +588,8 @@ class DefinitionInput(BaseModel):
     name: str = Field(description='The name of the actions. This is used to uniquely identify the definition')
     stateful: Annotated[bool | None, GraphQLDefault('False')] = Field(default=None, description='Whether the definition is stateful or not. If the definition is stateful, it can be used to create a stateful action. If the definition is not stateful, it cannot be used to create a stateful action')
     'Whether the definition is stateful or not. If the definition is stateful, it can be used to create a stateful action. If the definition is not stateful, it cannot be used to create a stateful action\nDefault: False'
-    pure: Annotated[bool | None, GraphQLDefault('False')] = Field(default=None, description='Whether the action is pure: same args always produce the same result and no side effects — its results are replayable/cacheable. Implies idempotent. Incompatible with stateful and with a PHYSICAL effect class.')
-    'Whether the action is pure: same args always produce the same result and no side effects — its results are replayable/cacheable. Implies idempotent. Incompatible with stateful and with a PHYSICAL effect class.\nDefault: False'
+    pure: Annotated[bool | None, GraphQLDefault('False')] = Field(default=None, description='Whether the action is pure: same args always produce the same result and no side effects — its results are replayable/cacheable. Implies idempotent. Incompatible with stateful and with IRREVERSIBLE effects.')
+    'Whether the action is pure: same args always produce the same result and no side effects — its results are replayable/cacheable. Implies idempotent. Incompatible with stateful and with IRREVERSIBLE effects.\nDefault: False'
     idempotent: Annotated[bool | None, GraphQLDefault('False')] = Field(default=None, description='Whether the action is idempotent: safe to run multiple times with the same args without changing the outcome — on ambiguous executor loss it may be freely re-dispatched.')
     'Whether the action is idempotent: safe to run multiple times with the same args without changing the outcome — on ambiguous executor loss it may be freely re-dispatched.\nDefault: False'
     allow_probe: Annotated[bool | None, GraphQLDefault('False')] = Field(validation_alias=AliasChoices('allow_probe', 'allowProbe'), serialization_alias='allowProbe', default=None, description='Whether the action may be invoked as a probe: zero persistence, redis-held state, no history/replay/recovery. Only actions declaring this are callable via the call mutation.')
@@ -694,8 +691,11 @@ class ImplementationInput(BaseModel):
     needs_token: Annotated[bool | None, GraphQLDefault('True')] = Field(validation_alias=AliasChoices('needs_token', 'needsToken'), serialization_alias='needsToken', default=None, description='Whether Rekuest should mint a signed provenance token when this implementation is assigned. Default true (provenance-by-default); set false for trivial/internal tasks that never produce external provenance.')
     'Whether Rekuest should mint a signed provenance token when this implementation is assigned. Default true (provenance-by-default); set false for trivial/internal tasks that never produce external provenance.\nDefault: True'
     provenance_audience: tuple[str, ...] | None = Field(validation_alias=AliasChoices('provenance_audience', 'provenanceAudience'), serialization_alias='provenanceAudience', default=None, description="The downstream service(s) the provenance token should be scoped to (the token's `aud`). If omitted, Rekuest derives the audience from the structures the assignment acts on.")
-    effect: Annotated[EffectClass | None, GraphQLDefault('NONE')] = Field(default=None, description='The effect class of this implementation. NONE work is freely retryable/reclaimable; PHYSICAL work touches the real world and an ambiguous failure is terminal (never retried). Declared by the implementation here — never by the caller.')
-    'The effect class of this implementation. NONE work is freely retryable/reclaimable; PHYSICAL work touches the real world and an ambiguous failure is terminal (never retried). Declared by the implementation here — never by the caller.\nDefault: NONE'
+    effects: Annotated[Effects | None, GraphQLDefault('UNKNOWN')] = Field(default=None, description='What running this implementation again would do to the world. Informational: shown to whoever decides about a lost task.')
+    'What running this implementation again would do to the world. Informational: shown to whoever decides about a lost task.\nDefault: UNKNOWN'
+    execution: Annotated[Execution | None, GraphQLDefault('PLAIN')] = Field(default=None, description='How this implementation runs: a WORKFLOW may call other actions and is resumed from its journal when its agent dies.')
+    'How this implementation runs: a WORKFLOW may call other actions and is resumed from its journal when its agent dies.\nDefault: PLAIN'
+    code_hash: str | None = Field(validation_alias=AliasChoices('code_hash', 'codeHash'), serialization_alias='codeHash', default=None, description="A hash of the implementation's code. A workflow is only resumed by an implementation with the same hash.")
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class ImportRepoInput(BaseModel):
@@ -784,7 +784,7 @@ class PortMatchInput(BaseModel):
 
 class ProvidesInput(BaseModel):
     """No documentation"""
-    key: str = Field(description='The key of the provision: the path into the object the constraint reads')
+    key: str = Field(description="The key of the provision: the descriptor name the constraint reads, matched verbatim as one flat key of the candidate object (any non-empty string, e.g. 'axes' or '@mikro/n_space_axes')")
     operator: DescriptorOperator = Field(description='The operator for the provision')
     value: Any | None = Field(default=None, description='The value of the provision. This can be any JSON serializable value; IN/NOT_IN take a list, LTE/GTE a number, EXISTS none')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
@@ -806,7 +806,7 @@ class RequirementInput(BaseModel):
 
 class RequiresInput(BaseModel):
     """No documentation"""
-    key: str = Field(description='The key of the requirement: the path into the object the constraint reads')
+    key: str = Field(description="The key of the requirement: the descriptor name the constraint reads, matched verbatim as one flat key of the candidate object (any non-empty string, e.g. 'axes' or '@mikro/n_space_axes')")
     operator: DescriptorOperator = Field(description='The operator for the requirement')
     value: Any | None = Field(default=None, description='The value of the requirement. This can be any JSON serializable value; IN/NOT_IN take a list, LTE/GTE a number, EXISTS none')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
@@ -833,7 +833,7 @@ class ReturnPortInput(BaseModel):
     label: str | None = Field(default=None, description='The label of the port. This is the text that is displayed in the UI')
     kind: PortKind = Field(description='The kind of the port. This is the type of the port. Can be either int, string, structure, list, bool, dict, float, date, union or model')
     description: str | None = Field(default=None, description='The description of the port. This is the text that is displayed in the UI when the user hovers over the port')
-    identifier: str | None = Field(default=None, description='The identifier of a structure port. This is used to uniquely identify a specific type of structure.')
+    identifier: str | None = Field(default=None, description="The identifier of the port's type, of the form @package/key. Required for STRUCTURE, MEMORY_STRUCTURE and INTERFACE, where it is the only identity a value has; optional for MODEL and ENUM, where it names the class or enum the port was built from so that agents can map a value back to it.")
     nullable: Annotated[bool | None, GraphQLDefault('False')] = Field(default=None, description='Whether the port is nullable or not. If the port is nullable, it can be set to null. If the port is not nullable, it cannot be set to null')
     'Whether the port is nullable or not. If the port is nullable, it can be set to null. If the port is not nullable, it cannot be set to null\nDefault: False'
     effects: tuple[EffectInput, ...] | None = Field(default=None, description='The effects of the port')
@@ -1041,7 +1041,7 @@ Arguments:
         _data['allowInactive'] = allow_inactive
     return ActionDependencyInput.model_validate(_data)
 
-def agent_dependency_input(key: str, optional: bool, auto_resolvable: bool, assign_policy: AssignPolicy, app: str | None | UnsetType=UNSET, version: str | None | UnsetType=UNSET, name: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, action_dependencies: Iterable[ActionDependencyInput] | None | UnsetType=UNSET, state_dependencies: Iterable[StateDependencyInput] | None | UnsetType=UNSET, mutually_exclusive_keys: Iterable[str] | None | UnsetType=UNSET, min_viable_instances: int | None | UnsetType=UNSET, max_viable_instances: int | None | UnsetType=UNSET, prefered_instances: int | None | UnsetType=UNSET) -> AgentDependencyInput:
+def agent_dependency_input(key: str, optional: bool, auto_resolvable: bool, app: str | None | UnsetType=UNSET, version: str | None | UnsetType=UNSET, name: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, action_dependencies: Iterable[ActionDependencyInput] | None | UnsetType=UNSET, state_dependencies: Iterable[StateDependencyInput] | None | UnsetType=UNSET, mutually_exclusive_keys: Iterable[str] | None | UnsetType=UNSET, min_viable_instances: int | None | UnsetType=UNSET, max_viable_instances: int | None | UnsetType=UNSET, prefered_instances: int | None | UnsetType=UNSET) -> AgentDependencyInput:
     """Creates a AgentDependencyInput
 
 Arguments:
@@ -1058,7 +1058,6 @@ Arguments:
     min_viable_instances: The minimum amount of viable instances for the agent. This is used to identify the demand in the system.
     max_viable_instances: The maximum amount of viable instances for the agent. This is used to identify the demand in the system.
     prefered_instances: The prefered amount of instances for the agent. This is used to identify the demand in the system.
-    assign_policy: The policy used to pick which instance of the agent to assign to.
 """
     _data: dict[str, builtins.object] = {}
     _data['key'] = key
@@ -1084,7 +1083,6 @@ Arguments:
         _data['maxViableInstances'] = max_viable_instances
     if prefered_instances is not UNSET:
         _data['preferedInstances'] = prefered_instances
-    _data['assignPolicy'] = assign_policy
     return AgentDependencyInput.model_validate(_data)
 
 def agent_probe_input(dependency: str, operation: str, arguments: Iterable[ActionArgumentInput] | None | UnsetType=UNSET) -> AgentProbeInput:
@@ -1150,7 +1148,7 @@ Arguments:
     label: The label of the port. This is the text that is displayed in the UI
     kind: The kind of the port. This is the type of the port. Can be either int, string, structure, list, bool, dict, float, date, union or model
     description: The description of the port. This is the text that is displayed in the UI when the user hovers over the port
-    identifier: The identifier of a structure port. This is used to uniquely identify a specific type of structure.
+    identifier: The identifier of the port's type, of the form @package/key. Required for STRUCTURE, MEMORY_STRUCTURE and INTERFACE, where it is the only identity a value has; optional for MODEL and ENUM, where it names the class or enum the port was built from so that agents can map a value back to it.
     nullable: Whether the port is nullable or not. If the port is nullable, it can be set to null. If the port is not nullable, it cannot be set to null
     effects: The effects of the port
     choices: The values the port accepts (required for ENUM; optional for INT, FLOAT, STRING). Rendered by CHOICE widgets.
@@ -1479,7 +1477,7 @@ Arguments:
     version: The version of the definition. This is used to differentiate if the underyling algorithm has changed, i.e we would expect different results for the same input
     name: The name of the actions. This is used to uniquely identify the definition
     stateful: Whether the definition is stateful or not. If the definition is stateful, it can be used to create a stateful action. If the definition is not stateful, it cannot be used to create a stateful action
-    pure: Whether the action is pure: same args always produce the same result and no side effects — its results are replayable/cacheable. Implies idempotent. Incompatible with stateful and with a PHYSICAL effect class.
+    pure: Whether the action is pure: same args always produce the same result and no side effects — its results are replayable/cacheable. Implies idempotent. Incompatible with stateful and with IRREVERSIBLE effects.
     idempotent: Whether the action is idempotent: safe to run multiple times with the same args without changing the outcome — on ambiguous executor loss it may be freely re-dispatched.
     allow_probe: Whether the action may be invoked as a probe: zero persistence, redis-held state, no history/replay/recovery. Only actions declaring this are callable via the call mutation.
     catalogs: Names of the UI catalogs that extend the base catalog (`base@1`, always applied) for this definition's effect and validator calls. Unknown names yield an unknown_catalog warning; conflicting operation definitions across catalogs are a registration error.
@@ -1635,7 +1633,7 @@ Arguments:
         _data['releasedAt'] = released_at
     return FlavourOrder.model_validate(_data)
 
-def implementation_input(definition: DefinitionInput, dependencies: Iterable[AgentDependencyInput], needs_token: bool, effect: EffectClass, tracks: Iterable[TrackInput] | None | UnsetType=UNSET, interface: str | None | UnsetType=UNSET, params: Any | None | UnsetType=UNSET, instance_id: str | None | UnsetType=UNSET, locks: Iterable[str] | None | UnsetType=UNSET, optimistics: Iterable[OptimisticInput] | None | UnsetType=UNSET, manipulates: Iterable[str] | None | UnsetType=UNSET, provenance_audience: Iterable[str] | None | UnsetType=UNSET) -> ImplementationInput:
+def implementation_input(definition: DefinitionInput, dependencies: Iterable[AgentDependencyInput], needs_token: bool, effects: Effects, execution: Execution, tracks: Iterable[TrackInput] | None | UnsetType=UNSET, interface: str | None | UnsetType=UNSET, params: Any | None | UnsetType=UNSET, instance_id: str | None | UnsetType=UNSET, locks: Iterable[str] | None | UnsetType=UNSET, optimistics: Iterable[OptimisticInput] | None | UnsetType=UNSET, manipulates: Iterable[str] | None | UnsetType=UNSET, provenance_audience: Iterable[str] | None | UnsetType=UNSET, code_hash: str | None | UnsetType=UNSET) -> ImplementationInput:
     """Creates a ImplementationInput
 
 Arguments:
@@ -1650,7 +1648,9 @@ Arguments:
     manipulates: The states that the implementation manipulates. This is used to identify which states are manipulated by the implementation, and can be use to enhance state safety in the system
     needs_token: Whether Rekuest should mint a signed provenance token when this implementation is assigned. Default true (provenance-by-default); set false for trivial/internal tasks that never produce external provenance.
     provenance_audience: The downstream service(s) the provenance token should be scoped to (the token's `aud`). If omitted, Rekuest derives the audience from the structures the assignment acts on.
-    effect: The effect class of this implementation. NONE work is freely retryable/reclaimable; PHYSICAL work touches the real world and an ambiguous failure is terminal (never retried). Declared by the implementation here — never by the caller.
+    effects: What running this implementation again would do to the world. Informational: shown to whoever decides about a lost task.
+    execution: How this implementation runs: a WORKFLOW may call other actions and is resumed from its journal when its agent dies.
+    code_hash: A hash of the implementation's code. A workflow is only resumed by an implementation with the same hash.
 """
     _data: dict[str, builtins.object] = {}
     _data['definition'] = definition
@@ -1672,7 +1672,10 @@ Arguments:
     _data['needsToken'] = needs_token
     if provenance_audience is not UNSET:
         _data['provenanceAudience'] = provenance_audience
-    _data['effect'] = effect
+    _data['effects'] = effects
+    _data['execution'] = execution
+    if code_hash is not UNSET:
+        _data['codeHash'] = code_hash
     return ImplementationInput.model_validate(_data)
 
 def import_repo_input(reference: str, channels: Iterable[str] | None | UnsetType=UNSET) -> ImportRepoInput:
@@ -1845,7 +1848,7 @@ def provides_input(key: str, operator: DescriptorOperator, value: Any | None | U
     """Creates a ProvidesInput
 
 Arguments:
-    key: The key of the provision: the path into the object the constraint reads
+    key: The key of the provision: the descriptor name the constraint reads, matched verbatim as one flat key of the candidate object (any non-empty string, e.g. 'axes' or '@mikro/n_space_axes')
     operator: The operator for the provision
     value: The value of the provision. This can be any JSON serializable value; IN/NOT_IN take a list, LTE/GTE a number, EXISTS none
 """
@@ -1889,7 +1892,7 @@ def requires_input(key: str, operator: DescriptorOperator, value: Any | None | U
     """Creates a RequiresInput
 
 Arguments:
-    key: The key of the requirement: the path into the object the constraint reads
+    key: The key of the requirement: the descriptor name the constraint reads, matched verbatim as one flat key of the candidate object (any non-empty string, e.g. 'axes' or '@mikro/n_space_axes')
     operator: The operator for the requirement
     value: The value of the requirement. This can be any JSON serializable value; IN/NOT_IN take a list, LTE/GTE a number, EXISTS none
 """
@@ -1934,7 +1937,7 @@ Arguments:
     label: The label of the port. This is the text that is displayed in the UI
     kind: The kind of the port. This is the type of the port. Can be either int, string, structure, list, bool, dict, float, date, union or model
     description: The description of the port. This is the text that is displayed in the UI when the user hovers over the port
-    identifier: The identifier of a structure port. This is used to uniquely identify a specific type of structure.
+    identifier: The identifier of the port's type, of the form @package/key. Required for STRUCTURE, MEMORY_STRUCTURE and INTERFACE, where it is the only identity a value has; optional for MODEL and ENUM, where it names the class or enum the port was built from so that agents can map a value back to it.
     nullable: Whether the port is nullable or not. If the port is nullable, it can be set to null. If the port is not nullable, it cannot be set to null
     effects: The effects of the port
     choices: The values the port accepts (required for ENUM; optional for INT, FLOAT, STRING). Rendered by CHOICE widgets.
@@ -3322,7 +3325,7 @@ class GetPodQuery(BaseModel):
 
 class MyPodAtQuery(BaseModel):
     """No documentation found for this operation."""
-    my_pod_at: Pod = Field(alias='myPodAt')
+    my_pod_at: Pod | None = Field(default=None, alias='myPodAt')
     'Let a backend discover one of its own pods by local identifier.'
 
     class Arguments(BaseModel):
@@ -3356,6 +3359,21 @@ class SearchPodsQuery(BaseModel):
     class Meta:
         """Meta class for SearchPods """
         document = 'query SearchPods($search: String, $values: [ID!], $limit: Int, $offset: Int) {\n  options: pods(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: $limit, offset: $offset}\n  ) {\n    value: id\n    label: name\n    __typename\n  }\n}'
+
+class MyPodsQuery(BaseModel):
+    """No documentation found for this operation."""
+    pods: tuple[Pod, ...]
+    'List all pods visible to the current organization.'
+
+    class Arguments(BaseModel):
+        """Arguments for MyPods """
+        backend: ID
+        limit: int | None = Field(default=None)
+        offset: int | None = Field(default=None)
+
+    class Meta:
+        """Meta class for MyPods """
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n      __typename\n    }\n    scopes\n    __typename\n  }\n  __typename\n}\n\nfragment Pod on Pod {\n  id\n  podId\n  status\n  clientId\n  deployment {\n    id\n    approval {\n      id\n      __typename\n    }\n    flavour {\n      ...Flavour\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n\nquery MyPods($backend: ID!, $limit: Int, $offset: Int) {\n  pods(\n    filters: {backend: $backend}\n    ordering: [{id: ASC}]\n    pagination: {limit: $limit, offset: $offset}\n  ) {\n    ...Pod\n    __typename\n  }\n}'
 
 class ListReleasesQuery(BaseModel):
     """No documentation found for this operation."""
@@ -4726,7 +4744,7 @@ Returns:
         variables['id'] = id
         return self.execute(GetPodQuery, variables).pod
 
-    async def amy_pod_at(self, local_id: IDCoercible) -> Pod:
+    async def amy_pod_at(self, local_id: IDCoercible) -> Pod | None:
         """MyPodAt 
 
 Let a backend discover one of its own pods by local identifier.
@@ -4735,13 +4753,13 @@ Args:
     local_id (ID): No description
 
 Returns:
-    Pod
+    Pod | None
 """
         variables: dict[str, builtins.object] = {}
         variables['localId'] = local_id
         return (await self.aexecute(MyPodAtQuery, variables)).my_pod_at
 
-    def my_pod_at(self, local_id: IDCoercible) -> Pod:
+    def my_pod_at(self, local_id: IDCoercible) -> Pod | None:
         """MyPodAt 
 
 Let a backend discover one of its own pods by local identifier.
@@ -4750,7 +4768,7 @@ Args:
     local_id (ID): No description
 
 Returns:
-    Pod
+    Pod | None
 """
         variables: dict[str, builtins.object] = {}
         variables['localId'] = local_id
@@ -4805,6 +4823,48 @@ Returns:
         if offset is not UNSET:
             variables['offset'] = offset
         return self.execute(SearchPodsQuery, variables).options
+
+    async def amy_pods(self, backend: IDCoercible, limit: int | None | UnsetType=UNSET, offset: int | None | UnsetType=UNSET) -> tuple[Pod, ...]:
+        """MyPods 
+
+List all pods visible to the current organization.
+
+Args:
+    backend (ID): No description
+    limit (int | None, optional): No description. 
+    offset (int | None, optional): No description. 
+
+Returns:
+    list[Pod]
+"""
+        variables: dict[str, builtins.object] = {}
+        variables['backend'] = backend
+        if limit is not UNSET:
+            variables['limit'] = limit
+        if offset is not UNSET:
+            variables['offset'] = offset
+        return (await self.aexecute(MyPodsQuery, variables)).pods
+
+    def my_pods(self, backend: IDCoercible, limit: int | None | UnsetType=UNSET, offset: int | None | UnsetType=UNSET) -> tuple[Pod, ...]:
+        """MyPods 
+
+List all pods visible to the current organization.
+
+Args:
+    backend (ID): No description
+    limit (int | None, optional): No description. 
+    offset (int | None, optional): No description. 
+
+Returns:
+    list[Pod]
+"""
+        variables: dict[str, builtins.object] = {}
+        variables['backend'] = backend
+        if limit is not UNSET:
+            variables['limit'] = limit
+        if offset is not UNSET:
+            variables['offset'] = offset
+        return self.execute(MyPodsQuery, variables).pods
 
     async def alist_releases(self) -> tuple[ListRelease, ...]:
         """ListReleases 

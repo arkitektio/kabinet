@@ -2,46 +2,19 @@
 
 A user approves a release for a deployer, pinned to the release's digest; only
 under an active approval that allows the calling backend may a flavour of that
-release be deployed. The release is registered with ``create_app_image``, as a
-build pushes it, so nothing depends on scanning a repository.
+release be deployed. The ``release`` fixture (conftest) registers it with
+``create_app_image``, as a build pushes it, so nothing depends on scanning a repository.
 """
 
 import uuid
-from datetime import datetime
 
 import pytest
 from rath.operation import GraphQLException
 
-from kabinet.api.schema import (
-    DockerImageInput,
-    InspectionInput,
-    ManifestInput,
-    Release,
-    ReleaseApproval,
-)
+from kabinet.api.schema import Release, ReleaseApproval
 from kabinet.kabinet import Kabinet
 
 AGENT = "live.arkitekt.deployer"
-
-
-@pytest.fixture
-def release(kabinet: Kabinet) -> Release:
-    """A fresh release with one flavour, unique to the test."""
-    identifier = f"com.example.approved-{uuid.uuid4().hex[:8]}"
-    return kabinet.create_app_image(
-        manifest=ManifestInput(identifier=identifier, version="1.0.0", scopes=["read"]),
-        selectors=[],
-        app_image_id=uuid.uuid4().hex,
-        inspection=InspectionInput(
-            size=1,
-            locks=[],
-            implementations=[],
-            states=[],
-            requirements=[],
-        ),
-        image=DockerImageInput(image_string=f"example/{identifier}:1.0.0", build_at=datetime.now()),
-        flavour_name="vanilla",
-    )
 
 
 def _approve(kabinet: Kabinet, release: Release, **extra) -> ReleaseApproval:

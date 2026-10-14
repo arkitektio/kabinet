@@ -25,3 +25,13 @@ query SearchPods($search: String, $values: [ID!], $limit: Int, $offset: Int) {
     label: name
   }
 }
+
+query MyPods($backend: ID!, $limit: Int, $offset: Int) {
+  pods(
+    filters: { backend: $backend }
+    ordering: [{ id: ASC }]
+    pagination: { limit: $limit, offset: $offset }
+  ) {
+    ...Pod
+  }
+}
