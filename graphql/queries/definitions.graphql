@@ -25,3 +25,17 @@ query SearchDefinitions($search: String, $values: [ID!], $limit: Int, $offset: I
     label: name
   }
 }
+
+# What could be installed to do something: definitions by name or meaning,
+# each with the releases whose flavours provide it.
+query SearchInstallable($search: String!, $limit: Int = 10) {
+  definitions(filters: { search: $search }, pagination: { limit: $limit }) {
+    ...InstallableDefinition
+  }
+}
+
+query GetInstallable($id: ID!) {
+  definition(id: $id) {
+    ...InstallableDefinition
+  }
+}

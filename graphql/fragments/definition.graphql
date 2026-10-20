@@ -12,3 +12,22 @@ fragment Definition on Definition {
     ...FlavourBlok
   }
 }
+
+# A definition as someone choosing what to install reads it: what it does, and
+# the releases that provide it.
+fragment InstallableDefinition on Definition {
+  id
+  hash
+  name
+  description
+  flavours {
+    id
+    release {
+      id
+      version
+      app {
+        identifier
+      }
+    }
+  }
+}

@@ -2374,6 +2374,51 @@ class ListDefinition(BaseModel):
         name = 'ListDefinition'
         type = 'Definition'
 
+class InstallableDefinitionFlavoursReleaseApp(BaseModel):
+    """An application, identified by a globally unique, reverse-domain identifier (e.g. live.arkitekt.app)."""
+    typename: Literal['App'] = Field(alias='__typename', default='App', exclude=True)
+    identifier: str
+    'The globally unique, reverse-domain identifier of the app.'
+    model_config = ConfigDict(frozen=True)
+
+class InstallableDefinitionFlavoursRelease(BaseModel):
+    """A specific version of an app, bundling the flavours that can be deployed for it."""
+    typename: Literal['Release'] = Field(alias='__typename', default='Release', exclude=True)
+    id: ID
+    version: str
+    'The semantic version of this release.'
+    app: InstallableDefinitionFlavoursReleaseApp
+    'The app this release belongs to.'
+    model_config = ConfigDict(frozen=True)
+
+class InstallableDefinitionFlavours(BaseModel):
+    """A buildable variant of a release: a specific Docker image together with the selectors and requirements needed to run it."""
+    typename: Literal['Flavour'] = Field(alias='__typename', default='Flavour', exclude=True)
+    id: ID
+    release: InstallableDefinitionFlavoursRelease
+    'The release this flavour belongs to.'
+    model_config = ConfigDict(frozen=True)
+
+class InstallableDefinition(BaseModel):
+    """An action definition: the abstract, hashed description of an RPC task that a flavour provides."""
+    typename: Literal['Definition'] = Field(alias='__typename', default='Definition', exclude=True)
+    id: ID
+    hash: ActionHash
+    'The unique hash identifying this action definition.'
+    name: str
+    'The cleartext name of this action.'
+    description: str | None = Field(default=None)
+    'A human-readable description of this action.'
+    flavours: tuple[InstallableDefinitionFlavours, ...]
+    'The flavours that provide this action.'
+    model_config = ConfigDict(frozen=True)
+
+    class Meta:
+        """Meta class for InstallableDefinition"""
+        document = 'fragment InstallableDefinition on Definition {\n  id\n  hash\n  name\n  description\n  flavours {\n    id\n    release {\n      id\n      version\n      app {\n        identifier\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n  __typename\n}'
+        name = 'InstallableDefinition'
+        type = 'Definition'
+
 class DeploymentApproval(BaseModel):
     """A user's standing approval to run a release, backed by a lok agent mandate that lets a deployer issue mandate keys that run it as them."""
     typename: Literal['ReleaseApproval'] = Field(alias='__typename', default='ReleaseApproval', exclude=True)
@@ -3330,6 +3375,34 @@ class SearchDefinitionsQuery(BaseModel):
     class Meta:
         """Meta class for SearchDefinitions """
         document = 'query SearchDefinitions($search: String, $values: [ID!], $limit: Int, $offset: Int) {\n  options: definitions(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: $limit, offset: $offset}\n  ) {\n    value: id\n    label: name\n    __typename\n  }\n}'
+
+class SearchInstallableQuery(BaseModel):
+    """ What could be installed to do something: definitions by name or meaning,
+ each with the releases whose flavours provide it."""
+    definitions: tuple[InstallableDefinition, ...]
+    'List all action definitions visible to the current organization.'
+
+    class Arguments(BaseModel):
+        """Arguments for SearchInstallable """
+        search: str
+        limit: Annotated[int | None, GraphQLDefault('10')] = Field(default=None)
+
+    class Meta:
+        """Meta class for SearchInstallable """
+        document = 'fragment InstallableDefinition on Definition {\n  id\n  hash\n  name\n  description\n  flavours {\n    id\n    release {\n      id\n      version\n      app {\n        identifier\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n\nquery SearchInstallable($search: String!, $limit: Int = 10) {\n  definitions(filters: {search: $search}, pagination: {limit: $limit}) {\n    ...InstallableDefinition\n    __typename\n  }\n}'
+
+class GetInstallableQuery(BaseModel):
+    """No documentation found for this operation."""
+    definition: InstallableDefinition
+    'Return a single action definition by its ID.'
+
+    class Arguments(BaseModel):
+        """Arguments for GetInstallable """
+        id: ID
+
+    class Meta:
+        """Meta class for GetInstallable """
+        document = 'fragment InstallableDefinition on Definition {\n  id\n  hash\n  name\n  description\n  flavours {\n    id\n    release {\n      id\n      version\n      app {\n        identifier\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n\nquery GetInstallable($id: ID!) {\n  definition(id: $id) {\n    ...InstallableDefinition\n    __typename\n  }\n}'
 
 class GetDeploymentQuery(BaseModel):
     """No documentation found for this operation."""
@@ -4606,6 +4679,72 @@ Returns:
         if offset is not UNSET:
             variables['offset'] = offset
         return self.execute(SearchDefinitionsQuery, variables).options
+
+    async def asearch_installable(self, search: str, limit: int | None | UnsetType=UNSET) -> tuple[InstallableDefinition, ...]:
+        """SearchInstallable 
+ What could be installed to do something: definitions by name or meaning,
+ each with the releases whose flavours provide it.
+
+Args:
+    search (str): No description
+    limit (int | None, optional): No description. Defaults to 10
+
+Returns:
+    list[InstallableDefinition]
+"""
+        variables: dict[str, builtins.object] = {}
+        variables['search'] = search
+        if limit is not UNSET:
+            variables['limit'] = limit
+        return (await self.aexecute(SearchInstallableQuery, variables)).definitions
+
+    def search_installable(self, search: str, limit: int | None | UnsetType=UNSET) -> tuple[InstallableDefinition, ...]:
+        """SearchInstallable 
+ What could be installed to do something: definitions by name or meaning,
+ each with the releases whose flavours provide it.
+
+Args:
+    search (str): No description
+    limit (int | None, optional): No description. Defaults to 10
+
+Returns:
+    list[InstallableDefinition]
+"""
+        variables: dict[str, builtins.object] = {}
+        variables['search'] = search
+        if limit is not UNSET:
+            variables['limit'] = limit
+        return self.execute(SearchInstallableQuery, variables).definitions
+
+    async def aget_installable(self, id: IDCoercible) -> InstallableDefinition:
+        """GetInstallable 
+
+Return a single action definition by its ID.
+
+Args:
+    id (ID): No description
+
+Returns:
+    InstallableDefinition
+"""
+        variables: dict[str, builtins.object] = {}
+        variables['id'] = id
+        return (await self.aexecute(GetInstallableQuery, variables)).definition
+
+    def get_installable(self, id: IDCoercible) -> InstallableDefinition:
+        """GetInstallable 
+
+Return a single action definition by its ID.
+
+Args:
+    id (ID): No description
+
+Returns:
+    InstallableDefinition
+"""
+        variables: dict[str, builtins.object] = {}
+        variables['id'] = id
+        return self.execute(GetInstallableQuery, variables).definition
 
     async def aget_deployment(self, id: IDCoercible) -> Deployment:
         """GetDeployment 
