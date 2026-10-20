@@ -9,6 +9,9 @@ fragment Release on Release {
   scopes
   approvalDigest
   mandateManifest
+  logoBlok {
+    ...FlavourBlok
+  }
   flavours {
     ...ListFlavour
   }

@@ -60,6 +60,21 @@ fragment ListFlavour on Flavour {
   }
 }
 
+fragment FlavourBlok on FlavourBlok {
+  id
+  flavourId
+  key
+  context
+  default
+  description
+  hash
+  componentTree
+  demoState
+  forModel
+  forNode
+  parseError
+}
+
 fragment Flavour on Flavour {
   ...ListFlavour
   release {
@@ -69,5 +84,16 @@ fragment Flavour on Flavour {
       identifier
     }
     scopes
+  }
+}
+
+fragment DetailFlavour on Flavour {
+  ...Flavour
+  assets
+  logoBlok {
+    ...FlavourBlok
+  }
+  blokImplementations {
+    ...FlavourBlok
   }
 }

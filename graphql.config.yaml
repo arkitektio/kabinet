@@ -58,3 +58,4 @@ projects:
           Identifier: kabinet.scalars.Identifier
           SearchQuery: kabinet.scalars.SearchQuery
           UntypedParams: typing.Any
+          JSON: typing.Any

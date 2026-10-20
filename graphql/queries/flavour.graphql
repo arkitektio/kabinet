@@ -6,7 +6,13 @@ query ListFlavours($filters: FlavourFilter, $pagination: OffsetPaginationInput, 
 
 query GetFlavour($id: ID!) {
   flavour(id: $id) {
-    ...Flavour
+    ...DetailFlavour
+  }
+}
+
+query GetFlavourBlok($id: ID!) {
+  flavourBlok(id: $id) {
+    ...FlavourBlok
   }
 }
 

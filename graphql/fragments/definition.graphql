@@ -8,4 +8,7 @@ fragment ListDefinition on Definition {
 fragment Definition on Definition {
   id
   name
+  logo {
+    ...FlavourBlok
+  }
 }

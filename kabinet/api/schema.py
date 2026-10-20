@@ -39,6 +39,12 @@ class ActionKind(str, Enum):
     GENERATOR = 'GENERATOR'
     __str__ = str.__str__
 
+class AssetKind(str, Enum):
+    """What a file an agent brings with it is: a 3D model (a binary glTF file) or an image (PNG, JPEG or WebP)."""
+    MODEL_3D = 'MODEL_3D'
+    IMAGE = 'IMAGE'
+    __str__ = str.__str__
+
 class AssignWidgetKind(str, Enum):
     """The kind of assign widget."""
     SEARCH = 'SEARCH'
@@ -48,6 +54,14 @@ class AssignWidgetKind(str, Enum):
     STRING = 'STRING'
     STATE_CHOICE = 'STATE_CHOICE'
     PROXY = 'PROXY'
+    __str__ = str.__str__
+
+class ComponentContext(str, Enum):
+    """The renderer a catalog component lives in. A component may only be placed where its context is in force."""
+    HTML = 'HTML'
+    SCENE = 'SCENE'
+    LOGO = 'LOGO'
+    ACTION_LOGO = 'ACTION_LOGO'
     __str__ = str.__str__
 
 class DescriptorOperator(str, Enum):
@@ -437,7 +451,7 @@ class AppImageInput(BaseModel):
 class ApproveReleaseInput(BaseModel):
     """Record that you pre-authorized a release (via a lok mandate) so deployers may install it."""
     release: ID = Field(description='The release to approve.')
-    mandate: ID = Field(description='The lok mandate (createMandate) that lets the agent provision this release as you.')
+    mandate: ID = Field(description='The lok agent mandate (createMandate) that lets the deployer issue mandate keys that run this release as you.')
     agent: str = Field(description='Identifier of the deployer app the mandate names.')
     digest: str = Field(description="The release's approvalDigest you reviewed; refused if the release changed since.")
     backends: tuple[ID, ...] | None = Field(default=None, description='Backends allowed to deploy under this approval. Omit for any.')
@@ -486,10 +500,17 @@ class BlokImplementationInput(BaseModel):
     key: str = Field(description='The key of this Blok implementation.')
     dependencies: Annotated[tuple[AgentDependencyInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The dependencies required by this Blok.')
     'The dependencies required by this Blok.\nDefault: []'
-    components: tuple['ComponentNodeInput', ...] = Field(description='The UI component tree blueprint for this Blok.')
+    components: tuple['ComponentNodeInput', ...] | None = Field(default=None, description='The UI component tree blueprint for this Blok, unless it is sent as its `source`.')
+    source: str | None = Field(default=None, description='The Blok as BSX, parsed by the server into its component tree: three times fewer bytes than the tree. Exactly one of `components` and `source` is sent.')
     catalog: str | None = Field(default=None, description="The optional catalog name if this Blok should be registered inside a specific namespace in your Electron app's UI component registry.")
     description: str | None = Field(default=None, description="A human-readable description about this Blok's purpose and functionality.")
     demo_state: JSONSerializable | None = Field(validation_alias=AliasChoices('demo_state', 'demoState'), serialization_alias='demoState', default=None, description="An optional JSON-serializable object providing demo state values for this Blok's internal reactive data model, useful for testing and development purposes.")
+    context: Annotated[ComponentContext | None, GraphQLDefault('HTML')] = Field(default=None, description="The renderer for this Blok's root: HTML for panels and dashboards, SCENE for a full 3D view whose root opens a scene.")
+    "The renderer for this Blok's root: HTML for panels and dashboards, SCENE for a full 3D view whose root opens a scene.\nDefault: HTML"
+    default: Annotated[bool | None, GraphQLDefault('False')] = Field(default=None, description="Whether this Blok is its agent's default for its context. A newly declared default replaces the previous one.")
+    "Whether this Blok is its agent's default for its context. A newly declared default replaces the previous one.\nDefault: False"
+    for_model: str | None = Field(validation_alias=AliasChoices('for_model', 'forModel'), serialization_alias='forModel', default=None, description="The model ('sha256:...') this Blok decorates: viewers showing that model offer this Blok at `for_node`. HTML bloks only.")
+    for_node: str | None = Field(validation_alias=AliasChoices('for_node', 'forNode'), serialization_alias='forNode', default=None, description="The node of `for_model` this Blok attaches to; the model's root when absent.")
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class ChoiceInput(BaseModel):
@@ -668,6 +689,7 @@ class FlavourFilter(BaseModel):
     ids: tuple[ID, ...] | None = Field(default=None, description='Keep only flavours whose ID is in this list.')
     search: str | None = Field(default=None, description="Search by name: a case-insensitive substring, or semantic similarity of the query to the flavour's name and the app it was built from. Substring matches rank first, then by similarity; an explicit `ordering` replaces that ranking.")
     has_definitions: tuple[ID, ...] | None = Field(validation_alias=AliasChoices('has_definitions', 'hasDefinitions'), serialization_alias='hasDefinitions', default=None, description='Keep only flavours that provide one of the given definitions.')
+    requires: tuple['RequiresInput', ...] | None = Field(default=None, description='Filter to the objects satisfying every one of these descriptor constraints: the `requires` of a port (`RequiresInput`), handed on unchanged, so a picker offers what the port accepts. Answered from the stored descriptors, in one indexed query')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class FlavourOrderReleasedAt(BaseModel):
@@ -696,12 +718,23 @@ class ImplementationInput(BaseModel):
     execution: Annotated[Execution | None, GraphQLDefault('PLAIN')] = Field(default=None, description='How this implementation runs: a WORKFLOW may call other actions and is resumed from its journal when its agent dies.')
     'How this implementation runs: a WORKFLOW may call other actions and is resumed from its journal when its agent dies.\nDefault: PLAIN'
     code_hash: str | None = Field(validation_alias=AliasChoices('code_hash', 'codeHash'), serialization_alias='codeHash', default=None, description="A hash of the implementation's code. A workflow is only resumed by an implementation with the same hash.")
+    logo: str | None = Field(default=None, description="The key of the agent's action logo blok (context ACTION_LOGO) that draws this action.")
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class ImportRepoInput(BaseModel):
     """Input for importing an OCI repository, or reading an imported one again."""
     reference: str = Field(description="The repository, e.g. 'ghcr.io/org/app'. No tag, no digest.")
     channels: tuple[str, ...] | None = Field(default=None, description="The channels to follow besides the releases, e.g. ['main']. Omit to keep what is followed.")
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
+class InspectedAssetInput(BaseModel):
+    """A file the app brings, as its image holds it."""
+    name: str = Field(description='The name bloks refer to the asset by, as in `@self.assets.<name>`. Unique within the agent.')
+    kind: AssetKind = Field(description='What the file is.')
+    ref: str = Field(description="'sha256:' and the hex SHA-256 of the file's exact bytes.")
+    size: int | None = Field(default=None, description='The size of the file in bytes. Required unless the asset names a `source`: an agent knows the size of a file it holds.')
+    source: str | None = Field(default=None, description="The https URL the file can be fetched from. Given instead of holding the file: the agent uploads nothing, an admin's client fetches it.")
+    path: str | None = Field(default=None, description="Where the file is, relative to the app's directory. Absent for a file the image does not hold: that one names a `source`.")
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class InspectionInput(BaseModel):
@@ -712,6 +745,8 @@ class InspectionInput(BaseModel):
     states: tuple['StateImplementationInput', ...]
     bloks: Annotated[tuple[BlokImplementationInput, ...] | None, GraphQLDefault('[]')] = None
     'Default: []'
+    assets: Annotated[tuple[InspectedAssetInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The files the app brings: models and images its bloks call by name.')
+    'The files the app brings: models and images its bloks call by name.\nDefault: []'
     requirements: tuple['RequirementInput', ...]
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
@@ -1126,7 +1161,7 @@ def approve_release_input(release: IDCoercible, mandate: IDCoercible, agent: str
 
 Arguments:
     release: The release to approve.
-    mandate: The lok mandate (createMandate) that lets the agent provision this release as you.
+    mandate: The lok agent mandate (createMandate) that lets the deployer issue mandate keys that run this release as you.
     agent: Identifier of the deployer app the mandate names.
     digest: The release's approvalDigest you reviewed; refused if the release changed since.
     backends: Backends allowed to deploy under this approval. Omit for any.
@@ -1289,27 +1324,41 @@ Arguments:
         _data['search'] = search
     return BackendFilter.model_validate(_data)
 
-def blok_implementation_input(key: str, dependencies: Iterable[AgentDependencyInput], components: Iterable[ComponentNodeInput], catalog: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, demo_state: JSONSerializable | None | UnsetType=UNSET) -> BlokImplementationInput:
+def blok_implementation_input(key: str, dependencies: Iterable[AgentDependencyInput], context: ComponentContext, default: bool, components: Iterable[ComponentNodeInput] | None | UnsetType=UNSET, source: str | None | UnsetType=UNSET, catalog: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, demo_state: JSONSerializable | None | UnsetType=UNSET, for_model: str | None | UnsetType=UNSET, for_node: str | None | UnsetType=UNSET) -> BlokImplementationInput:
     """Creates a BlokImplementationInput
 
 Arguments:
     key: The key of this Blok implementation.
     dependencies: The dependencies required by this Blok.
-    components: The UI component tree blueprint for this Blok.
+    components: The UI component tree blueprint for this Blok, unless it is sent as its `source`.
+    source: The Blok as BSX, parsed by the server into its component tree: three times fewer bytes than the tree. Exactly one of `components` and `source` is sent.
     catalog: The optional catalog name if this Blok should be registered inside a specific namespace in your Electron app's UI component registry.
     description: A human-readable description about this Blok's purpose and functionality.
     demo_state: An optional JSON-serializable object providing demo state values for this Blok's internal reactive data model, useful for testing and development purposes.
+    context: The renderer for this Blok's root: HTML for panels and dashboards, SCENE for a full 3D view whose root opens a scene.
+    default: Whether this Blok is its agent's default for its context. A newly declared default replaces the previous one.
+    for_model: The model ('sha256:...') this Blok decorates: viewers showing that model offer this Blok at `for_node`. HTML bloks only.
+    for_node: The node of `for_model` this Blok attaches to; the model's root when absent.
 """
     _data: dict[str, builtins.object] = {}
     _data['key'] = key
     _data['dependencies'] = dependencies
-    _data['components'] = components
+    if components is not UNSET:
+        _data['components'] = components
+    if source is not UNSET:
+        _data['source'] = source
     if catalog is not UNSET:
         _data['catalog'] = catalog
     if description is not UNSET:
         _data['description'] = description
     if demo_state is not UNSET:
         _data['demoState'] = demo_state
+    _data['context'] = context
+    _data['default'] = default
+    if for_model is not UNSET:
+        _data['forModel'] = for_model
+    if for_node is not UNSET:
+        _data['forNode'] = for_node
     return BlokImplementationInput.model_validate(_data)
 
 def choice_input(value: Any, label: str, image: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET) -> ChoiceInput:
@@ -1593,7 +1642,7 @@ Arguments:
         _data['source'] = source
     return EffectInput.model_validate(_data)
 
-def flavour_filter(and_: FlavourFilter | None | UnsetType=UNSET, or_: FlavourFilter | None | UnsetType=UNSET, not_: FlavourFilter | None | UnsetType=UNSET, distinct: bool | None | UnsetType=UNSET, ids: Iterable[IDCoercible] | None | UnsetType=UNSET, search: str | None | UnsetType=UNSET, has_definitions: Iterable[IDCoercible] | None | UnsetType=UNSET) -> FlavourFilter:
+def flavour_filter(and_: FlavourFilter | None | UnsetType=UNSET, or_: FlavourFilter | None | UnsetType=UNSET, not_: FlavourFilter | None | UnsetType=UNSET, distinct: bool | None | UnsetType=UNSET, ids: Iterable[IDCoercible] | None | UnsetType=UNSET, search: str | None | UnsetType=UNSET, has_definitions: Iterable[IDCoercible] | None | UnsetType=UNSET, requires: Iterable[RequiresInput] | None | UnsetType=UNSET) -> FlavourFilter:
     """Creates a FlavourFilter
 
 Arguments:
@@ -1604,6 +1653,7 @@ Arguments:
     ids: Keep only flavours whose ID is in this list.
     search: Search by name: a case-insensitive substring, or semantic similarity of the query to the flavour's name and the app it was built from. Substring matches rank first, then by similarity; an explicit `ordering` replaces that ranking.
     has_definitions: Keep only flavours that provide one of the given definitions.
+    requires: Filter to the objects satisfying every one of these descriptor constraints: the `requires` of a port (`RequiresInput`), handed on unchanged, so a picker offers what the port accepts. Answered from the stored descriptors, in one indexed query
 """
     _data: dict[str, builtins.object] = {}
     if and_ is not UNSET:
@@ -1620,6 +1670,8 @@ Arguments:
         _data['search'] = search
     if has_definitions is not UNSET:
         _data['hasDefinitions'] = has_definitions
+    if requires is not UNSET:
+        _data['requires'] = requires
     return FlavourFilter.model_validate(_data)
 
 def flavour_order(released_at: Ordering | None | UnsetType=UNSET) -> FlavourOrder:
@@ -1633,7 +1685,7 @@ Arguments:
         _data['releasedAt'] = released_at
     return FlavourOrder.model_validate(_data)
 
-def implementation_input(definition: DefinitionInput, dependencies: Iterable[AgentDependencyInput], needs_token: bool, effects: Effects, execution: Execution, tracks: Iterable[TrackInput] | None | UnsetType=UNSET, interface: str | None | UnsetType=UNSET, params: Any | None | UnsetType=UNSET, instance_id: str | None | UnsetType=UNSET, locks: Iterable[str] | None | UnsetType=UNSET, optimistics: Iterable[OptimisticInput] | None | UnsetType=UNSET, manipulates: Iterable[str] | None | UnsetType=UNSET, provenance_audience: Iterable[str] | None | UnsetType=UNSET, code_hash: str | None | UnsetType=UNSET) -> ImplementationInput:
+def implementation_input(definition: DefinitionInput, dependencies: Iterable[AgentDependencyInput], needs_token: bool, effects: Effects, execution: Execution, tracks: Iterable[TrackInput] | None | UnsetType=UNSET, interface: str | None | UnsetType=UNSET, params: Any | None | UnsetType=UNSET, instance_id: str | None | UnsetType=UNSET, locks: Iterable[str] | None | UnsetType=UNSET, optimistics: Iterable[OptimisticInput] | None | UnsetType=UNSET, manipulates: Iterable[str] | None | UnsetType=UNSET, provenance_audience: Iterable[str] | None | UnsetType=UNSET, code_hash: str | None | UnsetType=UNSET, logo: str | None | UnsetType=UNSET) -> ImplementationInput:
     """Creates a ImplementationInput
 
 Arguments:
@@ -1651,6 +1703,7 @@ Arguments:
     effects: What running this implementation again would do to the world. Informational: shown to whoever decides about a lost task.
     execution: How this implementation runs: a WORKFLOW may call other actions and is resumed from its journal when its agent dies.
     code_hash: A hash of the implementation's code. A workflow is only resumed by an implementation with the same hash.
+    logo: The key of the agent's action logo blok (context ACTION_LOGO) that draws this action.
 """
     _data: dict[str, builtins.object] = {}
     _data['definition'] = definition
@@ -1676,6 +1729,8 @@ Arguments:
     _data['execution'] = execution
     if code_hash is not UNSET:
         _data['codeHash'] = code_hash
+    if logo is not UNSET:
+        _data['logo'] = logo
     return ImplementationInput.model_validate(_data)
 
 def import_repo_input(reference: str, channels: Iterable[str] | None | UnsetType=UNSET) -> ImportRepoInput:
@@ -1691,7 +1746,30 @@ Arguments:
         _data['channels'] = channels
     return ImportRepoInput.model_validate(_data)
 
-def inspection_input(locks: Iterable[LockImplementationInput], implementations: Iterable[ImplementationInput], states: Iterable[StateImplementationInput], bloks: Iterable[BlokImplementationInput], requirements: Iterable[RequirementInput], size: int | None | UnsetType=UNSET) -> InspectionInput:
+def inspected_asset_input(name: str, kind: AssetKind, ref: str, size: int | None | UnsetType=UNSET, source: str | None | UnsetType=UNSET, path: str | None | UnsetType=UNSET) -> InspectedAssetInput:
+    """Creates a InspectedAssetInput
+
+Arguments:
+    name: The name bloks refer to the asset by, as in `@self.assets.<name>`. Unique within the agent.
+    kind: What the file is.
+    ref: 'sha256:' and the hex SHA-256 of the file's exact bytes.
+    size: The size of the file in bytes. Required unless the asset names a `source`: an agent knows the size of a file it holds.
+    source: The https URL the file can be fetched from. Given instead of holding the file: the agent uploads nothing, an admin's client fetches it.
+    path: Where the file is, relative to the app's directory. Absent for a file the image does not hold: that one names a `source`.
+"""
+    _data: dict[str, builtins.object] = {}
+    _data['name'] = name
+    _data['kind'] = kind
+    _data['ref'] = ref
+    if size is not UNSET:
+        _data['size'] = size
+    if source is not UNSET:
+        _data['source'] = source
+    if path is not UNSET:
+        _data['path'] = path
+    return InspectedAssetInput.model_validate(_data)
+
+def inspection_input(locks: Iterable[LockImplementationInput], implementations: Iterable[ImplementationInput], states: Iterable[StateImplementationInput], bloks: Iterable[BlokImplementationInput], assets: Iterable[InspectedAssetInput], requirements: Iterable[RequirementInput], size: int | None | UnsetType=UNSET) -> InspectionInput:
     """Creates a InspectionInput
 
 Arguments:
@@ -1700,6 +1778,7 @@ Arguments:
     implementations: A implementation is a blueprint for a action. It is composed of a definition, a list of dependencies, and a list of params. (required) (list) (required)
     states: A state implementation is a blueprint for a state. It is composed of a definition, a list of dependencies, and a list of params. (required) (list) (required)
     bloks: Which locks does the agent provide in general (required) (list) (required)
+    assets: The files the app brings: models and images its bloks call by name.
     requirements:  (required) (list) (required)
 """
     _data: dict[str, builtins.object] = {}
@@ -1709,6 +1788,7 @@ Arguments:
     _data['implementations'] = implementations
     _data['states'] = states
     _data['bloks'] = bloks
+    _data['assets'] = assets
     _data['requirements'] = requirements
     return InspectionInput.model_validate(_data)
 
@@ -2294,22 +2374,8 @@ class ListDefinition(BaseModel):
         name = 'ListDefinition'
         type = 'Definition'
 
-class Definition(BaseModel):
-    """An action definition: the abstract, hashed description of an RPC task that a flavour provides."""
-    typename: Literal['Definition'] = Field(alias='__typename', default='Definition', exclude=True)
-    id: ID
-    name: str
-    'The cleartext name of this action.'
-    model_config = ConfigDict(frozen=True)
-
-    class Meta:
-        """Meta class for Definition"""
-        document = 'fragment Definition on Definition {\n  id\n  name\n  __typename\n}'
-        name = 'Definition'
-        type = 'Definition'
-
 class DeploymentApproval(BaseModel):
-    """A user's standing approval to run a release, backed by a lok mandate that lets a deployer provision it as them."""
+    """A user's standing approval to run a release, backed by a lok agent mandate that lets a deployer issue mandate keys that run it as them."""
     typename: Literal['ReleaseApproval'] = Field(alias='__typename', default='ReleaseApproval', exclude=True)
     id: ID
     model_config = ConfigDict(frozen=True)
@@ -2437,6 +2503,41 @@ class LabelSelector(BaseModel):
         document = 'fragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}'
         name = 'LabelSelector'
         type = 'LabelSelector'
+
+class FlavourBlok(BaseModel):
+    """A blok a flavour's app brings: its LOGO, an action's ACTION_LOGO, a panel (HTML) or a scene (SCENE). Its source is parsed into `componentTree` when the flavour is imported; nothing of it runs here."""
+    typename: Literal['FlavourBlok'] = Field(alias='__typename', default='FlavourBlok', exclude=True)
+    id: ID
+    '`<flavour id>:<key>`: what `flavourBlok` finds it by.'
+    flavour_id: ID = Field(alias='flavourId')
+    'The flavour whose app brings this blok.'
+    key: str
+    'The key the app declared this blok under, unique within it.'
+    context: ComponentContext
+    'The renderer its root lives in.'
+    default: bool
+    "Whether it is its app's default for its context (the app's logo is its default LOGO)."
+    description: str | None = Field(default=None)
+    'What the app says the blok shows.'
+    hash: str
+    'A SHA-256 of what the blok draws: its component tree, demo state and context. Two bloks with the same hash draw the same thing, so a client may keep what it drew under it.'
+    component_tree: Any | None = Field(default=None, alias='componentTree')
+    'The whole component tree as one JSON value (a list of roots) in the wire spelling (snake_case keys), as rekuest serves `Blok.componentTree`. Null when the source does not parse.'
+    demo_state: Any | None = Field(default=None, alias='demoState')
+    'The state the blok is drawn against when it is shown on its own.'
+    for_model: str | None = Field(default=None, alias='forModel')
+    "The model ('sha256:...') this blok decorates, if any."
+    for_node: str | None = Field(default=None, alias='forNode')
+    "The node of `forModel` it attaches to; the model's root when null."
+    parse_error: str | None = Field(default=None, alias='parseError')
+    "Why the blok's source does not parse, or null."
+    model_config = ConfigDict(frozen=True)
+
+    class Meta:
+        """Meta class for FlavourBlok"""
+        document = 'fragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}'
+        name = 'FlavourBlok'
+        type = 'FlavourBlok'
 
 class ListPod(BaseModel):
     """A running instance of a deployment on a backend."""
@@ -2683,6 +2784,22 @@ class ListFlavour(BaseModel):
         name = 'ListFlavour'
         type = 'Flavour'
 
+class Definition(BaseModel):
+    """An action definition: the abstract, hashed description of an RPC task that a flavour provides."""
+    typename: Literal['Definition'] = Field(alias='__typename', default='Definition', exclude=True)
+    id: ID
+    name: str
+    'The cleartext name of this action.'
+    logo: FlavourBlok | None = Field(default=None)
+    "The ACTION_LOGO blok that draws this action: the one `flavour`'s implementation names, or without `flavour` the one of the newest flavour providing it that names one. Null when none does."
+    model_config = ConfigDict(frozen=True)
+
+    class Meta:
+        """Meta class for Definition"""
+        document = 'fragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment Definition on Definition {\n  id\n  name\n  logo {\n    ...FlavourBlok\n    __typename\n  }\n  __typename\n}'
+        name = 'Definition'
+        type = 'Definition'
+
 class FlavourReleaseApp(BaseModel):
     """An application, identified by a globally unique, reverse-domain identifier (e.g. live.arkitekt.app)."""
     typename: Literal['App'] = Field(alias='__typename', default='App', exclude=True)
@@ -2740,13 +2857,15 @@ class Release(BaseModel):
     'The digest an approval of this release is pinned to (identity, scopes, requirements, images). Changes whenever the release is re-published differently.'
     mandate_manifest: Any = Field(alias='mandateManifest')
     'The subject manifest to pre-authorize in lok (createMandate): identifier, version, scopes and the union of flavour requirements.'
+    logo_blok: FlavourBlok | None = Field(default=None, alias='logoBlok')
+    "The release's logo: the LOGO blok of the first of its flavours that brings one."
     flavours: tuple[ListFlavour, ...]
     'The flavours (buildable variants) available for this release.'
     model_config = ConfigDict(frozen=True)
 
     class Meta:
         """Meta class for Release"""
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}'
         name = 'Release'
         type = 'Release'
 
@@ -2781,8 +2900,25 @@ class ListRelease(BaseModel):
         name = 'ListRelease'
         type = 'Release'
 
+class DetailFlavour(Flavour, BaseModel):
+    """A buildable variant of a release: a specific Docker image together with the selectors and requirements needed to run it."""
+    typename: Literal['Flavour'] = Field(alias='__typename', default='Flavour', exclude=True)
+    assets: Any
+    "The files this flavour's app brings, as its inspection declared them (name, kind, ref, size, and the path in the image or an https source)."
+    logo_blok: FlavourBlok | None = Field(default=None, alias='logoBlok')
+    "This flavour's app logo: its default LOGO blok, or its first."
+    blok_implementations: tuple[FlavourBlok, ...] = Field(alias='blokImplementations')
+    "The bloks this flavour's app brings, parsed and ready to draw, in the order it declared them; of one context only when `context` is given."
+    model_config = ConfigDict(frozen=True)
+
+    class Meta:
+        """Meta class for DetailFlavour"""
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n      __typename\n    }\n    scopes\n    __typename\n  }\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment DetailFlavour on Flavour {\n  ...Flavour\n  assets\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  blokImplementations {\n    ...FlavourBlok\n    __typename\n  }\n  __typename\n}'
+        name = 'DetailFlavour'
+        type = 'Flavour'
+
 class PodDeploymentApproval(BaseModel):
-    """A user's standing approval to run a release, backed by a lok mandate that lets a deployer provision it as them."""
+    """A user's standing approval to run a release, backed by a lok agent mandate that lets a deployer issue mandate keys that run it as them."""
     typename: Literal['ReleaseApproval'] = Field(alias='__typename', default='ReleaseApproval', exclude=True)
     id: ID
     model_config = ConfigDict(frozen=True)
@@ -2831,7 +2967,7 @@ class ReleaseApprovalBackends(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 class ReleaseApproval(BaseModel):
-    """A user's standing approval to run a release, backed by a lok mandate that lets a deployer provision it as them."""
+    """A user's standing approval to run a release, backed by a lok agent mandate that lets a deployer issue mandate keys that run it as them."""
     typename: Literal['ReleaseApproval'] = Field(alias='__typename', default='ReleaseApproval', exclude=True)
     id: ID
     mandate_id: ID = Field(alias='mandateId')
@@ -2856,7 +2992,7 @@ class ReleaseApproval(BaseModel):
 
     class Meta:
         """Meta class for ReleaseApproval"""
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}'
         name = 'ReleaseApproval'
         type = 'ReleaseApproval'
 
@@ -2871,7 +3007,7 @@ class ApproveReleaseMutation(BaseModel):
 
     class Meta:
         """Meta class for ApproveRelease """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nmutation ApproveRelease($input: ApproveReleaseInput!) {\n  approveRelease(input: $input) {\n    ...ReleaseApproval\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nmutation ApproveRelease($input: ApproveReleaseInput!) {\n  approveRelease(input: $input) {\n    ...ReleaseApproval\n    __typename\n  }\n}'
 
 class RevokeApprovalMutation(BaseModel):
     """No documentation found for this operation."""
@@ -2884,7 +3020,7 @@ class RevokeApprovalMutation(BaseModel):
 
     class Meta:
         """Meta class for RevokeApproval """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nmutation RevokeApproval($id: ID!) {\n  revokeApproval(input: {id: $id}) {\n    ...ReleaseApproval\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nmutation RevokeApproval($id: ID!) {\n  revokeApproval(input: {id: $id}) {\n    ...ReleaseApproval\n    __typename\n  }\n}'
 
 class DeclareBackendMutation(BaseModel):
     """No documentation found for this operation."""
@@ -2923,7 +3059,7 @@ class CreateAppImageMutation(BaseModel):
 
     class Meta:
         """Meta class for CreateAppImage """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n    __typename\n  }\n}'
 
 class CreatePodMutation(BaseModel):
     """No documentation found for this operation."""
@@ -3042,7 +3178,7 @@ class GetReleaseApprovalQuery(BaseModel):
 
     class Meta:
         """Meta class for GetReleaseApproval """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nquery GetReleaseApproval($id: ID!) {\n  releaseApproval(id: $id) {\n    ...ReleaseApproval\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nquery GetReleaseApproval($id: ID!) {\n  releaseApproval(id: $id) {\n    ...ReleaseApproval\n    __typename\n  }\n}'
 
 class ListReleaseApprovalsQuery(BaseModel):
     """No documentation found for this operation."""
@@ -3055,10 +3191,10 @@ class ListReleaseApprovalsQuery(BaseModel):
 
     class Meta:
         """Meta class for ListReleaseApprovals """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nquery ListReleaseApprovals {\n  releaseApprovals {\n    ...ReleaseApproval\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nquery ListReleaseApprovals {\n  releaseApprovals {\n    ...ReleaseApproval\n    __typename\n  }\n}'
 
 class SearchReleaseApprovalsQueryOptions(BaseModel):
-    """A user's standing approval to run a release, backed by a lok mandate that lets a deployer provision it as them."""
+    """A user's standing approval to run a release, backed by a lok agent mandate that lets a deployer issue mandate keys that run it as them."""
     typename: Literal['ReleaseApproval'] = Field(alias='__typename', default='ReleaseApproval', exclude=True)
     value: ID
     label: str
@@ -3156,7 +3292,7 @@ class GetDefinitionByHashQuery(BaseModel):
 
     class Meta:
         """Meta class for GetDefinitionByHash """
-        document = 'fragment Definition on Definition {\n  id\n  name\n  __typename\n}\n\nquery GetDefinitionByHash($hash: ActionHash) {\n  definition(hash: $hash) {\n    ...Definition\n    __typename\n  }\n}'
+        document = 'fragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment Definition on Definition {\n  id\n  name\n  logo {\n    ...FlavourBlok\n    __typename\n  }\n  __typename\n}\n\nquery GetDefinitionByHash($hash: ActionHash) {\n  definition(hash: $hash) {\n    ...Definition\n    __typename\n  }\n}'
 
 class GetDefinitionQuery(BaseModel):
     """No documentation found for this operation."""
@@ -3169,7 +3305,7 @@ class GetDefinitionQuery(BaseModel):
 
     class Meta:
         """Meta class for GetDefinition """
-        document = 'fragment Definition on Definition {\n  id\n  name\n  __typename\n}\n\nquery GetDefinition($id: ID!) {\n  definition(id: $id) {\n    ...Definition\n    __typename\n  }\n}'
+        document = 'fragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment Definition on Definition {\n  id\n  name\n  logo {\n    ...FlavourBlok\n    __typename\n  }\n  __typename\n}\n\nquery GetDefinition($id: ID!) {\n  definition(id: $id) {\n    ...Definition\n    __typename\n  }\n}'
 
 class SearchDefinitionsQueryOptions(BaseModel):
     """An action definition: the abstract, hashed description of an RPC task that a flavour provides."""
@@ -3262,7 +3398,7 @@ class ListFlavoursQuery(BaseModel):
 
 class GetFlavourQuery(BaseModel):
     """No documentation found for this operation."""
-    flavour: Flavour
+    flavour: DetailFlavour
     'Return a single flavour (a buildable variant of a release) by its ID.'
 
     class Arguments(BaseModel):
@@ -3271,7 +3407,20 @@ class GetFlavourQuery(BaseModel):
 
     class Meta:
         """Meta class for GetFlavour """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n      __typename\n    }\n    scopes\n    __typename\n  }\n  __typename\n}\n\nquery GetFlavour($id: ID!) {\n  flavour(id: $id) {\n    ...Flavour\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n      __typename\n    }\n    scopes\n    __typename\n  }\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment DetailFlavour on Flavour {\n  ...Flavour\n  assets\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  blokImplementations {\n    ...FlavourBlok\n    __typename\n  }\n  __typename\n}\n\nquery GetFlavour($id: ID!) {\n  flavour(id: $id) {\n    ...DetailFlavour\n    __typename\n  }\n}'
+
+class GetFlavourBlokQuery(BaseModel):
+    """No documentation found for this operation."""
+    flavour_blok: FlavourBlok | None = Field(default=None, alias='flavourBlok')
+    "Return a single blok a flavour's app brings by its ID (`<flavour id>:<key>`), or null when there is none."
+
+    class Arguments(BaseModel):
+        """Arguments for GetFlavourBlok """
+        id: ID
+
+    class Meta:
+        """Meta class for GetFlavourBlok """
+        document = 'fragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nquery GetFlavourBlok($id: ID!) {\n  flavourBlok(id: $id) {\n    ...FlavourBlok\n    __typename\n  }\n}'
 
 class SearchFlavoursQueryOptions(BaseModel):
     """A buildable variant of a release: a specific Docker image together with the selectors and requirements needed to run it."""
@@ -3399,7 +3548,7 @@ class GetReleaseQuery(BaseModel):
 
     class Meta:
         """Meta class for GetRelease """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n    __typename\n  }\n}'
 
 class SearchReleasesQueryOptions(BaseModel):
     """A specific version of an app, bundling the flavours that can be deployed for it."""
@@ -3549,7 +3698,7 @@ Record a standing approval of a release (backed by a lok mandate) so deployers m
 
 Args:
     release: The release to approve.
-    mandate: The lok mandate (createMandate) that lets the agent provision this release as you.
+    mandate: The lok agent mandate (createMandate) that lets the deployer issue mandate keys that run this release as you.
     agent: Identifier of the deployer app the mandate names.
     digest: The release's approvalDigest you reviewed; refused if the release changed since.
     backends: Backends allowed to deploy under this approval. Omit for any.
@@ -3575,7 +3724,7 @@ Record a standing approval of a release (backed by a lok mandate) so deployers m
 
 Args:
     release: The release to approve.
-    mandate: The lok mandate (createMandate) that lets the agent provision this release as you.
+    mandate: The lok agent mandate (createMandate) that lets the deployer issue mandate keys that run this release as you.
     agent: Identifier of the deployer app the mandate names.
     digest: The release's approvalDigest you reviewed; refused if the release changed since.
     backends: Backends allowed to deploy under this approval. Omit for any.
@@ -4608,7 +4757,7 @@ Returns:
             variables['ordering'] = ordering
         return self.execute(ListFlavoursQuery, variables).flavours
 
-    async def aget_flavour(self, id: IDCoercible) -> Flavour:
+    async def aget_flavour(self, id: IDCoercible) -> DetailFlavour:
         """GetFlavour 
 
 Return a single flavour (a buildable variant of a release) by its ID.
@@ -4617,13 +4766,13 @@ Args:
     id (ID): No description
 
 Returns:
-    Flavour
+    DetailFlavour
 """
         variables: dict[str, builtins.object] = {}
         variables['id'] = id
         return (await self.aexecute(GetFlavourQuery, variables)).flavour
 
-    def get_flavour(self, id: IDCoercible) -> Flavour:
+    def get_flavour(self, id: IDCoercible) -> DetailFlavour:
         """GetFlavour 
 
 Return a single flavour (a buildable variant of a release) by its ID.
@@ -4632,11 +4781,41 @@ Args:
     id (ID): No description
 
 Returns:
-    Flavour
+    DetailFlavour
 """
         variables: dict[str, builtins.object] = {}
         variables['id'] = id
         return self.execute(GetFlavourQuery, variables).flavour
+
+    async def aget_flavour_blok(self, id: IDCoercible) -> FlavourBlok | None:
+        """GetFlavourBlok 
+
+Return a single blok a flavour's app brings by its ID (`<flavour id>:<key>`), or null when there is none.
+
+Args:
+    id (ID): No description
+
+Returns:
+    FlavourBlok | None
+"""
+        variables: dict[str, builtins.object] = {}
+        variables['id'] = id
+        return (await self.aexecute(GetFlavourBlokQuery, variables)).flavour_blok
+
+    def get_flavour_blok(self, id: IDCoercible) -> FlavourBlok | None:
+        """GetFlavourBlok 
+
+Return a single blok a flavour's app brings by its ID (`<flavour id>:<key>`), or null when there is none.
+
+Args:
+    id (ID): No description
+
+Returns:
+    FlavourBlok | None
+"""
+        variables: dict[str, builtins.object] = {}
+        variables['id'] = id
+        return self.execute(GetFlavourBlokQuery, variables).flavour_blok
 
     async def asearch_flavours(self, search: str | None | UnsetType=UNSET, values: list[IDCoercible] | None | UnsetType=UNSET, limit: int | None | UnsetType=UNSET, offset: int | None | UnsetType=UNSET) -> tuple[SearchFlavoursQueryOptions, ...]:
         """SearchFlavours 

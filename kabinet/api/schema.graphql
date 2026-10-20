@@ -275,6 +275,9 @@ type App {
   This app's stored vector, as `<model id>:<floats>`. Null until it has been indexed.
   """
   embedding: Embedding
+
+  """The app's logo: the LOGO blok of its newest release that brings one."""
+  logoBlok: FlavourBlok
 }
 
 """Filter for apps."""
@@ -318,7 +321,7 @@ input ApproveReleaseInput {
   release: ID!
 
   """
-  The lok mandate (createMandate) that lets the agent provision this release as you.
+  The lok agent mandate (createMandate) that lets the deployer issue mandate keys that run this release as you.
   """
   mandate: ID!
 
@@ -425,6 +428,14 @@ input ArgPortInput {
   The descriptors for the port. Descriptors are key-value pairs that can be used to add additional metadata to a port. When using rekuest's action search, you can filter actions based on their port descriptors
   """
   requires: [RequiresInput!] = null
+}
+
+"""
+What a file an agent brings with it is: a 3D model (a binary glTF file) or an image (PNG, JPEG or WebP).
+"""
+enum AssetKind {
+  MODEL_3D
+  IMAGE
 }
 
 interface AssignWidget {
@@ -600,8 +611,15 @@ input BlokImplementationInput {
   """The dependencies required by this Blok."""
   dependencies: [AgentDependencyInput!]! = []
 
-  """The UI component tree blueprint for this Blok."""
-  components: [ComponentNodeInput!]!
+  """
+  The UI component tree blueprint for this Blok, unless it is sent as its `source`.
+  """
+  components: [ComponentNodeInput!] = null
+
+  """
+  The Blok as BSX, parsed by the server into its component tree: three times fewer bytes than the tree. Exactly one of `components` and `source` is sent.
+  """
+  source: String = null
 
   """
   The optional catalog name if this Blok should be registered inside a specific namespace in your Electron app's UI component registry.
@@ -617,6 +635,26 @@ input BlokImplementationInput {
   An optional JSON-serializable object providing demo state values for this Blok's internal reactive data model, useful for testing and development purposes.
   """
   demoState: JSONSerializable = null
+
+  """
+  The renderer for this Blok's root: HTML for panels and dashboards, SCENE for a full 3D view whose root opens a scene.
+  """
+  context: ComponentContext! = HTML
+
+  """
+  Whether this Blok is its agent's default for its context. A newly declared default replaces the previous one.
+  """
+  default: Boolean! = false
+
+  """
+  The model ('sha256:...') this Blok decorates: viewers showing that model offer this Blok at `for_node`. HTML bloks only.
+  """
+  forModel: String = null
+
+  """
+  The node of `for_model` this Blok attaches to; the model's root when absent.
+  """
+  forNode: String = null
 }
 
 """Requires CPU resources on the backend."""
@@ -778,6 +816,16 @@ input CollectionOrder @oneOf {
   id: Ordering
   name: Ordering
   definedAt: Ordering
+}
+
+"""
+The renderer a catalog component lives in. A component may only be placed where its context is in force.
+"""
+enum ComponentContext {
+  HTML
+  SCENE
+  LOGO
+  ACTION_LOGO
 }
 
 """
@@ -1149,6 +1197,11 @@ type Definition {
   embedding: Embedding
 
   """
+  The ACTION_LOGO blok that draws this action: the one `flavour`'s implementation names, or without `flavour` the one of the newest flavour providing it that names one. Null when none does.
+  """
+  logo(flavour: ID = null): FlavourBlok
+
+  """
   Other action definitions closest to this one in meaning, nearest first (cosine distance between their vectors, this definition excluded) -- the same action shipped under two names, or the neighbourhood a definition belongs to. `filters` narrows the candidates like `definitions` does; `maxDistance` (0 identical, 1 unrelated) cuts the tail, otherwise the nearest `limit` come back however far away they are. Empty while this definition has no vector yet or semantic indexing is off. One vector scan per definition resolved, so ask for it on a definition, not on every row of a long list.
   """
   similarDefinitions(filters: DefinitionFilter = null, limit: Int! = 10, maxDistance: Float = null): [Definition!]!
@@ -1211,6 +1264,11 @@ input DefinitionFilter {
   """
   hasTests: Boolean
 
+  """
+  Keep only definitions already deployed in their organization (a deployment of one of the flavours that provide them, on one of its backends), or with false only those never deployed there: what is left to install.
+  """
+  alreadyDeployed: Boolean
+
   """Keep only definitions first defined at or after this moment."""
   definedAfter: DateTime
 
@@ -1219,6 +1277,11 @@ input DefinitionFilter {
 
   """Keep only definitions whose ports satisfy all of the given demands."""
   demands: [PortDemandInput!]
+
+  """
+  Filter to the objects satisfying every one of these descriptor constraints: the `requires` of a port (`RequiresInput`), handed on unchanged, so a picker offers what the port accepts. Answered from the stored descriptors, in one indexed query
+  """
+  requires: [RequiresInput!]
 }
 
 "A definition\n\n    Definitions are the building implementation for Actions and provide the\n    information needed to create a action. They are primarly composed of a name,\n    a description, and a list of ports.\n\n    Definitions provide a protocol of input and output, and do not contain\n    any information about the actual implementation of the action ( this is handled\n    by a implementation that implements a action).\n\n    "
@@ -1362,6 +1425,11 @@ input DeploymentFilter {
 
   """Case-insensitive search on the deployment name."""
   search: String
+
+  """
+  Filter to the objects satisfying every one of these descriptor constraints: the `requires` of a port (`RequiresInput`), handed on unchanged, so a picker offers what the port accepts. Answered from the stored descriptors, in one indexed query
+  """
+  requires: [RequiresInput!]
 }
 
 input DeploymentOrder @oneOf {
@@ -1548,7 +1616,7 @@ type Flavour {
   manifest: UntypedParams!
 
   """
-  Blok implementation manifests declared by this flavour's inspection, as submitted (rekuest_core BlokImplementationInput shape).
+  Blok implementation manifests declared by this flavour's inspection (rekuest_core BlokImplementationInput shape): the app's LOGO, its actions' ACTION_LOGOs, panels and scenes.
   """
   bloks: UntypedParams!
 
@@ -1556,6 +1624,19 @@ type Flavour {
   This object's descriptors, a flat mapping of key to value: the facts about it that a trigger can test (e.g. `@kabinet/status`). The keys are the ones kabinet declares for this structure, and the values are the ones a signal about the object carries. Empty for a structure that declares none
   """
   descriptors: JSON!
+
+  """
+  The files this flavour's app brings, as its inspection declared them (name, kind, ref, size, and the path in the image or an https source).
+  """
+  assets: UntypedParams!
+
+  """
+  The bloks this flavour's app brings, parsed and ready to draw, in the order it declared them; of one context only when `context` is given.
+  """
+  blokImplementations(context: ComponentContext = null): [FlavourBlok!]!
+
+  """This flavour's app logo: its default LOGO blok, or its first."""
+  logoBlok: FlavourBlok
 
   """
   This flavour's stored vector, as `<model id>:<floats>`. Null until it has been indexed.
@@ -1589,6 +1670,53 @@ type Flavour {
   requirements: [Requirement!]!
 }
 
+"""
+A blok a flavour's app brings: its LOGO, an action's ACTION_LOGO, a panel (HTML) or a scene (SCENE). Its source is parsed into `componentTree` when the flavour is imported; nothing of it runs here.
+"""
+type FlavourBlok {
+  """`<flavour id>:<key>`: what `flavourBlok` finds it by."""
+  id: ID!
+
+  """The flavour whose app brings this blok."""
+  flavourId: ID!
+
+  """The key the app declared this blok under, unique within it."""
+  key: String!
+
+  """The renderer its root lives in."""
+  context: ComponentContext!
+
+  """
+  Whether it is its app's default for its context (the app's logo is its default LOGO).
+  """
+  default: Boolean!
+
+  """What the app says the blok shows."""
+  description: String
+
+  """
+  A SHA-256 of what the blok draws: its component tree, demo state and context. Two bloks with the same hash draw the same thing, so a client may keep what it drew under it.
+  """
+  hash: String!
+
+  """
+  The whole component tree as one JSON value (a list of roots) in the wire spelling (snake_case keys), as rekuest serves `Blok.componentTree`. Null when the source does not parse.
+  """
+  componentTree: JSON
+
+  """The state the blok is drawn against when it is shown on its own."""
+  demoState: JSON
+
+  """The model ('sha256:...') this blok decorates, if any."""
+  forModel: String
+
+  """The node of `forModel` it attaches to; the model's root when null."""
+  forNode: String
+
+  """Why the blok's source does not parse, or null."""
+  parseError: String
+}
+
 """Filter for flavours."""
 input FlavourFilter {
   AND: FlavourFilter
@@ -1606,6 +1734,11 @@ input FlavourFilter {
 
   """Keep only flavours that provide one of the given definitions."""
   hasDefinitions: [ID!]
+
+  """
+  Filter to the objects satisfying every one of these descriptor constraints: the `requires` of a port (`RequiresInput`), handed on unchanged, so a picker offers what the port accepts. Answered from the stored descriptors, in one indexed query
+  """
+  requires: [RequiresInput!]
 }
 
 input FlavourOrder @oneOf {
@@ -1819,6 +1952,11 @@ input ImplementationInput {
   A hash of the implementation's code. A workflow is only resumed by an implementation with the same hash.
   """
   codeHash: String = null
+
+  """
+  The key of the agent's action logo blok (context ACTION_LOGO) that draws this action.
+  """
+  logo: String = null
 }
 
 """
@@ -1834,12 +1972,44 @@ input ImportRepoInput {
   channels: [String!] = null
 }
 
+"""A file the app brings, as its image holds it."""
+input InspectedAssetInput {
+  """
+  The name bloks refer to the asset by, as in `@self.assets.<name>`. Unique within the agent.
+  """
+  name: String!
+
+  """What the file is."""
+  kind: AssetKind!
+
+  """'sha256:' and the hex SHA-256 of the file's exact bytes."""
+  ref: String!
+
+  """
+  The size of the file in bytes. Required unless the asset names a `source`: an agent knows the size of a file it holds.
+  """
+  size: Int = null
+
+  """
+  The https URL the file can be fetched from. Given instead of holding the file: the agent uploads nothing, an admin's client fetches it.
+  """
+  source: String = null
+
+  """
+  Where the file is, relative to the app's directory. Absent for a file the image does not hold: that one names a `source`.
+  """
+  path: String = null
+}
+
 input InspectionInput {
   size: Int = null
   locks: [LockImplementationInput!]!
   implementations: [ImplementationInput!]!
   states: [StateImplementationInput!]!
   bloks: [BlokImplementationInput!]! = []
+
+  """The files the app brings: models and images its bloks call by name."""
+  assets: [InspectedAssetInput!]! = []
   requirements: [RequirementInput!]!
 }
 
@@ -2194,6 +2364,11 @@ input PodFilter {
 
   """Keep only pods running on the given backend."""
   backend: ID
+
+  """
+  Filter to the objects satisfying every one of these descriptor constraints: the `requires` of a port (`RequiresInput`), handed on unchanged, so a picker offers what the port accepts. Answered from the stored descriptors, in one indexed query
+  """
+  requires: [RequiresInput!]
 }
 
 input PodOrder @oneOf {
@@ -2469,6 +2644,11 @@ type Query {
   """Return a single flavour (a buildable variant of a release) by its ID."""
   flavour(id: ID!): Flavour!
 
+  """
+  Return a single blok a flavour's app brings by its ID (`<flavour id>:<key>`), or null when there is none.
+  """
+  flavourBlok(id: ID!): FlavourBlok
+
   """Return a single deployment by its ID."""
   deployment(id: ID!): Deployment!
 
@@ -2621,6 +2801,11 @@ type Release {
   name: String!
 
   """
+  The release's logo: the LOGO blok of the first of its flavours that brings one.
+  """
+  logoBlok: FlavourBlok
+
+  """
   The digest an approval of this release is pinned to (identity, scopes, requirements, images). Changes whenever the release is re-published differently.
   """
   approvalDigest: String!
@@ -2637,7 +2822,7 @@ type Release {
 }
 
 """
-A user's standing approval to run a release, backed by a lok mandate that lets a deployer provision it as them.
+A user's standing approval to run a release, backed by a lok agent mandate that lets a deployer issue mandate keys that run it as them.
 """
 type ReleaseApproval {
   id: ID!
@@ -2721,6 +2906,11 @@ input ReleaseFilter {
   Keep only releases whose app identifier contains this text, case-insensitively.
   """
   identifier: String
+
+  """
+  Filter to the objects satisfying every one of these descriptor constraints: the `requires` of a port (`RequiresInput`), handed on unchanged, so a picker offers what the port accepts. Answered from the stored descriptors, in one indexed query
+  """
+  requires: [RequiresInput!]
 }
 
 input ReleaseOrder @oneOf {
