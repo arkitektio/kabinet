@@ -62,8 +62,8 @@ def kabinet(
             link=KabinetLinkComposition(
                 auth=FaktsAuthLink(token_loader=tokens),
                 split=SplitLink(
-                    left=AIOHttpLink(endpoint_url=kabinet.to_http_path("graphql"), proxy=kabinet.proxy),
-                    right=GraphQLWSLink(ws_endpoint_url=kabinet.to_ws_path("graphql"), proxy=kabinet.proxy),
+                    left=AIOHttpLink(endpoint_url=kabinet.to_http_path("graphql"), proxy=kabinet.proxy, ssl_context=kabinet.ssl_context()),
+                    right=GraphQLWSLink(ws_endpoint_url=kabinet.to_ws_path("graphql"), proxy=kabinet.proxy, ssl_context=kabinet.ssl_context()),
                     split=lambda o: o.node.operation != OperationType.SUBSCRIPTION,
                 ),
             )
