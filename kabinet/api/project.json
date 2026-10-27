@@ -35,7 +35,8 @@
                 "InstanceId": "kabinet.scalars.InstanceId",
                 "Identifier": "kabinet.scalars.Identifier",
                 "SearchQuery": "kabinet.scalars.SearchQuery",
-                "UntypedParams": "typing.Any"
+                "UntypedParams": "typing.Any",
+                "JSON": "typing.Any"
             },
             "coercible_scalars": {
                 "ID": "rath.scalars.IDCoercible"
@@ -78,6 +79,7 @@
             "external_modules": [],
             "additional_bases": {},
             "additional_config": {},
+            "directive_class_vars": [],
             "force_plugin_order": true,
             "omitted_document_rules": [],
             "parsers": [],

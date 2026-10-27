@@ -57,11 +57,12 @@ class AssignWidgetKind(str, Enum):
     __str__ = str.__str__
 
 class ComponentContext(str, Enum):
-    """The renderer a catalog component lives in. A component may only be placed where its context is in force."""
+    """The renderer a catalog component lives in. A component may only be placed where its context is in force. ACTION_LOGO and OVERLAY are blok contexts only: an OVERLAY blok is an action's own, drawn into the space that hosts its run."""
     HTML = 'HTML'
     SCENE = 'SCENE'
     LOGO = 'LOGO'
     ACTION_LOGO = 'ACTION_LOGO'
+    OVERLAY = 'OVERLAY'
     __str__ = str.__str__
 
 class DescriptorOperator(str, Enum):
@@ -96,6 +97,40 @@ class Execution(str, Enum):
     """How an implementation runs: a WORKFLOW may call other actions and is resumed from its journal when its agent dies; a PLAIN one's task ends LOST."""
     PLAIN = 'PLAIN'
     WORKFLOW = 'WORKFLOW'
+    __str__ = str.__str__
+
+class LocalKind(str, Enum):
+    """The kind of a blok local: a port kind, or ANY (an untyped value, which skips the bind and argument kind checks). No action port is ever ANY."""
+    INT = 'INT'
+    'An integer. No children; choices optional.'
+    STRING = 'STRING'
+    'A string. No children; choices optional.'
+    STRUCTURE = 'STRUCTURE'
+    'A reference to an object held by a service, typed by `identifier` (@package/key, required). Values are ids. No children.'
+    LIST = 'LIST'
+    "A list; exactly one child describes the item type (conventionally keyed '...')."
+    BOOL = 'BOOL'
+    'A boolean. No children.'
+    DICT = 'DICT'
+    "A string-keyed map. One child keyed '...' describes a homogeneous value type; several named children describe the known keys."
+    FLOAT = 'FLOAT'
+    'A floating point number. No children; choices optional.'
+    DATE = 'DATE'
+    'An ISO-8601 date or datetime string. No children.'
+    UNION = 'UNION'
+    'One of several variants; at least two children, each a variant.'
+    ENUM = 'ENUM'
+    'One of a fixed set of values; `choices` required.'
+    MODEL = 'MODEL'
+    'An object with named fields; at least one child per field, `identifier` optional.'
+    MEMORY_STRUCTURE = 'MEMORY_STRUCTURE'
+    "A reference to an object that lives in the agent's memory, typed by `identifier` (required). Makes the action LOCAL-scoped. No children."
+    INTERFACE = 'INTERFACE'
+    'A reference to any object implementing an interface, typed by `identifier` (required). No children.'
+    QUANTITY = 'QUANTITY'
+    'A physical quantity with a unit; `reference_unit` required, `dimension` derived. No children.'
+    ANY = 'ANY'
+    'An untyped value: nothing gave the local a kind. A path below it is taken as written.'
     __str__ = str.__str__
 
 class OptionKey(str, Enum):
@@ -370,14 +405,34 @@ class StringAssignWidgetInput(BaseModel):
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class ActionArgumentInput(BaseModel):
-    """A JSON-serializable argument entry for a multi-agent action trigger."""
+    """An argument of a call: a literal, a path, a nested call, a list or an object; null when it sets none."""
     key: str | None = Field(default=None, description='The argument property name.')
-    value_literal: JSONSerializable | None = Field(validation_alias=AliasChoices('value_literal', 'valueLiteral'), serialization_alias='valueLiteral', default=None, description='Static literal value if not dynamically bound.')
-    value_path: str | None = Field(validation_alias=AliasChoices('value_path', 'valuePath'), serialization_alias='valuePath', default=None, description='JSON Pointer referencing the shared Blok state to inject into this argument slot dynamically.')
+    value_literal: JSONSerializable | None = Field(validation_alias=AliasChoices('value_literal', 'valueLiteral'), serialization_alias='valueLiteral', default=None, description='A JSON literal.')
+    value_path: str | None = Field(validation_alias=AliasChoices('value_path', 'valuePath'), serialization_alias='valuePath', default=None, description="A path the argument reads, as a prop's dynamic_value does.")
     agent_call: 'AgentProbeInput | None' = Field(validation_alias=AliasChoices('agent_call', 'agentCall'), serialization_alias='agentCall', default=None, description='Defines a nested agent call if this argument should trigger an agent interaction.')
-    util_call: 'UtilCallInput | None' = Field(validation_alias=AliasChoices('util_call', 'utilCall'), serialization_alias='utilCall', default=None, description='Defines a nested utility call if this argument should trigger a system utility interaction.')
+    util_call: 'UtilCallInput | None' = Field(validation_alias=AliasChoices('util_call', 'utilCall'), serialization_alias='utilCall', default=None, description='A nested function call.')
     value_list: tuple['ActionArgumentInput', ...] | None = Field(validation_alias=AliasChoices('value_list', 'valueList'), serialization_alias='valueList', default=None, description='Defines a list of values if this argument should be an array.')
     value_dict: tuple['ActionArgumentInput', ...] | None = Field(validation_alias=AliasChoices('value_dict', 'valueDict'), serialization_alias='valueDict', default=None, description='Defines a list of key-value pairs if this argument should be a dictionary.')
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
+class ActionBlokInput(BaseModel):
+    """An action's own blok (blok language v2): how a client shows a run of it in one context, naming devices by the action's dependency keys."""
+    context: Annotated[ComponentContext | None, GraphQLDefault('HTML')] = Field(default=None, description='Where a client shows the run with it: HTML in a task panel, SCENE as a 3D view of its own, OVERLAY drawn into the space that hosts the run (its root an `Overlay`).')
+    'Where a client shows the run with it: HTML in a task panel, SCENE as a 3D view of its own, OVERLAY drawn into the space that hosts the run (its root an `Overlay`).\nDefault: HTML'
+    components: tuple['ComponentNodeInput', ...] | None = Field(default=None, description='The UI component tree, unless the blok is sent as its `source`.')
+    source: str | None = Field(default=None, description='The blok as v2 BSX, parsed by the server into its component tree. Exactly one of `components` and `source` is sent.')
+    module: str | None = Field(default=None, description="The module the blok renders against besides its catalogs; the Orkestrator's when absent.")
+    description: str | None = Field(default=None, description='What the blok shows of a run.')
+    vocab: int = Field(description='The blok language version the blok speaks; 2 is the only one.')
+    catalogs: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The catalogs it needs, as name@version.')
+    'The catalogs it needs, as name@version.\nDefault: []'
+    locals: Annotated[tuple['BlokLocalInput', ...] | None, GraphQLDefault('[]')] = Field(default=None, description='Its locals: form state that feeds a call, written only through bind.')
+    'Its locals: form state that feeds a call, written only through bind.\nDefault: []'
+    demo: 'BlokDemoInput | None' = Field(default=None, description='What a preview renders it with.')
+    queries: Annotated[tuple['BlokQueryInput', ...] | None, GraphQLDefault('[]')] = Field(default=None, description='Its declared reads.')
+    'Its declared reads.\nDefault: []'
+    subscriptions: Annotated[tuple['BlokSubscriptionInput', ...] | None, GraphQLDefault('[]')] = Field(default=None, description='Its declared streams.')
+    'Its declared streams.\nDefault: []'
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class ActionDemandInput(BaseModel):
@@ -433,9 +488,9 @@ class AgentDependencyInput(BaseModel):
 
 class AgentProbeInput(BaseModel):
     """Defines a callback that routes user interactions directly to an Arkitekt Agent via Rekuest."""
-    dependency: str = Field(description="The abstract agent dependency key declared in the Blok manifest (e.g., 'stage_dep').")
-    operation: str = Field(description="The target function name registered on that specific agent's worker thread loop.")
-    arguments: tuple[ActionArgumentInput, ...] | None = Field(default=None, description='Key-value arguments map compiled for the target agent call.')
+    dependency: str = Field(description='`self`, or the dependency key the task goes to (`deps.<key>`).')
+    operation: str = Field(description="The action called, by its key in the dependency's action demands.")
+    arguments: tuple[ActionArgumentInput, ...] | None = Field(default=None, description='Its arguments, each named.')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class AppImageInput(BaseModel):
@@ -495,22 +550,85 @@ class BackendFilter(BaseModel):
     search: str | None = Field(default=None, description='Case-insensitive search on the backend name.')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
+class BlokDemoInput(BaseModel):
+    """What a preview renders a blok with, mirroring the roots it reads."""
+    deps: JSONSerializable | None = Field(default=None, description='Per dependency key (`self` included), its states and tasks: `{self: {arm: {joints: [...]}}}`.')
+    args: JSONSerializable | None = Field(default=None, description='What it is opened on.')
+    task: JSONSerializable | None = Field(default=None, description='The task record it is about (task and action bloks, action logos).')
+    queries: JSONSerializable | None = Field(default=None, description='Per declared query, the value it answers.')
+    subscriptions: JSONSerializable | None = Field(default=None, description='Per declared subscription, its value.')
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
 class BlokImplementationInput(BaseModel):
-    """Which locks does the agent provide in general"""
+    """A blok an agent declares (blok language v2)."""
     key: str = Field(description='The key of this Blok implementation.')
-    dependencies: Annotated[tuple[AgentDependencyInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The dependencies required by this Blok.')
-    'The dependencies required by this Blok.\nDefault: []'
-    components: tuple['ComponentNodeInput', ...] | None = Field(default=None, description='The UI component tree blueprint for this Blok, unless it is sent as its `source`.')
-    source: str | None = Field(default=None, description='The Blok as BSX, parsed by the server into its component tree: three times fewer bytes than the tree. Exactly one of `components` and `source` is sent.')
-    catalog: str | None = Field(default=None, description="The optional catalog name if this Blok should be registered inside a specific namespace in your Electron app's UI component registry.")
+    dependencies: Annotated[tuple[AgentDependencyInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description="The dependencies required by this Blok: for an agent's blok the one dependency `self`, its demands what the tree reads and calls of it.")
+    "The dependencies required by this Blok: for an agent's blok the one dependency `self`, its demands what the tree reads and calls of it.\nDefault: []"
+    components: tuple['ComponentNodeInput', ...] | None = Field(default=None, description='The UI component tree blueprint for this Blok (one root), unless it is sent as its `source`.')
+    source: str | None = Field(default=None, description='The Blok as v2 BSX, parsed by the server into its component tree. Exactly one of `components` and `source` is sent.')
+    module: str | None = Field(default=None, description="The module (an app's own unversioned extras, registered by a UI app such as the Orkestrator) the blok renders against besides its catalogs; the Orkestrator's when absent.")
     description: str | None = Field(default=None, description="A human-readable description about this Blok's purpose and functionality.")
-    demo_state: JSONSerializable | None = Field(validation_alias=AliasChoices('demo_state', 'demoState'), serialization_alias='demoState', default=None, description="An optional JSON-serializable object providing demo state values for this Blok's internal reactive data model, useful for testing and development purposes.")
-    context: Annotated[ComponentContext | None, GraphQLDefault('HTML')] = Field(default=None, description="The renderer for this Blok's root: HTML for panels and dashboards, SCENE for a full 3D view whose root opens a scene.")
-    "The renderer for this Blok's root: HTML for panels and dashboards, SCENE for a full 3D view whose root opens a scene.\nDefault: HTML"
+    context: Annotated[ComponentContext | None, GraphQLDefault('HTML')] = Field(default=None, description="The renderer for this Blok's root: HTML for panels and dashboards, SCENE for a full 3D view whose root is a Scene, LOGO an agent's logo, ACTION_LOGO an action's.")
+    "The renderer for this Blok's root: HTML for panels and dashboards, SCENE for a full 3D view whose root is a Scene, LOGO an agent's logo, ACTION_LOGO an action's.\nDefault: HTML"
     default: Annotated[bool | None, GraphQLDefault('False')] = Field(default=None, description="Whether this Blok is its agent's default for its context. A newly declared default replaces the previous one.")
     "Whether this Blok is its agent's default for its context. A newly declared default replaces the previous one.\nDefault: False"
     for_model: str | None = Field(validation_alias=AliasChoices('for_model', 'forModel'), serialization_alias='forModel', default=None, description="The model ('sha256:...') this Blok decorates: viewers showing that model offer this Blok at `for_node`. HTML bloks only.")
     for_node: str | None = Field(validation_alias=AliasChoices('for_node', 'forNode'), serialization_alias='forNode', default=None, description="The node of `for_model` this Blok attaches to; the model's root when absent.")
+    args: Annotated[tuple[ArgPortInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description="The items this Blok is opened for, declared like an action's args and read under `args.<key>`. A UI offers the Blok on any item its args accept (`MaterializedBlokFilter.demands`). HTML bloks only.")
+    "The items this Blok is opened for, declared like an action's args and read under `args.<key>`. A UI offers the Blok on any item its args accept (`MaterializedBlokFilter.demands`). HTML bloks only.\nDefault: []"
+    vocab: int = Field(description='The blok language version the blok speaks; 2 is the only one.')
+    catalogs: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description="The catalogs it needs, as name@version ('ui@1', 'scene@1').")
+    "The catalogs it needs, as name@version ('ui@1', 'scene@1').\nDefault: []"
+    locals: Annotated[tuple['BlokLocalInput', ...] | None, GraphQLDefault('[]')] = Field(default=None, description='Its locals: form state that feeds a call, written only through bind.')
+    'Its locals: form state that feeds a call, written only through bind.\nDefault: []'
+    demo: BlokDemoInput | None = Field(default=None, description='What a preview renders it with.')
+    queries: Annotated[tuple['BlokQueryInput', ...] | None, GraphQLDefault('[]')] = Field(default=None, description='Its declared reads, as `queries.<key>`.')
+    'Its declared reads, as `queries.<key>`.\nDefault: []'
+    subscriptions: Annotated[tuple['BlokSubscriptionInput', ...] | None, GraphQLDefault('[]')] = Field(default=None, description='Its declared streams, as `subscriptions.<key>`.')
+    'Its declared streams, as `subscriptions.<key>`.\nDefault: []'
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
+class BlokLocalInput(BaseModel):
+    """A local: blok-level form state that feeds a call, written only through `bind` on controls. A local is an arg port plus `persist`; its `kind` is a port kind or ANY. Every field left out (or null) is the tree's to tell: the kind is inferred (its default, the task argument it is passed to whole, the control bound to it; ANY when nothing tells), and an inferred port fills only the fields the local leaves out."""
+    key: str = Field(description='Its name, read bare in the tree (`{iterations}`); never a reserved root.')
+    kind: LocalKind | None = Field(default=None, description='A port kind or ANY. Left out or null: inferred from the tree, ANY when nothing tells.')
+    label: str | None = Field(default=None, description='Its label.')
+    description: str | None = Field(default=None, description='What it is for.')
+    identifier: str | None = Field(default=None, description='The structure (or model, enum) identifier of what it holds.')
+    nullable: bool | None = Field(default=None, description='Whether it may hold null; left out, what is inferred says (false when nothing does).')
+    validators: tuple['ValidatorInput', ...] | None = Field(default=None, description='Its validators.')
+    effects: tuple['EffectInput', ...] | None = Field(default=None, description='Its effects.')
+    choices: tuple['ChoiceInput', ...] | None = Field(default=None, description="The values it takes (an ENUM's).")
+    default: Any | None = Field(default=None, description='The value it starts with.')
+    children: tuple[ArgPortInput, ...] | None = Field(default=None, description='Its child ports (the item of a LIST, the fields of a DICT or MODEL).')
+    widget: AssignWidgetInput | None = Field(default=None, description='The widget a form of it uses.')
+    requires: tuple['RequiresInput', ...] | None = Field(default=None, description='Its descriptor requirements.')
+    reference_unit: str | None = Field(validation_alias=AliasChoices('reference_unit', 'referenceUnit'), serialization_alias='referenceUnit', default=None, description='For a QUANTITY: its reference unit.')
+    proposed_units: tuple[str, ...] | None = Field(validation_alias=AliasChoices('proposed_units', 'proposedUnits'), serialization_alias='proposedUnits', default=None, description='For a QUANTITY: the units offered.')
+    dimension: str | None = Field(default=None, description='For a QUANTITY: its dimensionality (derived from the unit).')
+    persist: bool | None = Field(default=None, description='Remember the last input on this device (never on a server); false when left out.')
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
+class BlokQueryInput(BaseModel):
+    """A declared read: one GraphQL query on a service, re-run when its variables change; the blok reads it as `queries.<key>`."""
+    key: str = Field(description='Its name: the blok reads it as `queries.<key>` (status, value, error, refetching, fetching_more).')
+    service: str = Field(description="The service it runs on, by its key ('mikro').")
+    document: str = Field(description='One GraphQL `query` operation; never a mutation.')
+    variables: Annotated[tuple[ActionArgumentInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='Its variables, each an expression over args, locals and dependencies (as a call argument is stored).')
+    'Its variables, each an expression over args, locals and dependencies (as a call argument is stored).\nDefault: []'
+    poll: float | None = Field(default=None, description='Re-run every this many seconds, besides when its variables change.')
+    more: str | None = Field(default=None, description='The list field of its result that `queries.<key>.fetch_more(...)` appends new pages to, as a dotted path into the data (`positions`, `images.items`). A query without it cannot fetch more.')
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
+class BlokSubscriptionInput(BaseModel):
+    """A declared stream: one GraphQL subscription on a service; the blok reads it as `subscriptions.<key>`."""
+    key: str = Field(description='Its name: the blok reads it as `subscriptions.<key>` (status, value, error).')
+    service: str = Field(description='The service it runs on, by its key.')
+    document: str = Field(description='One GraphQL `subscription` operation.')
+    variables: Annotated[tuple[ActionArgumentInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description="Its variables, as a query's.")
+    "Its variables, as a query's.\nDefault: []"
+    keep: int | None = Field(default=None, description='Keep the last this many payloads as a list; the latest only when absent.')
+    history: str | None = Field(default=None, description='A declared query to replay from while travelling; without it the value at travel start shows, stale.')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class ChoiceInput(BaseModel):
@@ -530,21 +648,21 @@ that is displayed when the user hovers over the choice.
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class ComponentNodeInput(BaseModel):
-    """An abstract structural visual element inside a Blok blueprint manifest."""
-    id: str = Field(description='Unique structural string identifying this node instance inside the flat workspace layout tree.')
-    component: str = Field(description="The type indicator token matching your Electron app's registered catalog specs (e.g. 'Slider').")
+    """A node of a blok tree (blok language v2)."""
+    id: str = Field(description="An explicit id, or one derived from the node's place (`Card[0]/Button[1]`); unique in the tree.")
+    component: str = Field(description='The catalog component (`Button`) or language component (`if`, `foreach`, `suspense`).')
     props: tuple['ComponentPropInput', ...] | None = Field(default=None, description='The collection of static values, state pointers, or action endpoints assigned to this component.')
-    children: tuple['ComponentNodeInput', ...] | None = Field(default=None, description='Flat adjacency pointer list mapping out IDs nested inside this specific component layer.')
+    children: tuple['ComponentNodeInput', ...] | None = Field(default=None, description='Its children, in order.')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class ComponentPropInput(BaseModel):
-    """A single key-value prop configuration for a component layout node."""
+    """One prop of a component node: a literal, a path, a function call, a task call (named by `declaresValue`), an effect (`query.refetch`, `query.fetch_more`, `ui.copy`, `task.answer`), or nothing (null)."""
     key: str = Field(description='The prop key name matching the target UI catalog constraint.')
-    static_value: JSONSerializable | None = Field(validation_alias=AliasChoices('static_value', 'staticValue'), serialization_alias='staticValue', default=None, description="A raw scalar or JSON-stringified literal configuration parameter (e.g. '40x' or True).")
-    dynamic_value: 'DynamicValueInput | None' = Field(validation_alias=AliasChoices('dynamic_value', 'dynamicValue'), serialization_alias='dynamicValue', default=None, description='A reactive state data-binding rule.')
-    declares_value: str | None = Field(validation_alias=AliasChoices('declares_value', 'declaresValue'), serialization_alias='declaresValue', default=None, description="If set, this prop declares a new 'value' in the Blok state that can be referenced by other props or actions. The value of this field should be the name of the declared value (e.g., 'selected_user').")
-    agent_call: AgentProbeInput | None = Field(validation_alias=AliasChoices('agent_call', 'agentCall'), serialization_alias='agentCall', default=None, description='Defines an imperative interactive network action callback loop if this prop should trigger an agent interaction.')
-    util_call: 'UtilCallInput | None' = Field(validation_alias=AliasChoices('util_call', 'utilCall'), serialization_alias='utilCall', default=None, description='Defines an imperative interactive network action callback loop if this prop should trigger a system utility interaction.')
+    static_value: JSONSerializable | None = Field(validation_alias=AliasChoices('static_value', 'staticValue'), serialization_alias='staticValue', default=None, description='A JSON literal: a string, number, bool, list or object.')
+    dynamic_value: 'DynamicValueInput | None' = Field(validation_alias=AliasChoices('dynamic_value', 'dynamicValue'), serialization_alias='dynamicValue', default=None, description='A path the prop reads.')
+    declares_value: str | None = Field(validation_alias=AliasChoices('declares_value', 'declaresValue'), serialization_alias='declaresValue', default=None, description='The name a task call writes its record to (`... into move`), or the loop variable of a `foreach` (its `let`).')
+    agent_call: AgentProbeInput | None = Field(validation_alias=AliasChoices('agent_call', 'agentCall'), serialization_alias='agentCall', default=None, description="A task call: a callback's one thing.")
+    util_call: 'UtilCallInput | None' = Field(validation_alias=AliasChoices('util_call', 'utilCall'), serialization_alias='utilCall', default=None, description="A function the prop's value is, or in a callback the effect it runs (ui.copy, task.answer, query.refetch, query.fetch_more).")
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class CreateDeploymentInput(BaseModel):
@@ -617,6 +735,10 @@ class DefinitionInput(BaseModel):
     'Whether the action may be invoked as a probe: zero persistence, redis-held state, no history/replay/recovery. Only actions declaring this are callable via the call mutation.\nDefault: False'
     catalogs: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description="Names of the UI catalogs that extend the base catalog (`base@1`, always applied) for this definition's effect and validator calls. Unknown names yield an unknown_catalog warning; conflicting operation definitions across catalogs are a registration error.")
     "Names of the UI catalogs that extend the base catalog (`base@1`, always applied) for this definition's effect and validator calls. Unknown names yield an unknown_catalog warning; conflicting operation definitions across catalogs are a registration error.\nDefault: []"
+    protocols: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description="Where the action means to hook in (`on_scene_annotation`): hints a caller filters on, stored beside the protocols the server infers. Not a contract, and not part of the action's hash.")
+    "Where the action means to hook in (`on_scene_annotation`): hints a caller filters on, stored beside the protocols the server infers. Not a contract, and not part of the action's hash.\nDefault: []"
+    bloks: Annotated[tuple[ActionBlokInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description="The action's own bloks, at most one per context: how a client shows a run of it (HTML in a task panel, OVERLAY drawn into the space that hosts the run). They name devices only by the action's dependency keys. Not part of the action's hash.")
+    "The action's own bloks, at most one per context: how a client shows a run of it (HTML in a task panel, OVERLAY drawn into the space that hosts the run). They name devices only by the action's dependency keys. Not part of the action's hash.\nDefault: []"
     port_groups: Annotated[tuple['PortGroupInput', ...] | None, GraphQLDefault('[]')] = Field(validation_alias=AliasChoices('port_groups', 'portGroups'), serialization_alias='portGroups', default=None, description='The port groups of the definition. This is used to group ports together in the UI')
     'The port groups of the definition. This is used to group ports together in the UI\nDefault: []'
     args: Annotated[tuple[ArgPortInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The args of the definition. This is the input ports of the definition')
@@ -656,7 +778,7 @@ class DumpLogsInput(BaseModel):
 class DynamicValueInput(BaseModel):
     """A bound state pointer referencing a variable inside a Blok state instance."""
     literal: str | None = Field(default=None, description='A static fallback literal value (serialized string or JSON primitive) used when `path` does not resolve.')
-    path: str | None = Field(default=None, description="JSON Pointer to a variable inside the Blok's isolated data model (e.g., '/microscope/exposure').")
+    path: str | None = Field(default=None, description='The path the prop reads: a root (`self`, `deps`, `args`, `task`, `queries`, `subscriptions`, `viewer`, `then`, `event`, `error`), a local, a loop variable or a record, and what follows it.')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class EffectInput(BaseModel):
@@ -954,7 +1076,7 @@ class UpdatePodInput(BaseModel):
 
 class UtilCallInput(BaseModel):
     """Defines a utility call that can be invoked within the system."""
-    operation: str = Field(description='The utility function name to invoke.')
+    operation: str = Field(description='The function called (`str.upper`), or in a callback the effect (`ui.copy`, `task.answer`).')
     arguments: tuple[ActionArgumentInput, ...] | None = Field(default=None, description='Key-value arguments map compiled for the target utility call.')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
@@ -984,10 +1106,10 @@ def action_argument_input(key: str | None | UnsetType=UNSET, value_literal: JSON
 
 Arguments:
     key: The argument property name.
-    value_literal: Static literal value if not dynamically bound.
-    value_path: JSON Pointer referencing the shared Blok state to inject into this argument slot dynamically.
+    value_literal: A JSON literal.
+    value_path: A path the argument reads, as a prop's dynamic_value does.
     agent_call: Defines a nested agent call if this argument should trigger an agent interaction.
-    util_call: Defines a nested utility call if this argument should trigger a system utility interaction.
+    util_call: A nested function call.
     value_list: Defines a list of values if this argument should be an array.
     value_dict: Defines a list of key-value pairs if this argument should be a dictionary.
 """
@@ -1007,6 +1129,41 @@ Arguments:
     if value_dict is not UNSET:
         _data['valueDict'] = value_dict
     return ActionArgumentInput.model_validate(_data)
+
+def action_blok_input(context: ComponentContext, vocab: int, catalogs: Iterable[str], locals: Iterable[BlokLocalInput], queries: Iterable[BlokQueryInput], subscriptions: Iterable[BlokSubscriptionInput], components: Iterable[ComponentNodeInput] | None | UnsetType=UNSET, source: str | None | UnsetType=UNSET, module: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, demo: BlokDemoInput | None | UnsetType=UNSET) -> ActionBlokInput:
+    """Creates a ActionBlokInput
+
+Arguments:
+    context: Where a client shows the run with it: HTML in a task panel, SCENE as a 3D view of its own, OVERLAY drawn into the space that hosts the run (its root an `Overlay`).
+    components: The UI component tree, unless the blok is sent as its `source`.
+    source: The blok as v2 BSX, parsed by the server into its component tree. Exactly one of `components` and `source` is sent.
+    module: The module the blok renders against besides its catalogs; the Orkestrator's when absent.
+    description: What the blok shows of a run.
+    vocab: The blok language version the blok speaks; 2 is the only one.
+    catalogs: The catalogs it needs, as name@version.
+    locals: Its locals: form state that feeds a call, written only through bind.
+    demo: What a preview renders it with.
+    queries: Its declared reads.
+    subscriptions: Its declared streams.
+"""
+    _data: dict[str, builtins.object] = {}
+    _data['context'] = context
+    if components is not UNSET:
+        _data['components'] = components
+    if source is not UNSET:
+        _data['source'] = source
+    if module is not UNSET:
+        _data['module'] = module
+    if description is not UNSET:
+        _data['description'] = description
+    _data['vocab'] = vocab
+    _data['catalogs'] = catalogs
+    _data['locals'] = locals
+    if demo is not UNSET:
+        _data['demo'] = demo
+    _data['queries'] = queries
+    _data['subscriptions'] = subscriptions
+    return ActionBlokInput.model_validate(_data)
 
 def action_demand_input(hash: str | None | UnsetType=UNSET, key: str | None | UnsetType=UNSET, app: str | None | UnsetType=UNSET, version: str | None | UnsetType=UNSET, name: str | None | UnsetType=UNSET, arg_matches: Iterable[PortMatchInput] | None | UnsetType=UNSET, return_matches: Iterable[PortMatchInput] | None | UnsetType=UNSET, protocols: Iterable[str] | None | UnsetType=UNSET, force_arg_length: int | None | UnsetType=UNSET, force_return_length: int | None | UnsetType=UNSET, pure: bool | None | UnsetType=UNSET, idempotent: bool | None | UnsetType=UNSET, stateful: bool | None | UnsetType=UNSET) -> ActionDemandInput:
     """Creates a ActionDemandInput
@@ -1124,9 +1281,9 @@ def agent_probe_input(dependency: str, operation: str, arguments: Iterable[Actio
     """Creates a AgentProbeInput
 
 Arguments:
-    dependency: The abstract agent dependency key declared in the Blok manifest (e.g., 'stage_dep').
-    operation: The target function name registered on that specific agent's worker thread loop.
-    arguments: Key-value arguments map compiled for the target agent call.
+    dependency: `self`, or the dependency key the task goes to (`deps.<key>`).
+    operation: The action called, by its key in the dependency's action demands.
+    arguments: Its arguments, each named.
 """
     _data: dict[str, builtins.object] = {}
     _data['dependency'] = dependency
@@ -1324,21 +1481,50 @@ Arguments:
         _data['search'] = search
     return BackendFilter.model_validate(_data)
 
-def blok_implementation_input(key: str, dependencies: Iterable[AgentDependencyInput], context: ComponentContext, default: bool, components: Iterable[ComponentNodeInput] | None | UnsetType=UNSET, source: str | None | UnsetType=UNSET, catalog: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, demo_state: JSONSerializable | None | UnsetType=UNSET, for_model: str | None | UnsetType=UNSET, for_node: str | None | UnsetType=UNSET) -> BlokImplementationInput:
+def blok_demo_input(deps: JSONSerializable | None | UnsetType=UNSET, args: JSONSerializable | None | UnsetType=UNSET, task: JSONSerializable | None | UnsetType=UNSET, queries: JSONSerializable | None | UnsetType=UNSET, subscriptions: JSONSerializable | None | UnsetType=UNSET) -> BlokDemoInput:
+    """Creates a BlokDemoInput
+
+Arguments:
+    deps: Per dependency key (`self` included), its states and tasks: `{self: {arm: {joints: [...]}}}`.
+    args: What it is opened on.
+    task: The task record it is about (task and action bloks, action logos).
+    queries: Per declared query, the value it answers.
+    subscriptions: Per declared subscription, its value.
+"""
+    _data: dict[str, builtins.object] = {}
+    if deps is not UNSET:
+        _data['deps'] = deps
+    if args is not UNSET:
+        _data['args'] = args
+    if task is not UNSET:
+        _data['task'] = task
+    if queries is not UNSET:
+        _data['queries'] = queries
+    if subscriptions is not UNSET:
+        _data['subscriptions'] = subscriptions
+    return BlokDemoInput.model_validate(_data)
+
+def blok_implementation_input(key: str, dependencies: Iterable[AgentDependencyInput], context: ComponentContext, default: bool, args: Iterable[ArgPortInput], vocab: int, catalogs: Iterable[str], locals: Iterable[BlokLocalInput], queries: Iterable[BlokQueryInput], subscriptions: Iterable[BlokSubscriptionInput], components: Iterable[ComponentNodeInput] | None | UnsetType=UNSET, source: str | None | UnsetType=UNSET, module: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, for_model: str | None | UnsetType=UNSET, for_node: str | None | UnsetType=UNSET, demo: BlokDemoInput | None | UnsetType=UNSET) -> BlokImplementationInput:
     """Creates a BlokImplementationInput
 
 Arguments:
     key: The key of this Blok implementation.
-    dependencies: The dependencies required by this Blok.
-    components: The UI component tree blueprint for this Blok, unless it is sent as its `source`.
-    source: The Blok as BSX, parsed by the server into its component tree: three times fewer bytes than the tree. Exactly one of `components` and `source` is sent.
-    catalog: The optional catalog name if this Blok should be registered inside a specific namespace in your Electron app's UI component registry.
+    dependencies: The dependencies required by this Blok: for an agent's blok the one dependency `self`, its demands what the tree reads and calls of it.
+    components: The UI component tree blueprint for this Blok (one root), unless it is sent as its `source`.
+    source: The Blok as v2 BSX, parsed by the server into its component tree. Exactly one of `components` and `source` is sent.
+    module: The module (an app's own unversioned extras, registered by a UI app such as the Orkestrator) the blok renders against besides its catalogs; the Orkestrator's when absent.
     description: A human-readable description about this Blok's purpose and functionality.
-    demo_state: An optional JSON-serializable object providing demo state values for this Blok's internal reactive data model, useful for testing and development purposes.
-    context: The renderer for this Blok's root: HTML for panels and dashboards, SCENE for a full 3D view whose root opens a scene.
+    context: The renderer for this Blok's root: HTML for panels and dashboards, SCENE for a full 3D view whose root is a Scene, LOGO an agent's logo, ACTION_LOGO an action's.
     default: Whether this Blok is its agent's default for its context. A newly declared default replaces the previous one.
     for_model: The model ('sha256:...') this Blok decorates: viewers showing that model offer this Blok at `for_node`. HTML bloks only.
     for_node: The node of `for_model` this Blok attaches to; the model's root when absent.
+    args: The items this Blok is opened for, declared like an action's args and read under `args.<key>`. A UI offers the Blok on any item its args accept (`MaterializedBlokFilter.demands`). HTML bloks only.
+    vocab: The blok language version the blok speaks; 2 is the only one.
+    catalogs: The catalogs it needs, as name@version ('ui@1', 'scene@1').
+    locals: Its locals: form state that feeds a call, written only through bind.
+    demo: What a preview renders it with.
+    queries: Its declared reads, as `queries.<key>`.
+    subscriptions: Its declared streams, as `subscriptions.<key>`.
 """
     _data: dict[str, builtins.object] = {}
     _data['key'] = key
@@ -1347,19 +1533,127 @@ Arguments:
         _data['components'] = components
     if source is not UNSET:
         _data['source'] = source
-    if catalog is not UNSET:
-        _data['catalog'] = catalog
+    if module is not UNSET:
+        _data['module'] = module
     if description is not UNSET:
         _data['description'] = description
-    if demo_state is not UNSET:
-        _data['demoState'] = demo_state
     _data['context'] = context
     _data['default'] = default
     if for_model is not UNSET:
         _data['forModel'] = for_model
     if for_node is not UNSET:
         _data['forNode'] = for_node
+    _data['args'] = args
+    _data['vocab'] = vocab
+    _data['catalogs'] = catalogs
+    _data['locals'] = locals
+    if demo is not UNSET:
+        _data['demo'] = demo
+    _data['queries'] = queries
+    _data['subscriptions'] = subscriptions
     return BlokImplementationInput.model_validate(_data)
+
+def blok_local_input(key: str, kind: LocalKind | None | UnsetType=UNSET, label: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, identifier: str | None | UnsetType=UNSET, nullable: bool | None | UnsetType=UNSET, validators: Iterable[ValidatorInput] | None | UnsetType=UNSET, effects: Iterable[EffectInput] | None | UnsetType=UNSET, choices: Iterable[ChoiceInput] | None | UnsetType=UNSET, default: Any | None | UnsetType=UNSET, children: Iterable[ArgPortInput] | None | UnsetType=UNSET, widget: AssignWidgetInput | None | UnsetType=UNSET, requires: Iterable[RequiresInput] | None | UnsetType=UNSET, reference_unit: str | None | UnsetType=UNSET, proposed_units: Iterable[str] | None | UnsetType=UNSET, dimension: str | None | UnsetType=UNSET, persist: bool | None | UnsetType=UNSET) -> BlokLocalInput:
+    """Creates a BlokLocalInput
+
+Arguments:
+    key: Its name, read bare in the tree (`{iterations}`); never a reserved root.
+    kind: A port kind or ANY. Left out or null: inferred from the tree, ANY when nothing tells.
+    label: Its label.
+    description: What it is for.
+    identifier: The structure (or model, enum) identifier of what it holds.
+    nullable: Whether it may hold null; left out, what is inferred says (false when nothing does).
+    validators: Its validators.
+    effects: Its effects.
+    choices: The values it takes (an ENUM's).
+    default: The value it starts with.
+    children: Its child ports (the item of a LIST, the fields of a DICT or MODEL).
+    widget: The widget a form of it uses.
+    requires: Its descriptor requirements.
+    reference_unit: For a QUANTITY: its reference unit.
+    proposed_units: For a QUANTITY: the units offered.
+    dimension: For a QUANTITY: its dimensionality (derived from the unit).
+    persist: Remember the last input on this device (never on a server); false when left out.
+"""
+    _data: dict[str, builtins.object] = {}
+    _data['key'] = key
+    if kind is not UNSET:
+        _data['kind'] = kind
+    if label is not UNSET:
+        _data['label'] = label
+    if description is not UNSET:
+        _data['description'] = description
+    if identifier is not UNSET:
+        _data['identifier'] = identifier
+    if nullable is not UNSET:
+        _data['nullable'] = nullable
+    if validators is not UNSET:
+        _data['validators'] = validators
+    if effects is not UNSET:
+        _data['effects'] = effects
+    if choices is not UNSET:
+        _data['choices'] = choices
+    if default is not UNSET:
+        _data['default'] = default
+    if children is not UNSET:
+        _data['children'] = children
+    if widget is not UNSET:
+        _data['widget'] = widget
+    if requires is not UNSET:
+        _data['requires'] = requires
+    if reference_unit is not UNSET:
+        _data['referenceUnit'] = reference_unit
+    if proposed_units is not UNSET:
+        _data['proposedUnits'] = proposed_units
+    if dimension is not UNSET:
+        _data['dimension'] = dimension
+    if persist is not UNSET:
+        _data['persist'] = persist
+    return BlokLocalInput.model_validate(_data)
+
+def blok_query_input(key: str, service: str, document: str, variables: Iterable[ActionArgumentInput], poll: float | None | UnsetType=UNSET, more: str | None | UnsetType=UNSET) -> BlokQueryInput:
+    """Creates a BlokQueryInput
+
+Arguments:
+    key: Its name: the blok reads it as `queries.<key>` (status, value, error, refetching, fetching_more).
+    service: The service it runs on, by its key ('mikro').
+    document: One GraphQL `query` operation; never a mutation.
+    variables: Its variables, each an expression over args, locals and dependencies (as a call argument is stored).
+    poll: Re-run every this many seconds, besides when its variables change.
+    more: The list field of its result that `queries.<key>.fetch_more(...)` appends new pages to, as a dotted path into the data (`positions`, `images.items`). A query without it cannot fetch more.
+"""
+    _data: dict[str, builtins.object] = {}
+    _data['key'] = key
+    _data['service'] = service
+    _data['document'] = document
+    _data['variables'] = variables
+    if poll is not UNSET:
+        _data['poll'] = poll
+    if more is not UNSET:
+        _data['more'] = more
+    return BlokQueryInput.model_validate(_data)
+
+def blok_subscription_input(key: str, service: str, document: str, variables: Iterable[ActionArgumentInput], keep: int | None | UnsetType=UNSET, history: str | None | UnsetType=UNSET) -> BlokSubscriptionInput:
+    """Creates a BlokSubscriptionInput
+
+Arguments:
+    key: Its name: the blok reads it as `subscriptions.<key>` (status, value, error).
+    service: The service it runs on, by its key.
+    document: One GraphQL `subscription` operation.
+    variables: Its variables, as a query's.
+    keep: Keep the last this many payloads as a list; the latest only when absent.
+    history: A declared query to replay from while travelling; without it the value at travel start shows, stale.
+"""
+    _data: dict[str, builtins.object] = {}
+    _data['key'] = key
+    _data['service'] = service
+    _data['document'] = document
+    _data['variables'] = variables
+    if keep is not UNSET:
+        _data['keep'] = keep
+    if history is not UNSET:
+        _data['history'] = history
+    return BlokSubscriptionInput.model_validate(_data)
 
 def choice_input(value: Any, label: str, image: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET) -> ChoiceInput:
     """Creates a ChoiceInput
@@ -1383,10 +1677,10 @@ def component_node_input(id: str, component: str, props: Iterable[ComponentPropI
     """Creates a ComponentNodeInput
 
 Arguments:
-    id: Unique structural string identifying this node instance inside the flat workspace layout tree.
-    component: The type indicator token matching your Electron app's registered catalog specs (e.g. 'Slider').
+    id: An explicit id, or one derived from the node's place (`Card[0]/Button[1]`); unique in the tree.
+    component: The catalog component (`Button`) or language component (`if`, `foreach`, `suspense`).
     props: The collection of static values, state pointers, or action endpoints assigned to this component.
-    children: Flat adjacency pointer list mapping out IDs nested inside this specific component layer.
+    children: Its children, in order.
 """
     _data: dict[str, builtins.object] = {}
     _data['id'] = id
@@ -1402,11 +1696,11 @@ def component_prop_input(key: str, static_value: JSONSerializable | None | Unset
 
 Arguments:
     key: The prop key name matching the target UI catalog constraint.
-    static_value: A raw scalar or JSON-stringified literal configuration parameter (e.g. '40x' or True).
-    dynamic_value: A reactive state data-binding rule.
-    declares_value: If set, this prop declares a new 'value' in the Blok state that can be referenced by other props or actions. The value of this field should be the name of the declared value (e.g., 'selected_user').
-    agent_call: Defines an imperative interactive network action callback loop if this prop should trigger an agent interaction.
-    util_call: Defines an imperative interactive network action callback loop if this prop should trigger a system utility interaction.
+    static_value: A JSON literal: a string, number, bool, list or object.
+    dynamic_value: A path the prop reads.
+    declares_value: The name a task call writes its record to (`... into move`), or the loop variable of a `foreach` (its `let`).
+    agent_call: A task call: a callback's one thing.
+    util_call: A function the prop's value is, or in a callback the effect it runs (ui.copy, task.answer, query.refetch, query.fetch_more).
 """
     _data: dict[str, builtins.object] = {}
     _data['key'] = key
@@ -1516,7 +1810,7 @@ Arguments:
         _data['qualifiers'] = qualifiers
     return DeclareResourceInput.model_validate(_data)
 
-def definition_input(collections: Iterable[str], key: str, version: str, name: str, stateful: bool, pure: bool, idempotent: bool, allow_probe: bool, port_groups: Iterable[PortGroupInput], args: Iterable[ArgPortInput], returns: Iterable[ReturnPortInput], kind: ActionKind, is_test_for: Iterable[TestTargetInput], is_dev: bool, description: str | None | UnsetType=UNSET, catalogs: Iterable[str] | None | UnsetType=UNSET) -> DefinitionInput:
+def definition_input(collections: Iterable[str], key: str, version: str, name: str, stateful: bool, pure: bool, idempotent: bool, allow_probe: bool, protocols: Iterable[str], bloks: Iterable[ActionBlokInput], port_groups: Iterable[PortGroupInput], args: Iterable[ArgPortInput], returns: Iterable[ReturnPortInput], kind: ActionKind, is_test_for: Iterable[TestTargetInput], is_dev: bool, description: str | None | UnsetType=UNSET, catalogs: Iterable[str] | None | UnsetType=UNSET) -> DefinitionInput:
     """Creates a DefinitionInput
 
 Arguments:
@@ -1530,6 +1824,8 @@ Arguments:
     idempotent: Whether the action is idempotent: safe to run multiple times with the same args without changing the outcome — on ambiguous executor loss it may be freely re-dispatched.
     allow_probe: Whether the action may be invoked as a probe: zero persistence, redis-held state, no history/replay/recovery. Only actions declaring this are callable via the call mutation.
     catalogs: Names of the UI catalogs that extend the base catalog (`base@1`, always applied) for this definition's effect and validator calls. Unknown names yield an unknown_catalog warning; conflicting operation definitions across catalogs are a registration error.
+    protocols: Where the action means to hook in (`on_scene_annotation`): hints a caller filters on, stored beside the protocols the server infers. Not a contract, and not part of the action's hash.
+    bloks: The action's own bloks, at most one per context: how a client shows a run of it (HTML in a task panel, OVERLAY drawn into the space that hosts the run). They name devices only by the action's dependency keys. Not part of the action's hash.
     port_groups: The port groups of the definition. This is used to group ports together in the UI
     args: The args of the definition. This is the input ports of the definition
     returns: The returns of the definition. This is the output ports of the definition
@@ -1550,6 +1846,8 @@ Arguments:
     _data['allowProbe'] = allow_probe
     if catalogs is not UNSET:
         _data['catalogs'] = catalogs
+    _data['protocols'] = protocols
+    _data['bloks'] = bloks
     _data['portGroups'] = port_groups
     _data['args'] = args
     _data['returns'] = returns
@@ -1609,7 +1907,7 @@ def dynamic_value_input(literal: str | None | UnsetType=UNSET, path: str | None 
 
 Arguments:
     literal: A static fallback literal value (serialized string or JSON primitive) used when `path` does not resolve.
-    path: JSON Pointer to a variable inside the Blok's isolated data model (e.g., '/microscope/exposure').
+    path: The path the prop reads: a root (`self`, `deps`, `args`, `task`, `queries`, `subscriptions`, `viewer`, `then`, `event`, `error`), a local, a loop variable or a record, and what follows it.
 """
     _data: dict[str, builtins.object] = {}
     if literal is not UNSET:
@@ -1777,7 +2075,7 @@ Arguments:
     locks: Which locks does the agent provide in general (required) (list) (required)
     implementations: A implementation is a blueprint for a action. It is composed of a definition, a list of dependencies, and a list of params. (required) (list) (required)
     states: A state implementation is a blueprint for a state. It is composed of a definition, a list of dependencies, and a list of params. (required) (list) (required)
-    bloks: Which locks does the agent provide in general (required) (list) (required)
+    bloks: A blok an agent declares (blok language v2). (required) (list) (required)
     assets: The files the app brings: models and images its bloks call by name.
     requirements:  (required) (list) (required)
 """
@@ -2284,7 +2582,7 @@ def util_call_input(operation: str, arguments: Iterable[ActionArgumentInput] | N
     """Creates a UtilCallInput
 
 Arguments:
-    operation: The utility function name to invoke.
+    operation: The function called (`str.upper`), or in a callback the effect (`ui.copy`, `task.answer`).
     arguments: Key-value arguments map compiled for the target utility call.
 """
     _data: dict[str, builtins.object] = {}
@@ -2565,11 +2863,15 @@ class FlavourBlok(BaseModel):
     description: str | None = Field(default=None)
     'What the app says the blok shows.'
     hash: str
-    'A SHA-256 of what the blok draws: its component tree, demo state and context. Two bloks with the same hash draw the same thing, so a client may keep what it drew under it.'
+    'A SHA-256 of what the blok draws: its component tree, context and what it declares beside it. Two bloks with the same hash draw the same thing, so a client may keep what it drew under it.'
     component_tree: Any | None = Field(default=None, alias='componentTree')
     'The whole component tree as one JSON value (a list of roots) in the wire spelling (snake_case keys), as rekuest serves `Blok.componentTree`. Null when the source does not parse.'
-    demo_state: Any | None = Field(default=None, alias='demoState')
-    'The state the blok is drawn against when it is shown on its own.'
+    vocab: int | None = Field(default=None)
+    'The blok language version it speaks; null for a blok an app brought before blok language v2.'
+    locals: Any
+    'Its locals, as the app declared them (snake_case keys).'
+    demo: Any | None = Field(default=None)
+    'What a preview renders it with.'
     for_model: str | None = Field(default=None, alias='forModel')
     "The model ('sha256:...') this blok decorates, if any."
     for_node: str | None = Field(default=None, alias='forNode')
@@ -2580,7 +2882,7 @@ class FlavourBlok(BaseModel):
 
     class Meta:
         """Meta class for FlavourBlok"""
-        document = 'fragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}'
+        document = 'fragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  vocab\n  locals\n  demo\n  forModel\n  forNode\n  parseError\n  __typename\n}'
         name = 'FlavourBlok'
         type = 'FlavourBlok'
 
@@ -2841,7 +3143,7 @@ class Definition(BaseModel):
 
     class Meta:
         """Meta class for Definition"""
-        document = 'fragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment Definition on Definition {\n  id\n  name\n  logo {\n    ...FlavourBlok\n    __typename\n  }\n  __typename\n}'
+        document = 'fragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  vocab\n  locals\n  demo\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment Definition on Definition {\n  id\n  name\n  logo {\n    ...FlavourBlok\n    __typename\n  }\n  __typename\n}'
         name = 'Definition'
         type = 'Definition'
 
@@ -2910,7 +3212,7 @@ class Release(BaseModel):
 
     class Meta:
         """Meta class for Release"""
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  vocab\n  locals\n  demo\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}'
         name = 'Release'
         type = 'Release'
 
@@ -2958,7 +3260,7 @@ class DetailFlavour(Flavour, BaseModel):
 
     class Meta:
         """Meta class for DetailFlavour"""
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n      __typename\n    }\n    scopes\n    __typename\n  }\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment DetailFlavour on Flavour {\n  ...Flavour\n  assets\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  blokImplementations {\n    ...FlavourBlok\n    __typename\n  }\n  __typename\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n      __typename\n    }\n    scopes\n    __typename\n  }\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  vocab\n  locals\n  demo\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment DetailFlavour on Flavour {\n  ...Flavour\n  assets\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  blokImplementations {\n    ...FlavourBlok\n    __typename\n  }\n  __typename\n}'
         name = 'DetailFlavour'
         type = 'Flavour'
 
@@ -3037,7 +3339,7 @@ class ReleaseApproval(BaseModel):
 
     class Meta:
         """Meta class for ReleaseApproval"""
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  vocab\n  locals\n  demo\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}'
         name = 'ReleaseApproval'
         type = 'ReleaseApproval'
 
@@ -3052,7 +3354,7 @@ class ApproveReleaseMutation(BaseModel):
 
     class Meta:
         """Meta class for ApproveRelease """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nmutation ApproveRelease($input: ApproveReleaseInput!) {\n  approveRelease(input: $input) {\n    ...ReleaseApproval\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  vocab\n  locals\n  demo\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nmutation ApproveRelease($input: ApproveReleaseInput!) {\n  approveRelease(input: $input) {\n    ...ReleaseApproval\n    __typename\n  }\n}'
 
 class RevokeApprovalMutation(BaseModel):
     """No documentation found for this operation."""
@@ -3065,7 +3367,7 @@ class RevokeApprovalMutation(BaseModel):
 
     class Meta:
         """Meta class for RevokeApproval """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nmutation RevokeApproval($id: ID!) {\n  revokeApproval(input: {id: $id}) {\n    ...ReleaseApproval\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  vocab\n  locals\n  demo\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nmutation RevokeApproval($id: ID!) {\n  revokeApproval(input: {id: $id}) {\n    ...ReleaseApproval\n    __typename\n  }\n}'
 
 class DeclareBackendMutation(BaseModel):
     """No documentation found for this operation."""
@@ -3104,7 +3406,7 @@ class CreateAppImageMutation(BaseModel):
 
     class Meta:
         """Meta class for CreateAppImage """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  vocab\n  locals\n  demo\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nmutation CreateAppImage($input: AppImageInput!) {\n  createAppImage(input: $input) {\n    ...Release\n    __typename\n  }\n}'
 
 class CreatePodMutation(BaseModel):
     """No documentation found for this operation."""
@@ -3223,7 +3525,7 @@ class GetReleaseApprovalQuery(BaseModel):
 
     class Meta:
         """Meta class for GetReleaseApproval """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nquery GetReleaseApproval($id: ID!) {\n  releaseApproval(id: $id) {\n    ...ReleaseApproval\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  vocab\n  locals\n  demo\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nquery GetReleaseApproval($id: ID!) {\n  releaseApproval(id: $id) {\n    ...ReleaseApproval\n    __typename\n  }\n}'
 
 class ListReleaseApprovalsQuery(BaseModel):
     """No documentation found for this operation."""
@@ -3236,7 +3538,7 @@ class ListReleaseApprovalsQuery(BaseModel):
 
     class Meta:
         """Meta class for ListReleaseApprovals """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nquery ListReleaseApprovals {\n  releaseApprovals {\n    ...ReleaseApproval\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  vocab\n  locals\n  demo\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nfragment ReleaseApproval on ReleaseApproval {\n  id\n  mandateId\n  agent\n  digest\n  isActive\n  isStale\n  revokedAt\n  approver {\n    sub\n    __typename\n  }\n  backends {\n    id\n    __typename\n  }\n  release {\n    ...Release\n    __typename\n  }\n  __typename\n}\n\nquery ListReleaseApprovals {\n  releaseApprovals {\n    ...ReleaseApproval\n    __typename\n  }\n}'
 
 class SearchReleaseApprovalsQueryOptions(BaseModel):
     """A user's standing approval to run a release, backed by a lok agent mandate that lets a deployer issue mandate keys that run it as them."""
@@ -3337,7 +3639,7 @@ class GetDefinitionByHashQuery(BaseModel):
 
     class Meta:
         """Meta class for GetDefinitionByHash """
-        document = 'fragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment Definition on Definition {\n  id\n  name\n  logo {\n    ...FlavourBlok\n    __typename\n  }\n  __typename\n}\n\nquery GetDefinitionByHash($hash: ActionHash) {\n  definition(hash: $hash) {\n    ...Definition\n    __typename\n  }\n}'
+        document = 'fragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  vocab\n  locals\n  demo\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment Definition on Definition {\n  id\n  name\n  logo {\n    ...FlavourBlok\n    __typename\n  }\n  __typename\n}\n\nquery GetDefinitionByHash($hash: ActionHash) {\n  definition(hash: $hash) {\n    ...Definition\n    __typename\n  }\n}'
 
 class GetDefinitionQuery(BaseModel):
     """No documentation found for this operation."""
@@ -3350,7 +3652,7 @@ class GetDefinitionQuery(BaseModel):
 
     class Meta:
         """Meta class for GetDefinition """
-        document = 'fragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment Definition on Definition {\n  id\n  name\n  logo {\n    ...FlavourBlok\n    __typename\n  }\n  __typename\n}\n\nquery GetDefinition($id: ID!) {\n  definition(id: $id) {\n    ...Definition\n    __typename\n  }\n}'
+        document = 'fragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  vocab\n  locals\n  demo\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment Definition on Definition {\n  id\n  name\n  logo {\n    ...FlavourBlok\n    __typename\n  }\n  __typename\n}\n\nquery GetDefinition($id: ID!) {\n  definition(id: $id) {\n    ...Definition\n    __typename\n  }\n}'
 
 class SearchDefinitionsQueryOptions(BaseModel):
     """An action definition: the abstract, hashed description of an RPC task that a flavour provides."""
@@ -3480,7 +3782,7 @@ class GetFlavourQuery(BaseModel):
 
     class Meta:
         """Meta class for GetFlavour """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n      __typename\n    }\n    scopes\n    __typename\n  }\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment DetailFlavour on Flavour {\n  ...Flavour\n  assets\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  blokImplementations {\n    ...FlavourBlok\n    __typename\n  }\n  __typename\n}\n\nquery GetFlavour($id: ID!) {\n  flavour(id: $id) {\n    ...DetailFlavour\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Flavour on Flavour {\n  ...ListFlavour\n  release {\n    id\n    version\n    app {\n      identifier\n      __typename\n    }\n    scopes\n    __typename\n  }\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  vocab\n  locals\n  demo\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment DetailFlavour on Flavour {\n  ...Flavour\n  assets\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  blokImplementations {\n    ...FlavourBlok\n    __typename\n  }\n  __typename\n}\n\nquery GetFlavour($id: ID!) {\n  flavour(id: $id) {\n    ...DetailFlavour\n    __typename\n  }\n}'
 
 class GetFlavourBlokQuery(BaseModel):
     """No documentation found for this operation."""
@@ -3493,7 +3795,7 @@ class GetFlavourBlokQuery(BaseModel):
 
     class Meta:
         """Meta class for GetFlavourBlok """
-        document = 'fragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nquery GetFlavourBlok($id: ID!) {\n  flavourBlok(id: $id) {\n    ...FlavourBlok\n    __typename\n  }\n}'
+        document = 'fragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  vocab\n  locals\n  demo\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nquery GetFlavourBlok($id: ID!) {\n  flavourBlok(id: $id) {\n    ...FlavourBlok\n    __typename\n  }\n}'
 
 class SearchFlavoursQueryOptions(BaseModel):
     """A buildable variant of a release: a specific Docker image together with the selectors and requirements needed to run it."""
@@ -3621,7 +3923,7 @@ class GetReleaseQuery(BaseModel):
 
     class Meta:
         """Meta class for GetRelease """
-        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  demoState\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n    __typename\n  }\n}'
+        document = 'fragment CpuSelector on CPUSelector {\n  minCount\n  frequency\n  arch\n  __typename\n}\n\nfragment CudaSelector on CudaSelector {\n  computeCapability\n  cudaVersion\n  memory\n  count\n  cudaCores\n  __typename\n}\n\nfragment LabelSelector on LabelSelector {\n  key\n  value\n  __typename\n}\n\nfragment OneApiSelector on OneApiSelector {\n  oneapiVersion\n  __typename\n}\n\nfragment RamSelector on RAMSelector {\n  min\n  __typename\n}\n\nfragment RocmSelector on RocmSelector {\n  apiVersion\n  apiThing\n  __typename\n}\n\nfragment FlavourBlok on FlavourBlok {\n  id\n  flavourId\n  key\n  context\n  default\n  description\n  hash\n  componentTree\n  vocab\n  locals\n  demo\n  forModel\n  forNode\n  parseError\n  __typename\n}\n\nfragment ListFlavour on Flavour {\n  id\n  name\n  image {\n    imageString\n    buildAt\n    __typename\n  }\n  manifest\n  requirements {\n    key\n    service\n    description\n    optional\n    __typename\n  }\n  repo {\n    url\n    __typename\n  }\n  selectors {\n    kind\n    required\n    weight\n    ...CudaSelector\n    ...RocmSelector\n    ...CpuSelector\n    ...RamSelector\n    ...OneApiSelector\n    ...LabelSelector\n    __typename\n  }\n  __typename\n}\n\nfragment Release on Release {\n  id\n  version\n  channel\n  revision\n  app {\n    identifier\n    __typename\n  }\n  scopes\n  approvalDigest\n  mandateManifest\n  logoBlok {\n    ...FlavourBlok\n    __typename\n  }\n  flavours {\n    ...ListFlavour\n    __typename\n  }\n  __typename\n}\n\nquery GetRelease($id: ID!) {\n  release(id: $id) {\n    ...Release\n    __typename\n  }\n}'
 
 class SearchReleasesQueryOptions(BaseModel):
     """A specific version of an app, bundling the flavours that can be deployed for it."""
@@ -5494,12 +5796,14 @@ Returns:
         for event in self.subscribe(WatchPodsSubscription, variables):
             yield event.pods
 ActionArgumentInput.model_rebuild()
+ActionBlokInput.model_rebuild()
 ActionDemandInput.model_rebuild()
 AgentDependencyInput.model_rebuild()
 AppImageInput.model_rebuild()
 ArgPortInput.model_rebuild()
 BackendFilter.model_rebuild()
 BlokImplementationInput.model_rebuild()
+BlokLocalInput.model_rebuild()
 ComponentNodeInput.model_rebuild()
 ComponentPropInput.model_rebuild()
 CustomAssignWidgetInput.model_rebuild()

@@ -69,7 +69,9 @@ fragment FlavourBlok on FlavourBlok {
   description
   hash
   componentTree
-  demoState
+  vocab
+  locals
+  demo
   forModel
   forNode
   parseError
