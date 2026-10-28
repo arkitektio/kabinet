@@ -19,6 +19,7 @@ from arkitekt_spec.declare.app import AppRegistry
 from arkitekt_spec.declare.widgets import SearchWidget
 
 from kabinet.api.schema import (
+    SCOPES,
     Definition,
     Deployment,
     Flavour,
@@ -48,6 +49,9 @@ registry = AppRegistry()
 @registry.service(
     schema=build_relative_path("api", "schema.graphql"),
     turms=build_relative_path("api", "project.json"),
+    # What the client's operations need at kabinet, as turms gathered it from the schema: every
+    # app using kabinet asks for it.
+    scopes=SCOPES,
 )
 def kabinet(
     kabinet: Annotated[

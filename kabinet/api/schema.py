@@ -5795,6 +5795,7 @@ Returns:
         variables: dict[str, builtins.object] = {}
         for event in self.subscribe(WatchPodsSubscription, variables):
             yield event.pods
+SCOPES: list[str] = ['kabinet_approve', 'kabinet_deploy', 'kabinet_read', 'kabinet_repos']
 ActionArgumentInput.model_rebuild()
 ActionBlokInput.model_rebuild()
 ActionDemandInput.model_rebuild()
