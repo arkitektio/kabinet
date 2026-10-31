@@ -199,18 +199,6 @@ class ReturnWidgetKind(str, Enum):
     CUSTOM = 'CUSTOM'
     __str__ = str.__str__
 
-class WindowFunction(str, Enum):
-    """Aggregation computed over a tracked value within a window."""
-    MEAN = 'MEAN'
-    MIN = 'MIN'
-    MAX = 'MAX'
-    SUM = 'SUM'
-    COUNT = 'COUNT'
-    LAST = 'LAST'
-    FIRST = 'FIRST'
-    STD = 'STD'
-    __str__ = str.__str__
-
 class ChoiceAssignWidgetInput(BaseModel):
     """A dropdown over the port's `choices`."""
     kind: Literal['CHOICE'] = Field(default='CHOICE')
@@ -825,7 +813,6 @@ class ImplementationInput(BaseModel):
     definition: DefinitionInput = Field(description='The definition of the implementation. This is used to uniquely identify the implementation')
     dependencies: Annotated[tuple[AgentDependencyInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The agent dependencies required by this implementation.')
     'The agent dependencies required by this implementation.\nDefault: []'
-    tracks: tuple['TrackInput', ...] | None = Field(default=None, description='The tracks of the definition. This is used to track values over time during the runtime of an action. This is the state of a dependency')
     interface: str | None = Field(default=None, description='The interface of the implementation. This is used to group implementations together in the UI')
     params: Any | None = Field(default=None, description='The params of the implementation. This is used to pass parameters to the implementation')
     instance_id: str | None = Field(validation_alias=AliasChoices('instance_id', 'instanceId'), serialization_alias='instanceId', default=None, description='The instance id of the agent this implementation is bound to.')
@@ -1057,16 +1044,6 @@ class TestTargetInput(BaseModel):
     version: str | None = Field(default=None, description='Restrict a key target to one specific version.')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
-class TrackInput(BaseModel):
-    """A value that is being tracked over time during the runtime of an action. This is the state of a dependency"""
-    dependency_key: str | None = Field(validation_alias=AliasChoices('dependency_key', 'dependencyKey'), serialization_alias='dependencyKey', default=None, description='The key of the dependency whose state is being tracked.')
-    state_key: str = Field(validation_alias=AliasChoices('state_key', 'stateKey'), serialization_alias='stateKey', description='The key of the state to track.')
-    value_key: str = Field(validation_alias=AliasChoices('value_key', 'valueKey'), serialization_alias='valueKey', description='The key of the value within the state to track.')
-    label: str | None = Field(default=None, description='An optional human-readable label for the track.')
-    description: str | None = Field(default=None, description='An optional description for the track.')
-    windows: tuple['WindowInput', ...] | None = Field(default=None, description='The windows (aggregations) computed over the tracked value.')
-    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
-
 class UpdatePodInput(BaseModel):
     """Input for updating a pod's status."""
     pod: ID | None = Field(default=None, description="The ID of the pod to update; required unless 'local_id' is given.")
@@ -1093,12 +1070,6 @@ own value. Use the .. syntax when traversing the tree of ports.
     label: str | None = Field(default=None, description='An optional human-readable label for the validator.')
     error_message: str | None = Field(validation_alias=AliasChoices('error_message', 'errorMessage'), serialization_alias='errorMessage', default=None, description='The error message to display when the validation fails')
     source: str | None = Field(default=None, description='The authoring expression the call was compiled from (informational; never parsed or validated by the server).')
-    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
-
-class WindowInput(BaseModel):
-    """A window that is calculated"""
-    window_function: WindowFunction = Field(validation_alias=AliasChoices('window_function', 'windowFunction'), serialization_alias='windowFunction', description='The aggregation to compute over the tracked value within the window.')
-    label: str | None = Field(default=None, description='An optional human-readable label for the window.')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 def action_argument_input(key: str | None | UnsetType=UNSET, value_literal: JSONSerializable | None | UnsetType=UNSET, value_path: str | None | UnsetType=UNSET, agent_call: AgentProbeInput | None | UnsetType=UNSET, util_call: UtilCallInput | None | UnsetType=UNSET, value_list: Iterable[ActionArgumentInput] | None | UnsetType=UNSET, value_dict: Iterable[ActionArgumentInput] | None | UnsetType=UNSET) -> ActionArgumentInput:
@@ -1983,13 +1954,12 @@ Arguments:
         _data['releasedAt'] = released_at
     return FlavourOrder.model_validate(_data)
 
-def implementation_input(definition: DefinitionInput, dependencies: Iterable[AgentDependencyInput], needs_token: bool, effects: Effects, execution: Execution, tracks: Iterable[TrackInput] | None | UnsetType=UNSET, interface: str | None | UnsetType=UNSET, params: Any | None | UnsetType=UNSET, instance_id: str | None | UnsetType=UNSET, locks: Iterable[str] | None | UnsetType=UNSET, optimistics: Iterable[OptimisticInput] | None | UnsetType=UNSET, manipulates: Iterable[str] | None | UnsetType=UNSET, provenance_audience: Iterable[str] | None | UnsetType=UNSET, code_hash: str | None | UnsetType=UNSET, logo: str | None | UnsetType=UNSET) -> ImplementationInput:
+def implementation_input(definition: DefinitionInput, dependencies: Iterable[AgentDependencyInput], needs_token: bool, effects: Effects, execution: Execution, interface: str | None | UnsetType=UNSET, params: Any | None | UnsetType=UNSET, instance_id: str | None | UnsetType=UNSET, locks: Iterable[str] | None | UnsetType=UNSET, optimistics: Iterable[OptimisticInput] | None | UnsetType=UNSET, manipulates: Iterable[str] | None | UnsetType=UNSET, provenance_audience: Iterable[str] | None | UnsetType=UNSET, code_hash: str | None | UnsetType=UNSET, logo: str | None | UnsetType=UNSET) -> ImplementationInput:
     """Creates a ImplementationInput
 
 Arguments:
     definition: The definition of the implementation. This is used to uniquely identify the implementation
     dependencies: The agent dependencies required by this implementation.
-    tracks: The tracks of the definition. This is used to track values over time during the runtime of an action. This is the state of a dependency
     interface: The interface of the implementation. This is used to group implementations together in the UI
     params: The params of the implementation. This is used to pass parameters to the implementation
     instance_id: The instance id of the agent this implementation is bound to.
@@ -2006,8 +1976,6 @@ Arguments:
     _data: dict[str, builtins.object] = {}
     _data['definition'] = definition
     _data['dependencies'] = dependencies
-    if tracks is not UNSET:
-        _data['tracks'] = tracks
     if interface is not UNSET:
         _data['interface'] = interface
     if params is not UNSET:
@@ -2538,30 +2506,6 @@ Arguments:
         _data['version'] = version
     return TestTargetInput.model_validate(_data)
 
-def track_input(state_key: str, value_key: str, dependency_key: str | None | UnsetType=UNSET, label: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, windows: Iterable[WindowInput] | None | UnsetType=UNSET) -> TrackInput:
-    """Creates a TrackInput
-
-Arguments:
-    dependency_key: The key of the dependency whose state is being tracked.
-    state_key: The key of the state to track.
-    value_key: The key of the value within the state to track.
-    label: An optional human-readable label for the track.
-    description: An optional description for the track.
-    windows: The windows (aggregations) computed over the tracked value.
-"""
-    _data: dict[str, builtins.object] = {}
-    if dependency_key is not UNSET:
-        _data['dependencyKey'] = dependency_key
-    _data['stateKey'] = state_key
-    _data['valueKey'] = value_key
-    if label is not UNSET:
-        _data['label'] = label
-    if description is not UNSET:
-        _data['description'] = description
-    if windows is not UNSET:
-        _data['windows'] = windows
-    return TrackInput.model_validate(_data)
-
 def update_pod_input(status: PodStatus, pod: IDCoercible | None | UnsetType=UNSET, local_id: IDCoercible | None | UnsetType=UNSET) -> UpdatePodInput:
     """Creates a UpdatePodInput
 
@@ -2612,19 +2556,6 @@ Arguments:
     if source is not UNSET:
         _data['source'] = source
     return ValidatorInput.model_validate(_data)
-
-def window_input(window_function: WindowFunction, label: str | None | UnsetType=UNSET) -> WindowInput:
-    """Creates a WindowInput
-
-Arguments:
-    window_function: The aggregation to compute over the tracked value within the window.
-    label: An optional human-readable label for the window.
-"""
-    _data: dict[str, builtins.object] = {}
-    _data['windowFunction'] = window_function
-    if label is not UNSET:
-        _data['label'] = label
-    return WindowInput.model_validate(_data)
 
 class Backend(BaseModel):
     """A deployment target (agent) registered by a client that runs pods on behalf of an organization."""
@@ -5822,4 +5753,3 @@ ReturnPortInput.model_rebuild()
 SearchAssignWidgetInput.model_rebuild()
 StateAccessorInput.model_rebuild()
 StateChoiceAssignWidgetInput.model_rebuild()
-TrackInput.model_rebuild()
