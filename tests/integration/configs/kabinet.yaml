@@ -13,6 +13,8 @@ authentikate:
       iss: lok
       active_org: org
       device_id: ggg
+      roles: [kabinet_admin]
+      scope: kabinet_all
 django:
   admin:
     email: admin@admin.com
