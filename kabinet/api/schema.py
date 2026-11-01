@@ -848,6 +848,7 @@ class InspectedAssetInput(BaseModel):
 
 class InspectionInput(BaseModel):
     """No documentation"""
+    spec_version: str = Field(validation_alias=AliasChoices('spec_version', 'specVersion'), serialization_alias='specVersion')
     size: int | None = None
     locks: tuple['LockImplementationInput', ...]
     implementations: tuple[ImplementationInput, ...]
@@ -2035,10 +2036,11 @@ Arguments:
         _data['path'] = path
     return InspectedAssetInput.model_validate(_data)
 
-def inspection_input(locks: Iterable[LockImplementationInput], implementations: Iterable[ImplementationInput], states: Iterable[StateImplementationInput], bloks: Iterable[BlokImplementationInput], assets: Iterable[InspectedAssetInput], requirements: Iterable[RequirementInput], size: int | None | UnsetType=UNSET) -> InspectionInput:
+def inspection_input(spec_version: str, locks: Iterable[LockImplementationInput], implementations: Iterable[ImplementationInput], states: Iterable[StateImplementationInput], bloks: Iterable[BlokImplementationInput], assets: Iterable[InspectedAssetInput], requirements: Iterable[RequirementInput], size: int | None | UnsetType=UNSET) -> InspectionInput:
     """Creates a InspectionInput
 
 Arguments:
+    spec_version: The arkitekt-spec the image wrote this with. An inspection that names none is refused. (required)
     size: The `Int` scalar type represents non-fractional signed whole numeric values. Int can represent values between -(2^31) and 2^31 - 1.
     locks: Which locks does the agent provide in general (required) (list) (required)
     implementations: A implementation is a blueprint for a action. It is composed of a definition, a list of dependencies, and a list of params. (required) (list) (required)
@@ -2048,6 +2050,7 @@ Arguments:
     requirements:  (required) (list) (required)
 """
     _data: dict[str, builtins.object] = {}
+    _data['spec_version'] = spec_version
     if size is not UNSET:
         _data['size'] = size
     _data['locks'] = locks

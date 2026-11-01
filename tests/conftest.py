@@ -109,6 +109,7 @@ def release(kabinet: Kabinet) -> Release:
         selectors=[],
         app_image_id=uuid.uuid4().hex,
         inspection=InspectionInput(
+            spec_version="8.0.0",
             size=1,
             locks=[],
             implementations=[],
