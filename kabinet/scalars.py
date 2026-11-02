@@ -10,7 +10,8 @@ from graphql import (
     print_source_location,
     GraphQLSyntaxError,
 )
-from typing import Callable, Dict, Any, Union
+from typing import Any
+from collections.abc import Callable
 
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import CoreSchema, core_schema
@@ -20,11 +21,11 @@ ActionHash = str
 InstanceId = str
 QString = str
 
-ValueMap = Dict[str, Any]
+ValueMap = dict[str, Any]
 
-JSONSerializable = Union[str, int, float, bool, None, Dict, list]
+JSONSerializable = str | int | float | bool | None | dict | list
 
-Args = Dict[str, Any]
+Args = dict[str, Any]
 
 
 class Interface(str):
@@ -41,7 +42,7 @@ class Interface(str):
         return core_schema.no_info_after_validator_function(cls.validate, handler(str))
 
     @classmethod
-    def validate(cls, v: Union[str, Callable[[Any], Any]]) -> str:
+    def validate(cls, v: str | Callable[[Any], Any]) -> str:
         """Validate the interface"""
         if not isinstance(v, str):
             if hasattr(v, "__name__"):
@@ -128,7 +129,7 @@ class SearchQuery(str):
         return core_schema.no_info_after_validator_function(cls.validate, handler(str))
 
     @classmethod
-    def validate(cls, v: Union[str, DocumentNode]) -> "SearchQuery":
+    def validate(cls, v: str | DocumentNode) -> "SearchQuery":
         """Validate the search query"""
         if not isinstance(v, str) and not isinstance(v, DocumentNode):  # pyright: ignore[reportUnnecessaryIsInstance] # noqa: ANN401
             raise ValueError("Search query must be either a str or a graphql DocumentAction")
