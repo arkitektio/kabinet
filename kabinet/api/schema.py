@@ -33,6 +33,12 @@ class UnsetType:
         return False
 UNSET = UnsetType()
 
+class ActionBlokPhase(str, Enum):
+    """When a client shows an action's own blok: RUN for a run of the action (it reads the run as `task`), ASSIGN before one, to start it (no `task`; `<args />` places the argument form, `assign.start()` starts the run)."""
+    RUN = 'RUN'
+    ASSIGN = 'ASSIGN'
+    __str__ = str.__str__
+
 class ActionKind(str, Enum):
     """The kind of action."""
     FUNCTION = 'FUNCTION'
@@ -57,12 +63,11 @@ class AssignWidgetKind(str, Enum):
     __str__ = str.__str__
 
 class ComponentContext(str, Enum):
-    """The renderer a catalog component lives in. A component may only be placed where its context is in force. ACTION_LOGO and OVERLAY are blok contexts only: an OVERLAY blok is an action's own, drawn into the space that hosts its run."""
+    """The renderer a catalog component lives in. A component may only be placed where its context is in force. ACTION_LOGO is a blok context only."""
     HTML = 'HTML'
     SCENE = 'SCENE'
     LOGO = 'LOGO'
     ACTION_LOGO = 'ACTION_LOGO'
-    OVERLAY = 'OVERLAY'
     __str__ = str.__str__
 
 class DescriptorOperator(str, Enum):
@@ -255,6 +260,7 @@ class CustomAssignWidgetInput(BaseModel):
     follow_value: str | None = Field(validation_alias=AliasChoices('follow_value', 'followValue'), serialization_alias='followValue', default=None, description='Port path of another port whose value this widget follows and mirrors.')
     component: str = Field(description='The catalog component to render. The port value is in scope as the reserved root `value`.')
     props: tuple['ComponentPropInput', ...] | None = Field(default=None, description='Props of the component. value_paths may only reference `value` and `dependencies`; agent calls are not allowed.')
+    children: tuple['ComponentNodeInput', ...] | None = Field(default=None, description="The component's children: a tree of blok nodes under the same rules as its props. Left out of the definition's hash when empty, so a widget without any keeps the hash it has.")
     dependencies: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The other ports (port paths, `..` traverses children) whose values the props may reference.')
     'The other ports (port paths, `..` traverses children) whose values the props may reference.\nDefault: []'
     fallback: 'AssignWidgetInput | None' = Field(default=None, description='Widget to render when the UI has no such component in its catalog.')
@@ -405,8 +411,10 @@ class ActionArgumentInput(BaseModel):
 
 class ActionBlokInput(BaseModel):
     """An action's own blok (blok language v2): how a client shows a run of it in one context, naming devices by the action's dependency keys."""
-    context: Annotated[ComponentContext | None, GraphQLDefault('HTML')] = Field(default=None, description='Where a client shows the run with it: HTML in a task panel, SCENE as a 3D view of its own, OVERLAY drawn into the space that hosts the run (its root an `Overlay`).')
-    'Where a client shows the run with it: HTML in a task panel, SCENE as a 3D view of its own, OVERLAY drawn into the space that hosts the run (its root an `Overlay`).\nDefault: HTML'
+    context: Annotated[ComponentContext | None, GraphQLDefault('HTML')] = Field(default=None, description="Where a client shows the run with it: HTML in a task panel, SCENE as a 3D view (its root a `Scene`, or a `Space` placing the run's dependencies in a room whose layout is shared).")
+    "Where a client shows the run with it: HTML in a task panel, SCENE as a 3D view (its root a `Scene`, or a `Space` placing the run's dependencies in a room whose layout is shared).\nDefault: HTML"
+    phase: Annotated[ActionBlokPhase | None, GraphQLDefault('RUN')] = Field(default=None, description='When a client shows it: RUN for a run of the action, ASSIGN before one, to start it. One blok per context and phase.')
+    'When a client shows it: RUN for a run of the action, ASSIGN before one, to start it. One blok per context and phase.\nDefault: RUN'
     components: tuple['ComponentNodeInput', ...] | None = Field(default=None, description='The UI component tree, unless the blok is sent as its `source`.')
     source: str | None = Field(default=None, description='The blok as v2 BSX, parsed by the server into its component tree. Exactly one of `components` and `source` is sent.')
     module: str | None = Field(default=None, description="The module the blok renders against besides its catalogs; the Orkestrator's when absent.")
@@ -525,6 +533,31 @@ class ArgPortInput(BaseModel):
     default: Any | None = Field(default=None, description="The default value for the port; must fit the port's kind.")
     widget: 'AssignWidgetInput | None' = Field(default=None, description='The assign widget to use for this port, discriminated by `kind`.')
     requires: tuple['RequiresInput', ...] | None = Field(default=None, description="The descriptors for the port. Descriptors are key-value pairs that can be used to add additional metadata to a port. When using rekuest's action search, you can filter actions based on their port descriptors")
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
+class AskBlokInput(BaseModel):
+    """A blok an action asks a person through, declared with it (blok language v2): a task blok, its args and returns ports."""
+    key: str = Field(description="What a task names it by: `<parameter>.<method>` of the action's interactions protocol.")
+    description: str | None = Field(default=None, description="What it asks, in a sentence: the hold's message wherever the ask is listed.")
+    components: tuple['ComponentNodeInput', ...] | None = Field(default=None, description='The UI component tree, unless the blok is sent as its `source`.')
+    source: str | None = Field(default=None, description='The blok as v2 BSX, parsed by the server into its component tree. Exactly one of `components` and `source` is sent.')
+    module: str | None = Field(default=None, description="The module the blok renders against besides its catalogs; the Orkestrator's when absent.")
+    args: Annotated[tuple[ArgPortInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='What it is opened on, read under `args.<key>`.')
+    'What it is opened on, read under `args.<key>`.\nDefault: []'
+    returns: Annotated[tuple['ReturnPortInput', ...] | None, GraphQLDefault('[]')] = Field(default=None, description='What an answer holds.')
+    'What an answer holds.\nDefault: []'
+    dependencies: Annotated[tuple[AgentDependencyInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The agents it reads or calls besides `self`, as `deps.<key>`.')
+    'The agents it reads or calls besides `self`, as `deps.<key>`.\nDefault: []'
+    vocab: int = Field(description='The blok language version the blok speaks; 2 is the only one.')
+    catalogs: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The catalogs it needs, as name@version.')
+    'The catalogs it needs, as name@version.\nDefault: []'
+    locals: Annotated[tuple['BlokLocalInput', ...] | None, GraphQLDefault('[]')] = Field(default=None, description='Its locals: form state that feeds a call, written only through bind.')
+    'Its locals: form state that feeds a call, written only through bind.\nDefault: []'
+    demo: 'BlokDemoInput | None' = Field(default=None, description='What a preview renders it with.')
+    queries: Annotated[tuple['BlokQueryInput', ...] | None, GraphQLDefault('[]')] = Field(default=None, description='Its declared reads.')
+    'Its declared reads.\nDefault: []'
+    subscriptions: Annotated[tuple['BlokSubscriptionInput', ...] | None, GraphQLDefault('[]')] = Field(default=None, description='Its declared streams.')
+    'Its declared streams.\nDefault: []'
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 AssignWidgetInput = Annotated[ChoiceAssignWidgetInput | CustomAssignWidgetInput | ProxyAssignWidgetInput | SearchAssignWidgetInput | SliderAssignWidgetInput | StateChoiceAssignWidgetInput | StringAssignWidgetInput, Field(discriminator='kind')]
 
@@ -725,8 +758,8 @@ class DefinitionInput(BaseModel):
     "Names of the UI catalogs that extend the base catalog (`base@1`, always applied) for this definition's effect and validator calls. Unknown names yield an unknown_catalog warning; conflicting operation definitions across catalogs are a registration error.\nDefault: []"
     protocols: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description="Where the action means to hook in (`on_scene_annotation`): hints a caller filters on, stored beside the protocols the server infers. Not a contract, and not part of the action's hash.")
     "Where the action means to hook in (`on_scene_annotation`): hints a caller filters on, stored beside the protocols the server infers. Not a contract, and not part of the action's hash.\nDefault: []"
-    bloks: Annotated[tuple[ActionBlokInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description="The action's own bloks, at most one per context: how a client shows a run of it (HTML in a task panel, OVERLAY drawn into the space that hosts the run). They name devices only by the action's dependency keys. Not part of the action's hash.")
-    "The action's own bloks, at most one per context: how a client shows a run of it (HTML in a task panel, OVERLAY drawn into the space that hosts the run). They name devices only by the action's dependency keys. Not part of the action's hash.\nDefault: []"
+    bloks: Annotated[tuple[ActionBlokInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description="The action's own bloks, at most one per context: how a client shows a run of it (HTML in a task panel, SCENE a 3D view, as a `Space` placing the run's dependencies). They name devices only by the action's dependency keys. Not part of the action's hash.")
+    "The action's own bloks, at most one per context: how a client shows a run of it (HTML in a task panel, SCENE a 3D view, as a `Space` placing the run's dependencies). They name devices only by the action's dependency keys. Not part of the action's hash.\nDefault: []"
     port_groups: Annotated[tuple['PortGroupInput', ...] | None, GraphQLDefault('[]')] = Field(validation_alias=AliasChoices('port_groups', 'portGroups'), serialization_alias='portGroups', default=None, description='The port groups of the definition. This is used to group ports together in the UI')
     'The port groups of the definition. This is used to group ports together in the UI\nDefault: []'
     args: Annotated[tuple[ArgPortInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The args of the definition. This is the input ports of the definition')
@@ -790,6 +823,21 @@ class EffectInput(BaseModel):
     source: str | None = Field(default=None, description='The authoring expression the call was compiled from (informational; never parsed or validated by the server).')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
+class EstimatedRuntimeInput(BaseModel):
+    """A formula for how long an implementation runs, in seconds, that the action query filters and sorts by."""
+    call: 'UtilCallInput' = Field(description='The pure blok UtilCall giving seconds, which the server compiles and the frontend evaluates: arithmetic over args/<port>/<descriptor key> of one structure argument and agent/<hardware>.')
+    source: str | None = Field(default=None, description='The formula as its author wrote it (informational; never parsed or evaluated by the server).')
+    ui_call: 'UtilCallInput | None' = Field(validation_alias=AliasChoices('ui_call', 'uiCall'), serialization_alias='uiCall', default=None, description='A richer formula for the form, which only the frontend evaluates: any pure function, over args/<port>, args/<port>/<descriptor key> and agent/<hardware>.')
+    ui_source: str | None = Field(validation_alias=AliasChoices('ui_source', 'uiSource'), serialization_alias='uiSource', default=None, description='That formula as its author wrote it (informational).')
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
+class FitsInput(BaseModel):
+    """What an implementation can handle of one structure argument."""
+    port: str = Field(description='The key of the structure argument it is about.')
+    call: 'UtilCallInput' = Field(description='The pure blok UtilCall: a comparison of numbers, or several joined by logic.all/any. Its value_paths read value/<descriptor key> and agent/<hardware>.')
+    source: str | None = Field(default=None, description='The formula as its author wrote it (informational).')
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
 class FlavourFilter(BaseModel):
     """Filter for flavours."""
     and_: 'FlavourFilter | None' = Field(validation_alias=AliasChoices('and_', 'AND'), serialization_alias='AND', default=None)
@@ -813,7 +861,7 @@ class ImplementationInput(BaseModel):
     definition: DefinitionInput = Field(description='The definition of the implementation. This is used to uniquely identify the implementation')
     dependencies: Annotated[tuple[AgentDependencyInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The agent dependencies required by this implementation.')
     'The agent dependencies required by this implementation.\nDefault: []'
-    interface: str | None = Field(default=None, description='The interface of the implementation. This is used to group implementations together in the UI')
+    interface: str = Field(description='The interface of the implementation. This is used to group implementations together in the UI')
     params: Any | None = Field(default=None, description='The params of the implementation. This is used to pass parameters to the implementation')
     instance_id: str | None = Field(validation_alias=AliasChoices('instance_id', 'instanceId'), serialization_alias='instanceId', default=None, description='The instance id of the agent this implementation is bound to.')
     locks: tuple[str, ...] | None = Field(default=None, description='The locks of the implementation. This is used to specify which resources the implementation needs to run')
@@ -828,12 +876,42 @@ class ImplementationInput(BaseModel):
     'How this implementation runs: a WORKFLOW may call other actions and is resumed from its journal when its agent dies.\nDefault: PLAIN'
     code_hash: str | None = Field(validation_alias=AliasChoices('code_hash', 'codeHash'), serialization_alias='codeHash', default=None, description="A hash of the implementation's code. A workflow is only resumed by an implementation with the same hash.")
     logo: str | None = Field(default=None, description="The key of the agent's action logo blok (context ACTION_LOGO) that draws this action.")
+    asks: tuple[AskBlokInput, ...] | None = Field(default=None, description='The bloks this implementation asks a person through, declared up front: a task asks one by its key.')
+    informs: tuple['InformBlokInput', ...] | None = Field(default=None, description='The bloks this implementation shows a person while a task goes on, declared up front: a task shows one by its key.')
+    dynamic_asks: bool | None = Field(validation_alias=AliasChoices('dynamic_asks', 'dynamicAsks'), serialization_alias='dynamicAsks', default=None, description='Whether a task may also ask through a blok made at ask time, or any blok of the organization. Refused otherwise, and without the `rekuest_dynamic_ask` scope.')
+    dynamic_calls: bool | None = Field(validation_alias=AliasChoices('dynamic_calls', 'dynamicCalls'), serialization_alias='dynamicCalls', default=None, description='Whether a task may also call actions it found at run time, not only its declared dependencies. A WORKFLOW only; refused otherwise, and without the `rekuest_dynamic_call` scope.')
+    dynamic_informs: bool | None = Field(validation_alias=AliasChoices('dynamic_informs', 'dynamicInforms'), serialization_alias='dynamicInforms', default=None, description='Whether a task may show a blok made at inform time, or any blok of the organization. Refused otherwise, and without the `rekuest_dynamic_inform` scope.')
+    estimated_runtime: EstimatedRuntimeInput | None = Field(validation_alias=AliasChoices('estimated_runtime', 'estimatedRuntime'), serialization_alias='estimatedRuntime', default=None, description='How long this implementation runs, in seconds, given its arguments, the descriptors of the structures picked for them and the agent. The frontend evaluates it to show an estimate; the server only stores it.')
+    fits: tuple[FitsInput, ...] | None = Field(default=None, description='What this implementation can handle, per argument. An action is not offered for an object no live implementation fits.')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class ImportRepoInput(BaseModel):
     """Input for importing an OCI repository, or reading an imported one again."""
     reference: str = Field(description="The repository, e.g. 'ghcr.io/org/app'. No tag, no digest.")
     channels: tuple[str, ...] | None = Field(default=None, description="The channels to follow besides the releases, e.g. ['main']. Omit to keep what is followed.")
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
+
+class InformBlokInput(BaseModel):
+    """A blok an action shows a person while its task goes on, declared with it (blok language v2): a task blok, its args ports, no returns."""
+    key: str = Field(description="What a task names it by: `<parameter>.<method>` of the action's interactions protocol.")
+    description: str | None = Field(default=None, description="What it shows, in a sentence: the inform's message wherever it is listed.")
+    components: tuple[ComponentNodeInput, ...] | None = Field(default=None, description='The UI component tree, unless the blok is sent as its `source`.')
+    source: str | None = Field(default=None, description='The blok as v2 BSX, parsed by the server into its component tree. Exactly one of `components` and `source` is sent.')
+    module: str | None = Field(default=None, description="The module the blok renders against besides its catalogs; the Orkestrator's when absent.")
+    args: Annotated[tuple[ArgPortInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='What it is opened on, read under `args.<key>`.')
+    'What it is opened on, read under `args.<key>`.\nDefault: []'
+    dependencies: Annotated[tuple[AgentDependencyInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The agents it reads or calls besides `self`, as `deps.<key>`.')
+    'The agents it reads or calls besides `self`, as `deps.<key>`.\nDefault: []'
+    vocab: int = Field(description='The blok language version the blok speaks; 2 is the only one.')
+    catalogs: Annotated[tuple[str, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='The catalogs it needs, as name@version.')
+    'The catalogs it needs, as name@version.\nDefault: []'
+    locals: Annotated[tuple[BlokLocalInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='Its locals: form state that feeds a call, written only through bind.')
+    'Its locals: form state that feeds a call, written only through bind.\nDefault: []'
+    demo: BlokDemoInput | None = Field(default=None, description='What a preview renders it with.')
+    queries: Annotated[tuple[BlokQueryInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='Its declared reads.')
+    'Its declared reads.\nDefault: []'
+    subscriptions: Annotated[tuple[BlokSubscriptionInput, ...] | None, GraphQLDefault('[]')] = Field(default=None, description='Its declared streams.')
+    'Its declared streams.\nDefault: []'
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class InspectedAssetInput(BaseModel):
@@ -1102,11 +1180,12 @@ Arguments:
         _data['valueDict'] = value_dict
     return ActionArgumentInput.model_validate(_data)
 
-def action_blok_input(context: ComponentContext, vocab: int, catalogs: Iterable[str], locals: Iterable[BlokLocalInput], queries: Iterable[BlokQueryInput], subscriptions: Iterable[BlokSubscriptionInput], components: Iterable[ComponentNodeInput] | None | UnsetType=UNSET, source: str | None | UnsetType=UNSET, module: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, demo: BlokDemoInput | None | UnsetType=UNSET) -> ActionBlokInput:
+def action_blok_input(context: ComponentContext, phase: ActionBlokPhase, vocab: int, catalogs: Iterable[str], locals: Iterable[BlokLocalInput], queries: Iterable[BlokQueryInput], subscriptions: Iterable[BlokSubscriptionInput], components: Iterable[ComponentNodeInput] | None | UnsetType=UNSET, source: str | None | UnsetType=UNSET, module: str | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, demo: BlokDemoInput | None | UnsetType=UNSET) -> ActionBlokInput:
     """Creates a ActionBlokInput
 
 Arguments:
-    context: Where a client shows the run with it: HTML in a task panel, SCENE as a 3D view of its own, OVERLAY drawn into the space that hosts the run (its root an `Overlay`).
+    context: Where a client shows the run with it: HTML in a task panel, SCENE as a 3D view (its root a `Scene`, or a `Space` placing the run's dependencies in a room whose layout is shared).
+    phase: When a client shows it: RUN for a run of the action, ASSIGN before one, to start it. One blok per context and phase.
     components: The UI component tree, unless the blok is sent as its `source`.
     source: The blok as v2 BSX, parsed by the server into its component tree. Exactly one of `components` and `source` is sent.
     module: The module the blok renders against besides its catalogs; the Orkestrator's when absent.
@@ -1120,6 +1199,7 @@ Arguments:
 """
     _data: dict[str, builtins.object] = {}
     _data['context'] = context
+    _data['phase'] = phase
     if components is not UNSET:
         _data['components'] = components
     if source is not UNSET:
@@ -1357,7 +1437,48 @@ Arguments:
         _data['requires'] = requires
     return ArgPortInput.model_validate(_data)
 
-def assign_widget_input(kind: AssignWidgetKind, follow_value: str | None | UnsetType=UNSET, min: float | None | UnsetType=UNSET, max: float | None | UnsetType=UNSET, step: float | None | UnsetType=UNSET, placeholder: str | None | UnsetType=UNSET, as_paragraph: bool | None | UnsetType=UNSET, query: SearchQuery | None | UnsetType=UNSET, ward: str | None | UnsetType=UNSET, filters: Iterable[ArgPortInput] | None | UnsetType=UNSET, dependencies: Iterable[str] | None | UnsetType=UNSET, component: str | None | UnsetType=UNSET, props: Iterable[ComponentPropInput] | None | UnsetType=UNSET, fallback: AssignWidgetInput | None | UnsetType=UNSET, dependency: str | None | UnsetType=UNSET, state_path: str | None | UnsetType=UNSET, state_call: UtilCallInput | None | UnsetType=UNSET, state_accessors: Iterable[StateAccessorInput] | None | UnsetType=UNSET, target_port: str | None | UnsetType=UNSET, target_action: str | None | UnsetType=UNSET, target_dependency: str | None | UnsetType=UNSET) -> AssignWidgetInput:
+def ask_blok_input(key: str, args: Iterable[ArgPortInput], returns: Iterable[ReturnPortInput], dependencies: Iterable[AgentDependencyInput], vocab: int, catalogs: Iterable[str], locals: Iterable[BlokLocalInput], queries: Iterable[BlokQueryInput], subscriptions: Iterable[BlokSubscriptionInput], description: str | None | UnsetType=UNSET, components: Iterable[ComponentNodeInput] | None | UnsetType=UNSET, source: str | None | UnsetType=UNSET, module: str | None | UnsetType=UNSET, demo: BlokDemoInput | None | UnsetType=UNSET) -> AskBlokInput:
+    """Creates a AskBlokInput
+
+Arguments:
+    key: What a task names it by: `<parameter>.<method>` of the action's interactions protocol.
+    description: What it asks, in a sentence: the hold's message wherever the ask is listed.
+    components: The UI component tree, unless the blok is sent as its `source`.
+    source: The blok as v2 BSX, parsed by the server into its component tree. Exactly one of `components` and `source` is sent.
+    module: The module the blok renders against besides its catalogs; the Orkestrator's when absent.
+    args: What it is opened on, read under `args.<key>`.
+    returns: What an answer holds.
+    dependencies: The agents it reads or calls besides `self`, as `deps.<key>`.
+    vocab: The blok language version the blok speaks; 2 is the only one.
+    catalogs: The catalogs it needs, as name@version.
+    locals: Its locals: form state that feeds a call, written only through bind.
+    demo: What a preview renders it with.
+    queries: Its declared reads.
+    subscriptions: Its declared streams.
+"""
+    _data: dict[str, builtins.object] = {}
+    _data['key'] = key
+    if description is not UNSET:
+        _data['description'] = description
+    if components is not UNSET:
+        _data['components'] = components
+    if source is not UNSET:
+        _data['source'] = source
+    if module is not UNSET:
+        _data['module'] = module
+    _data['args'] = args
+    _data['returns'] = returns
+    _data['dependencies'] = dependencies
+    _data['vocab'] = vocab
+    _data['catalogs'] = catalogs
+    _data['locals'] = locals
+    if demo is not UNSET:
+        _data['demo'] = demo
+    _data['queries'] = queries
+    _data['subscriptions'] = subscriptions
+    return AskBlokInput.model_validate(_data)
+
+def assign_widget_input(kind: AssignWidgetKind, follow_value: str | None | UnsetType=UNSET, min: float | None | UnsetType=UNSET, max: float | None | UnsetType=UNSET, step: float | None | UnsetType=UNSET, placeholder: str | None | UnsetType=UNSET, as_paragraph: bool | None | UnsetType=UNSET, query: SearchQuery | None | UnsetType=UNSET, ward: str | None | UnsetType=UNSET, filters: Iterable[ArgPortInput] | None | UnsetType=UNSET, dependencies: Iterable[str] | None | UnsetType=UNSET, component: str | None | UnsetType=UNSET, props: Iterable[ComponentPropInput] | None | UnsetType=UNSET, children: Iterable[ComponentNodeInput] | None | UnsetType=UNSET, fallback: AssignWidgetInput | None | UnsetType=UNSET, dependency: str | None | UnsetType=UNSET, state_path: str | None | UnsetType=UNSET, state_call: UtilCallInput | None | UnsetType=UNSET, state_accessors: Iterable[StateAccessorInput] | None | UnsetType=UNSET, target_port: str | None | UnsetType=UNSET, target_action: str | None | UnsetType=UNSET, target_dependency: str | None | UnsetType=UNSET) -> AssignWidgetInput:
     """Creates a AssignWidgetInput
 
 Arguments:
@@ -1374,6 +1495,7 @@ Arguments:
     dependencies: (SEARCH, CUSTOM, STATE_CHOICE) The other ports (port paths, `..` traverses children) whose values the query may reference.
     component: (CUSTOM) The catalog component to render. The port value is in scope as the reserved root `value`.
     props: (CUSTOM) Props of the component. value_paths may only reference `value` and `dependencies`; agent calls are not allowed.
+    children: (CUSTOM) The component's children: a tree of blok nodes under the same rules as its props. Left out of the definition's hash when empty, so a widget without any keeps the hash it has.
     fallback: (CUSTOM) Widget to render when the UI has no such component in its catalog.
     dependency: (STATE_CHOICE) The agent dependency (by key) whose state provides the choices; omitted: the implementing agent's own state.
     state_path: (STATE_CHOICE) Static JSON pointer into the state value that provides the choices. Mutually exclusive with `state_call`.
@@ -1409,6 +1531,8 @@ Arguments:
         _data['component'] = component
     if props is not UNSET:
         _data['props'] = props
+    if children is not UNSET:
+        _data['children'] = children
     if fallback is not UNSET:
         _data['fallback'] = fallback
     if dependency is not UNSET:
@@ -1797,7 +1921,7 @@ Arguments:
     allow_probe: Whether the action may be invoked as a probe: zero persistence, redis-held state, no history/replay/recovery. Only actions declaring this are callable via the call mutation.
     catalogs: Names of the UI catalogs that extend the base catalog (`base@1`, always applied) for this definition's effect and validator calls. Unknown names yield an unknown_catalog warning; conflicting operation definitions across catalogs are a registration error.
     protocols: Where the action means to hook in (`on_scene_annotation`): hints a caller filters on, stored beside the protocols the server infers. Not a contract, and not part of the action's hash.
-    bloks: The action's own bloks, at most one per context: how a client shows a run of it (HTML in a task panel, OVERLAY drawn into the space that hosts the run). They name devices only by the action's dependency keys. Not part of the action's hash.
+    bloks: The action's own bloks, at most one per context: how a client shows a run of it (HTML in a task panel, SCENE a 3D view, as a `Space` placing the run's dependencies). They name devices only by the action's dependency keys. Not part of the action's hash.
     port_groups: The port groups of the definition. This is used to group ports together in the UI
     args: The args of the definition. This is the input ports of the definition
     returns: The returns of the definition. This is the output ports of the definition
@@ -1912,6 +2036,40 @@ Arguments:
         _data['source'] = source
     return EffectInput.model_validate(_data)
 
+def estimated_runtime_input(call: UtilCallInput, source: str | None | UnsetType=UNSET, ui_call: UtilCallInput | None | UnsetType=UNSET, ui_source: str | None | UnsetType=UNSET) -> EstimatedRuntimeInput:
+    """Creates a EstimatedRuntimeInput
+
+Arguments:
+    call: The pure blok UtilCall giving seconds, which the server compiles and the frontend evaluates: arithmetic over args/<port>/<descriptor key> of one structure argument and agent/<hardware>.
+    source: The formula as its author wrote it (informational; never parsed or evaluated by the server).
+    ui_call: A richer formula for the form, which only the frontend evaluates: any pure function, over args/<port>, args/<port>/<descriptor key> and agent/<hardware>.
+    ui_source: That formula as its author wrote it (informational).
+"""
+    _data: dict[str, builtins.object] = {}
+    _data['call'] = call
+    if source is not UNSET:
+        _data['source'] = source
+    if ui_call is not UNSET:
+        _data['uiCall'] = ui_call
+    if ui_source is not UNSET:
+        _data['uiSource'] = ui_source
+    return EstimatedRuntimeInput.model_validate(_data)
+
+def fits_input(port: str, call: UtilCallInput, source: str | None | UnsetType=UNSET) -> FitsInput:
+    """Creates a FitsInput
+
+Arguments:
+    port: The key of the structure argument it is about.
+    call: The pure blok UtilCall: a comparison of numbers, or several joined by logic.all/any. Its value_paths read value/<descriptor key> and agent/<hardware>.
+    source: The formula as its author wrote it (informational).
+"""
+    _data: dict[str, builtins.object] = {}
+    _data['port'] = port
+    _data['call'] = call
+    if source is not UNSET:
+        _data['source'] = source
+    return FitsInput.model_validate(_data)
+
 def flavour_filter(and_: FlavourFilter | None | UnsetType=UNSET, or_: FlavourFilter | None | UnsetType=UNSET, not_: FlavourFilter | None | UnsetType=UNSET, distinct: bool | None | UnsetType=UNSET, ids: Iterable[IDCoercible] | None | UnsetType=UNSET, search: str | None | UnsetType=UNSET, has_definitions: Iterable[IDCoercible] | None | UnsetType=UNSET, requires: Iterable[RequiresInput] | None | UnsetType=UNSET) -> FlavourFilter:
     """Creates a FlavourFilter
 
@@ -1955,7 +2113,7 @@ Arguments:
         _data['releasedAt'] = released_at
     return FlavourOrder.model_validate(_data)
 
-def implementation_input(definition: DefinitionInput, dependencies: Iterable[AgentDependencyInput], needs_token: bool, effects: Effects, execution: Execution, interface: str | None | UnsetType=UNSET, params: Any | None | UnsetType=UNSET, instance_id: str | None | UnsetType=UNSET, locks: Iterable[str] | None | UnsetType=UNSET, optimistics: Iterable[OptimisticInput] | None | UnsetType=UNSET, manipulates: Iterable[str] | None | UnsetType=UNSET, provenance_audience: Iterable[str] | None | UnsetType=UNSET, code_hash: str | None | UnsetType=UNSET, logo: str | None | UnsetType=UNSET) -> ImplementationInput:
+def implementation_input(definition: DefinitionInput, dependencies: Iterable[AgentDependencyInput], interface: str, needs_token: bool, effects: Effects, execution: Execution, params: Any | None | UnsetType=UNSET, instance_id: str | None | UnsetType=UNSET, locks: Iterable[str] | None | UnsetType=UNSET, optimistics: Iterable[OptimisticInput] | None | UnsetType=UNSET, manipulates: Iterable[str] | None | UnsetType=UNSET, provenance_audience: Iterable[str] | None | UnsetType=UNSET, code_hash: str | None | UnsetType=UNSET, logo: str | None | UnsetType=UNSET, asks: Iterable[AskBlokInput] | None | UnsetType=UNSET, informs: Iterable[InformBlokInput] | None | UnsetType=UNSET, dynamic_asks: bool | None | UnsetType=UNSET, dynamic_calls: bool | None | UnsetType=UNSET, dynamic_informs: bool | None | UnsetType=UNSET, estimated_runtime: EstimatedRuntimeInput | None | UnsetType=UNSET, fits: Iterable[FitsInput] | None | UnsetType=UNSET) -> ImplementationInput:
     """Creates a ImplementationInput
 
 Arguments:
@@ -1973,12 +2131,18 @@ Arguments:
     execution: How this implementation runs: a WORKFLOW may call other actions and is resumed from its journal when its agent dies.
     code_hash: A hash of the implementation's code. A workflow is only resumed by an implementation with the same hash.
     logo: The key of the agent's action logo blok (context ACTION_LOGO) that draws this action.
+    asks: The bloks this implementation asks a person through, declared up front: a task asks one by its key.
+    informs: The bloks this implementation shows a person while a task goes on, declared up front: a task shows one by its key.
+    dynamic_asks: Whether a task may also ask through a blok made at ask time, or any blok of the organization. Refused otherwise, and without the `rekuest_dynamic_ask` scope.
+    dynamic_calls: Whether a task may also call actions it found at run time, not only its declared dependencies. A WORKFLOW only; refused otherwise, and without the `rekuest_dynamic_call` scope.
+    dynamic_informs: Whether a task may show a blok made at inform time, or any blok of the organization. Refused otherwise, and without the `rekuest_dynamic_inform` scope.
+    estimated_runtime: How long this implementation runs, in seconds, given its arguments, the descriptors of the structures picked for them and the agent. The frontend evaluates it to show an estimate; the server only stores it.
+    fits: What this implementation can handle, per argument. An action is not offered for an object no live implementation fits.
 """
     _data: dict[str, builtins.object] = {}
     _data['definition'] = definition
     _data['dependencies'] = dependencies
-    if interface is not UNSET:
-        _data['interface'] = interface
+    _data['interface'] = interface
     if params is not UNSET:
         _data['params'] = params
     if instance_id is not UNSET:
@@ -1998,6 +2162,20 @@ Arguments:
         _data['codeHash'] = code_hash
     if logo is not UNSET:
         _data['logo'] = logo
+    if asks is not UNSET:
+        _data['asks'] = asks
+    if informs is not UNSET:
+        _data['informs'] = informs
+    if dynamic_asks is not UNSET:
+        _data['dynamicAsks'] = dynamic_asks
+    if dynamic_calls is not UNSET:
+        _data['dynamicCalls'] = dynamic_calls
+    if dynamic_informs is not UNSET:
+        _data['dynamicInforms'] = dynamic_informs
+    if estimated_runtime is not UNSET:
+        _data['estimatedRuntime'] = estimated_runtime
+    if fits is not UNSET:
+        _data['fits'] = fits
     return ImplementationInput.model_validate(_data)
 
 def import_repo_input(reference: str, channels: Iterable[str] | None | UnsetType=UNSET) -> ImportRepoInput:
@@ -2012,6 +2190,45 @@ Arguments:
     if channels is not UNSET:
         _data['channels'] = channels
     return ImportRepoInput.model_validate(_data)
+
+def inform_blok_input(key: str, args: Iterable[ArgPortInput], dependencies: Iterable[AgentDependencyInput], vocab: int, catalogs: Iterable[str], locals: Iterable[BlokLocalInput], queries: Iterable[BlokQueryInput], subscriptions: Iterable[BlokSubscriptionInput], description: str | None | UnsetType=UNSET, components: Iterable[ComponentNodeInput] | None | UnsetType=UNSET, source: str | None | UnsetType=UNSET, module: str | None | UnsetType=UNSET, demo: BlokDemoInput | None | UnsetType=UNSET) -> InformBlokInput:
+    """Creates a InformBlokInput
+
+Arguments:
+    key: What a task names it by: `<parameter>.<method>` of the action's interactions protocol.
+    description: What it shows, in a sentence: the inform's message wherever it is listed.
+    components: The UI component tree, unless the blok is sent as its `source`.
+    source: The blok as v2 BSX, parsed by the server into its component tree. Exactly one of `components` and `source` is sent.
+    module: The module the blok renders against besides its catalogs; the Orkestrator's when absent.
+    args: What it is opened on, read under `args.<key>`.
+    dependencies: The agents it reads or calls besides `self`, as `deps.<key>`.
+    vocab: The blok language version the blok speaks; 2 is the only one.
+    catalogs: The catalogs it needs, as name@version.
+    locals: Its locals: form state that feeds a call, written only through bind.
+    demo: What a preview renders it with.
+    queries: Its declared reads.
+    subscriptions: Its declared streams.
+"""
+    _data: dict[str, builtins.object] = {}
+    _data['key'] = key
+    if description is not UNSET:
+        _data['description'] = description
+    if components is not UNSET:
+        _data['components'] = components
+    if source is not UNSET:
+        _data['source'] = source
+    if module is not UNSET:
+        _data['module'] = module
+    _data['args'] = args
+    _data['dependencies'] = dependencies
+    _data['vocab'] = vocab
+    _data['catalogs'] = catalogs
+    _data['locals'] = locals
+    if demo is not UNSET:
+        _data['demo'] = demo
+    _data['queries'] = queries
+    _data['subscriptions'] = subscriptions
+    return InformBlokInput.model_validate(_data)
 
 def inspected_asset_input(name: str, kind: AssetKind, ref: str, size: int | None | UnsetType=UNSET, source: str | None | UnsetType=UNSET, path: str | None | UnsetType=UNSET) -> InspectedAssetInput:
     """Creates a InspectedAssetInput
@@ -2040,7 +2257,7 @@ def inspection_input(spec_version: str, locks: Iterable[LockImplementationInput]
     """Creates a InspectionInput
 
 Arguments:
-    spec_version: The arkitekt-spec the image wrote this with. An inspection that names none is refused. (required)
+    spec_version: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text. (required)
     size: The `Int` scalar type represents non-fractional signed whole numeric values. Int can represent values between -(2^31) and 2^31 - 1.
     locks: Which locks does the agent provide in general (required) (list) (required)
     implementations: A implementation is a blueprint for a action. It is composed of a definition, a list of dependencies, and a list of params. (required) (list) (required)
@@ -2050,7 +2267,7 @@ Arguments:
     requirements:  (required) (list) (required)
 """
     _data: dict[str, builtins.object] = {}
-    _data['spec_version'] = spec_version
+    _data['specVersion'] = spec_version
     if size is not UNSET:
         _data['size'] = size
     _data['locks'] = locks
@@ -5736,6 +5953,7 @@ ActionDemandInput.model_rebuild()
 AgentDependencyInput.model_rebuild()
 AppImageInput.model_rebuild()
 ArgPortInput.model_rebuild()
+AskBlokInput.model_rebuild()
 BackendFilter.model_rebuild()
 BlokImplementationInput.model_rebuild()
 BlokLocalInput.model_rebuild()
@@ -5746,6 +5964,8 @@ CustomReturnWidgetInput.model_rebuild()
 DeclareResourceInput.model_rebuild()
 DefinitionInput.model_rebuild()
 EffectInput.model_rebuild()
+EstimatedRuntimeInput.model_rebuild()
+FitsInput.model_rebuild()
 FlavourFilter.model_rebuild()
 ImplementationInput.model_rebuild()
 InspectionInput.model_rebuild()

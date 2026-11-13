@@ -58,9 +58,14 @@ An action's own blok (blok language v2): how a client shows a run of it in one c
 """
 input ActionBlokInput {
   """
-  Where a client shows the run with it: HTML in a task panel, SCENE as a 3D view of its own, OVERLAY drawn into the space that hosts the run (its root an `Overlay`).
+  Where a client shows the run with it: HTML in a task panel, SCENE as a 3D view (its root a `Scene`, or a `Space` placing the run's dependencies in a room whose layout is shared).
   """
   context: ComponentContext! = HTML
+
+  """
+  When a client shows it: RUN for a run of the action, ASSIGN before one, to start it. One blok per context and phase.
+  """
+  phase: ActionBlokPhase! = RUN
 
   """The UI component tree, unless the blok is sent as its `source`."""
   components: [ComponentNodeInput!] = null
@@ -95,6 +100,14 @@ input ActionBlokInput {
 
   """Its declared streams."""
   subscriptions: [BlokSubscriptionInput!]! = []
+}
+
+"""
+When a client shows an action's own blok: RUN for a run of the action (it reads the run as `task`), ASSIGN before one, to start it (no `task`; `<args />` places the argument form, `assign.start()` starts the run).
+"""
+enum ActionBlokPhase {
+  RUN
+  ASSIGN
 }
 
 """
@@ -473,6 +486,61 @@ input ArgPortInput {
 }
 
 """
+A blok an action asks a person through, declared with it (blok language v2): a task blok, its args and returns ports.
+"""
+input AskBlokInput {
+  """
+  What a task names it by: `<parameter>.<method>` of the action's interactions protocol.
+  """
+  key: String!
+
+  """
+  What it asks, in a sentence: the hold's message wherever the ask is listed.
+  """
+  description: String = null
+
+  """The UI component tree, unless the blok is sent as its `source`."""
+  components: [ComponentNodeInput!] = null
+
+  """
+  The blok as v2 BSX, parsed by the server into its component tree. Exactly one of `components` and `source` is sent.
+  """
+  source: String = null
+
+  """
+  The module the blok renders against besides its catalogs; the Orkestrator's when absent.
+  """
+  module: String = null
+
+  """What it is opened on, read under `args.<key>`."""
+  args: [ArgPortInput!]! = []
+
+  """What an answer holds."""
+  returns: [ReturnPortInput!]! = []
+
+  """The agents it reads or calls besides `self`, as `deps.<key>`."""
+  dependencies: [AgentDependencyInput!]! = []
+
+  """The blok language version the blok speaks; 2 is the only one."""
+  vocab: Int!
+
+  """The catalogs it needs, as name@version."""
+  catalogs: [String!]! = []
+
+  """Its locals: form state that feeds a call, written only through bind."""
+  locals: [BlokLocalInput!]! = []
+
+  """What a preview renders it with."""
+  demo: BlokDemoInput = null
+
+  """Its declared reads."""
+  queries: [BlokQueryInput!]! = []
+
+  """Its declared streams."""
+  subscriptions: [BlokSubscriptionInput!]! = []
+}
+
+"""
 What a file an agent brings with it is: a 3D model (a binary glTF file) or an image (PNG, JPEG or WebP).
 """
 enum AssetKind {
@@ -543,6 +611,11 @@ input AssignWidgetInput {
   (CUSTOM) Props of the component. value_paths may only reference `value` and `dependencies`; agent calls are not allowed.
   """
   props: [ComponentPropInput!] = null
+
+  """
+  (CUSTOM) The component's children: a tree of blok nodes under the same rules as its props. Left out of the definition's hash when empty, so a widget without any keeps the hash it has.
+  """
+  children: [ComponentNodeInput!] = null
 
   """
   (CUSTOM) Widget to render when the UI has no such component in its catalog.
@@ -1023,14 +1096,13 @@ input CollectionOrder @oneOf {
 }
 
 """
-The renderer a catalog component lives in. A component may only be placed where its context is in force. ACTION_LOGO and OVERLAY are blok contexts only: an OVERLAY blok is an action's own, drawn into the space that hosts its run.
+The renderer a catalog component lives in. A component may only be placed where its context is in force. ACTION_LOGO is a blok context only.
 """
 enum ComponentContext {
   HTML
   SCENE
   LOGO
   ACTION_LOGO
-  OVERLAY
 }
 
 """A node of a blok tree (blok language v2)."""
@@ -1249,6 +1321,7 @@ type CustomAssignWidget implements AssignWidget {
   followValue: String
   component: String!
   props: [ComponentProp!]
+  children: AnyDefault
   dependencies: [String!]
   fallback: AssignWidget
 }
@@ -1270,6 +1343,11 @@ input CustomAssignWidgetInput @unionElementOf(union: "AssignWidgetInput", discri
   Props of the component. value_paths may only reference `value` and `dependencies`; agent calls are not allowed.
   """
   props: [ComponentPropInput!] = null
+
+  """
+  The component's children: a tree of blok nodes under the same rules as its props. Left out of the definition's hash when empty, so a widget without any keeps the hash it has.
+  """
+  children: [ComponentNodeInput!] = null
 
   """
   The other ports (port paths, `..` traverses children) whose values the props may reference.
@@ -1543,7 +1621,7 @@ input DefinitionInput {
   protocols: [String!]! = []
 
   """
-  The action's own bloks, at most one per context: how a client shows a run of it (HTML in a task panel, OVERLAY drawn into the space that hosts the run). They name devices only by the action's dependency keys. Not part of the action's hash.
+  The action's own bloks, at most one per context: how a client shows a run of it (HTML in a task panel, SCENE a 3D view, as a `Space` placing the run's dependencies). They name devices only by the action's dependency keys. Not part of the action's hash.
   """
   bloks: [ActionBlokInput!]! = []
 
@@ -1795,11 +1873,48 @@ A stored vector, as `<model id>:<comma-separated floats>` -- e.g. `potion-base-8
 scalar Embedding
 
 """
+A formula for how long an implementation runs, in seconds, that the action query filters and sorts by.
+"""
+input EstimatedRuntimeInput {
+  """
+  The pure blok UtilCall giving seconds, which the server compiles and the frontend evaluates: arithmetic over args/<port>/<descriptor key> of one structure argument and agent/<hardware>.
+  """
+  call: UtilCallInput!
+
+  """
+  The formula as its author wrote it (informational; never parsed or evaluated by the server).
+  """
+  source: String = null
+
+  """
+  A richer formula for the form, which only the frontend evaluates: any pure function, over args/<port>, args/<port>/<descriptor key> and agent/<hardware>.
+  """
+  uiCall: UtilCallInput = null
+
+  """That formula as its author wrote it (informational)."""
+  uiSource: String = null
+}
+
+"""
 How an implementation runs: a WORKFLOW may call other actions and is resumed from its journal when its agent dies; a PLAIN one's task ends LOST.
 """
 enum Execution {
   PLAIN
   WORKFLOW
+}
+
+"""What an implementation can handle of one structure argument."""
+input FitsInput {
+  """The key of the structure argument it is about."""
+  port: String!
+
+  """
+  The pure blok UtilCall: a comparison of numbers, or several joined by logic.all/any. Its value_paths read value/<descriptor key> and agent/<hardware>.
+  """
+  call: UtilCallInput!
+
+  """The formula as its author wrote it (informational)."""
+  source: String = null
 }
 
 """
@@ -2125,7 +2240,7 @@ input ImplementationInput {
   """
   The interface of the implementation. This is used to group implementations together in the UI
   """
-  interface: String = null
+  interface: String!
 
   """
   The params of the implementation. This is used to pass parameters to the implementation
@@ -2179,6 +2294,41 @@ input ImplementationInput {
   The key of the agent's action logo blok (context ACTION_LOGO) that draws this action.
   """
   logo: String = null
+
+  """
+  The bloks this implementation asks a person through, declared up front: a task asks one by its key.
+  """
+  asks: [AskBlokInput!] = null
+
+  """
+  The bloks this implementation shows a person while a task goes on, declared up front: a task shows one by its key.
+  """
+  informs: [InformBlokInput!] = null
+
+  """
+  Whether a task may also ask through a blok made at ask time, or any blok of the organization. Refused otherwise, and without the `rekuest_dynamic_ask` scope.
+  """
+  dynamicAsks: Boolean = null
+
+  """
+  Whether a task may also call actions it found at run time, not only its declared dependencies. A WORKFLOW only; refused otherwise, and without the `rekuest_dynamic_call` scope.
+  """
+  dynamicCalls: Boolean = null
+
+  """
+  Whether a task may show a blok made at inform time, or any blok of the organization. Refused otherwise, and without the `rekuest_dynamic_inform` scope.
+  """
+  dynamicInforms: Boolean = null
+
+  """
+  How long this implementation runs, in seconds, given its arguments, the descriptors of the structures picked for them and the agent. The frontend evaluates it to show an estimate; the server only stores it.
+  """
+  estimatedRuntime: EstimatedRuntimeInput = null
+
+  """
+  What this implementation can handle, per argument. An action is not offered for an object no live implementation fits.
+  """
+  fits: [FitsInput!] = null
 }
 
 """
@@ -2192,6 +2342,58 @@ input ImportRepoInput {
   The channels to follow besides the releases, e.g. ['main']. Omit to keep what is followed.
   """
   channels: [String!] = null
+}
+
+"""
+A blok an action shows a person while its task goes on, declared with it (blok language v2): a task blok, its args ports, no returns.
+"""
+input InformBlokInput {
+  """
+  What a task names it by: `<parameter>.<method>` of the action's interactions protocol.
+  """
+  key: String!
+
+  """
+  What it shows, in a sentence: the inform's message wherever it is listed.
+  """
+  description: String = null
+
+  """The UI component tree, unless the blok is sent as its `source`."""
+  components: [ComponentNodeInput!] = null
+
+  """
+  The blok as v2 BSX, parsed by the server into its component tree. Exactly one of `components` and `source` is sent.
+  """
+  source: String = null
+
+  """
+  The module the blok renders against besides its catalogs; the Orkestrator's when absent.
+  """
+  module: String = null
+
+  """What it is opened on, read under `args.<key>`."""
+  args: [ArgPortInput!]! = []
+
+  """The agents it reads or calls besides `self`, as `deps.<key>`."""
+  dependencies: [AgentDependencyInput!]! = []
+
+  """The blok language version the blok speaks; 2 is the only one."""
+  vocab: Int!
+
+  """The catalogs it needs, as name@version."""
+  catalogs: [String!]! = []
+
+  """Its locals: form state that feeds a call, written only through bind."""
+  locals: [BlokLocalInput!]! = []
+
+  """What a preview renders it with."""
+  demo: BlokDemoInput = null
+
+  """Its declared reads."""
+  queries: [BlokQueryInput!]! = []
+
+  """Its declared streams."""
+  subscriptions: [BlokSubscriptionInput!]! = []
 }
 
 """A file the app brings, as its image holds it."""
@@ -2418,7 +2620,7 @@ type Mutation {
   scanRepo(input: ScanRepoInput!): GithubRepo! @auth(required_scopes: ["kabinet_repos"], any_role_of: ["kabinet_deployer"])
 
   """
-  Rescan every tracked GitHub repository for new or updated app manifests.
+  Rescan every tracked repository for new or updated releases: the GitHub repositories (their app manifests and bloks) and the imported OCI repositories.
   """
   rescanRepos: [GithubRepo!]! @auth(required_scopes: ["kabinet_repos"], any_role_of: ["kabinet_deployer"])
 
