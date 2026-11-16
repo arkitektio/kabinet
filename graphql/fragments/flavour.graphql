@@ -70,7 +70,6 @@ fragment FlavourBlok on FlavourBlok {
   hash
   componentTree
   vocab
-  locals
   demo
   forModel
   forNode
