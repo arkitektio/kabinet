@@ -16,6 +16,7 @@ from rath.links.graphql_ws import GraphQLWSLink
 from rath.links.split import SplitLink
 
 from arkitekt_spec.declare.app import AppRegistry
+from arkitekt_spec.declare.tested import tested_against
 from arkitekt_spec.declare.widgets import SearchWidget
 
 from kabinet.api.schema import (
@@ -45,6 +46,10 @@ registry = AppRegistry()
 """What kabinet brings to an app: its service, and the types it can send by id."""
 
 
+TESTED = tested_against("kabinet")
+"""The kabinet server this release wants: the one its release job tested it against."""
+
+
 @registry.service(
     schema=build_relative_path("api", "schema.graphql"),
     turms=build_relative_path("api", "project.json"),
@@ -52,7 +57,7 @@ registry = AppRegistry()
 def kabinet(
     kabinet: Annotated[
         Alias,
-        Require("live.arkitekt.kabinet", "Where this deployment's apps and pods are managed"),
+        Require("live.arkitekt.kabinet", "Where this deployment's apps and pods are managed", version=TESTED),
     ],
     tokens: TokenLoader,
 ) -> Kabinet:

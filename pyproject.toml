@@ -10,7 +10,7 @@ dependencies = [
     "rath>=4.1.1",
     "websockets>=15.0.1",
     # The service and structures are declared with arkitekt-spec (5.0: a service reads its scopes off its client).
-    "arkitekt-spec>=12",
+    "arkitekt-spec>=12.9",
     # The service wiring (Alias, Require, FaktsAuthLink); it came through rekuest before.
     "fakts>=6.1",
 ]
@@ -34,11 +34,15 @@ dev-dependencies =  [
 ]
 
 
+# `_tested.json` is written by the integration tests (the server version they ran against)
+# and is not in git: named as an artifact, on both, it is shipped all the same.
 [tool.hatch.build.targets.sdist]
 include = ["kabinet"]
+artifacts = ["kabinet/_tested.json"]
 
 [tool.hatch.build.targets.wheel]
 include = ["kabinet"]
+artifacts = ["kabinet/_tested.json"]
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]

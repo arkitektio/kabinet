@@ -1,3 +1,4 @@
+from arkitekt_spec.declare.tested import record_tested
 from typing import Generator
 import pytest
 from dokker import testing, Deployment
@@ -83,6 +84,8 @@ def deployed_app() -> Generator[DeployedKabinet, None, None]:
         
     
         setup.check_health()
+        # What a release of this client then says it was tested against.
+        record_tested("kabinet", http_url.rsplit("/graphql", 1)[0] + "/ht")
 
         with kab as kab:
             deployed = DeployedKabinet(
