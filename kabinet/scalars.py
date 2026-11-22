@@ -1,21 +1,21 @@
 """This module mirros exactly the scalars used in the  rekuest library."""
 
-from graphql import (
-    DocumentNode,
-    FieldNode,
-    parse,
-    OperationDefinitionNode,
-    OperationType,
-    print_ast,
-    print_source_location,
-    GraphQLSyntaxError,
-)
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import CoreSchema, core_schema
 
+from graphql import (
+    DocumentNode,
+    FieldNode,
+    GraphQLSyntaxError,
+    OperationDefinitionNode,
+    OperationType,
+    parse,
+    print_ast,
+    print_source_location,
+)
 
 ActionHash = str
 InstanceId = str
@@ -132,7 +132,9 @@ class SearchQuery(str):
     def validate(cls, v: str | DocumentNode) -> "SearchQuery":
         """Validate the search query"""
         if not isinstance(v, str) and not isinstance(v, DocumentNode):  # pyright: ignore[reportUnnecessaryIsInstance] # noqa: ANN401
-            raise ValueError("Search query must be either a str or a graphql DocumentAction")
+            raise ValueError(
+                "Search query must be either a str or a graphql DocumentAction"
+            )
         if isinstance(v, str):
             v = parse_or_raise(v)
 
@@ -176,10 +178,14 @@ class SearchQuery(str):
         wrapped_query = definition.selection_set.selections[0]
 
         if not isinstance(wrapped_query, FieldNode):
-            raise ValueError(f"Wrapped query should be a field node: Was given: {print_ast(v)}")
+            raise ValueError(
+                f"Wrapped query should be a field node: Was given: {print_ast(v)}"
+            )
 
         options_value = (
-            wrapped_query.alias.value if wrapped_query.alias else wrapped_query.name.value
+            wrapped_query.alias.value
+            if wrapped_query.alias
+            else wrapped_query.name.value
         )
         if options_value != "options":
             raise ValueError(

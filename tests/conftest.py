@@ -1,25 +1,25 @@
-from arkitekt_spec.declare.tested import record_tested
-from typing import Generator
-import pytest
-from dokker import testing, Deployment
-from dokker.log_watcher import LogWatcher
 import os
-from kabinet.kabinet import Kabinet
-from rath.links.auth import ComposedAuthLink
-from rath.links.aiohttp import AIOHttpLink
-from rath.links.graphql_ws import GraphQLWSLink
-from kabinet.rath import (
-    KabinetRath,
-    SplitLink,
-    KabinetLinkComposition,
-)
-from graphql import OperationType
-from dataclasses import dataclass
 import uuid
+from collections.abc import Generator
+from dataclasses import dataclass
 from datetime import datetime
 
-from kabinet.api.schema import DockerImageInput, InspectionInput, ManifestInput, Release
+import pytest
+from arkitekt_spec.declare.tested import record_tested
+from dokker import Deployment, testing
+from dokker.log_watcher import LogWatcher
+from rath.links.aiohttp import AIOHttpLink
+from rath.links.auth import ComposedAuthLink
+from rath.links.graphql_ws import GraphQLWSLink
 
+from graphql import OperationType
+from kabinet.api.schema import DockerImageInput, InspectionInput, ManifestInput, Release
+from kabinet.kabinet import Kabinet
+from kabinet.rath import (
+    KabinetLinkComposition,
+    KabinetRath,
+    SplitLink,
+)
 
 project_path = os.path.join(os.path.dirname(__file__), "integration")
 docker_compose_file = os.path.join(project_path, "docker-compose.yml")
@@ -67,7 +67,9 @@ def deployed_app() -> Generator[DeployedKabinet, None, None]:
 
         y = KabinetRath(
             link=KabinetLinkComposition(
-                auth=ComposedAuthLink(token_loader=token_loader, token_refresher=token_loader),
+                auth=ComposedAuthLink(
+                    token_loader=token_loader, token_refresher=token_loader
+                ),
                 split=SplitLink(
                     left=AIOHttpLink(endpoint_url=http_url),
                     right=GraphQLWSLink(ws_endpoint_url=ws_url),
@@ -81,8 +83,7 @@ def deployed_app() -> Generator[DeployedKabinet, None, None]:
         )
 
         setup.up()
-        
-    
+
         setup.check_health()
         # What a release of this client then says it was tested against.
         record_tested("kabinet", http_url.rsplit("/graphql", 1)[0] + "/ht")
@@ -119,6 +120,8 @@ def release(kabinet: Kabinet) -> Release:
             states=[],
             requirements=[],
         ),
-        image=DockerImageInput(image_string=f"example/{identifier}:1.0.0", build_at=datetime.now()),
+        image=DockerImageInput(
+            image_string=f"example/{identifier}:1.0.0", build_at=datetime.now()
+        ),
         flavour_name="vanilla",
     )

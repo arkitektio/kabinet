@@ -90,10 +90,12 @@ def test_declare_resource_is_idempotent(kabinet: Kabinet) -> None:
     """Declaring the same resource on a backend twice returns the same resource."""
     backend = kabinet.declare_backend(name="resource-backend-2", kind="apptainer")
     first = kabinet.declare_resource(
-        backend=backend.id, local_id="same-local-id",
+        backend=backend.id,
+        local_id="same-local-id",
     )
     second = kabinet.declare_resource(
-        backend=backend.id, local_id="same-local-id",
+        backend=backend.id,
+        local_id="same-local-id",
     )
 
     assert first.id == second.id
@@ -104,7 +106,8 @@ def test_list_resources(kabinet: Kabinet) -> None:
     """A declared resource shows up in the list of resources."""
     backend = kabinet.declare_backend(name="listed-resource-backend", kind="apptainer")
     resource = kabinet.declare_resource(
-        backend=backend.id, local_id="listed-resource",
+        backend=backend.id,
+        local_id="listed-resource",
     )
 
     resources = kabinet.list_resources()

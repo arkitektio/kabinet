@@ -8,7 +8,8 @@ subscription shape. The dokker integration suite covers the same operations
 against a real server.
 """
 
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from rath.links.testing.mock import AsyncMockLink
 from rath.operation import Operation
@@ -68,7 +69,11 @@ def pod_payload(id: str = "1") -> dict:
         "podId": f"pod-{id}",
         "status": "RUNNING",
         "clientId": f"client-{id}",
-        "deployment": {"id": f"dep-{id}", "approval": {"id": f"approval-{id}"}, "flavour": full_flavour_payload()},
+        "deployment": {
+            "id": f"dep-{id}",
+            "approval": {"id": f"approval-{id}"},
+            "flavour": full_flavour_payload(),
+        },
     }
 
 
@@ -79,7 +84,9 @@ async def test_declare_backend_serializes_input() -> None:
         captured.update(operation.variables)
         return {"id": "1", "name": "my-backend"}
 
-    async with client(AsyncMockLink(mutation_resolver={"declareBackend": resolve})) as kabinet:
+    async with client(
+        AsyncMockLink(mutation_resolver={"declareBackend": resolve})
+    ) as kabinet:
         backend = await kabinet.adeclare_backend(name="my-backend", kind="docker")
 
     assert captured["input"] == {"name": "my-backend", "kind": "docker"}
@@ -95,7 +102,9 @@ async def test_oneof_flavour_ordering_serializes_single_key() -> None:
         return []
 
     async with client(AsyncMockLink(query_resolver={"flavours": resolve})) as kabinet:
-        await kabinet.alist_flavours(ordering=[flavour_order(released_at=Ordering.DESC)])
+        await kabinet.alist_flavours(
+            ordering=[flavour_order(released_at=Ordering.DESC)]
+        )
 
     assert captured["ordering"] == [{"releasedAt": "DESC"}]
 
@@ -105,18 +114,54 @@ async def test_selector_union_parses_all_kinds() -> None:
     know — parses into its variant class (unknown kinds land in CatchAll),
     and the interface's ``weight`` is available on all of them."""
     selectors = [
-        {"__typename": "CudaSelector", "kind": "cuda", "required": True, "weight": 2,
-         "computeCapability": "8.6", "cudaVersion": "12", "memory": 8000, "count": 2,
-         "cudaCores": 100},
-        {"__typename": "CPUSelector", "kind": "cpu", "required": True, "weight": 1,
-         "minCount": 4, "frequency": 2400.0, "arch": "arm64"},
-        {"__typename": "RAMSelector", "kind": "ram", "required": True, "weight": 1,
-         "min": 1024},
-        {"__typename": "LabelSelector", "kind": "label", "required": False, "weight": 10,
-         "key": "gpu", "value": "true"},
-        {"__typename": "OneApiSelector", "kind": "oneapi", "required": True, "weight": 1,
-         "oneapiVersion": "2024.1"},
-        {"__typename": "SomeFutureSelector", "kind": "future", "required": False, "weight": 0},
+        {
+            "__typename": "CudaSelector",
+            "kind": "cuda",
+            "required": True,
+            "weight": 2,
+            "computeCapability": "8.6",
+            "cudaVersion": "12",
+            "memory": 8000,
+            "count": 2,
+            "cudaCores": 100,
+        },
+        {
+            "__typename": "CPUSelector",
+            "kind": "cpu",
+            "required": True,
+            "weight": 1,
+            "minCount": 4,
+            "frequency": 2400.0,
+            "arch": "arm64",
+        },
+        {
+            "__typename": "RAMSelector",
+            "kind": "ram",
+            "required": True,
+            "weight": 1,
+            "min": 1024,
+        },
+        {
+            "__typename": "LabelSelector",
+            "kind": "label",
+            "required": False,
+            "weight": 10,
+            "key": "gpu",
+            "value": "true",
+        },
+        {
+            "__typename": "OneApiSelector",
+            "kind": "oneapi",
+            "required": True,
+            "weight": 1,
+            "oneapiVersion": "2024.1",
+        },
+        {
+            "__typename": "SomeFutureSelector",
+            "kind": "future",
+            "required": False,
+            "weight": 0,
+        },
     ]
 
     async def resolve(operation: Operation) -> list:

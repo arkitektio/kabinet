@@ -1,11 +1,10 @@
 """The graphql rath client for  kabinet"""
 
 from types import TracebackType
+
 from pydantic import Field
 from rath import rath
-
 from rath.links.auth import AuthTokenLink
-
 from rath.links.compose import TypedComposedLink
 from rath.links.dictinglink import DictingLink
 from rath.links.shrink import ShrinkingLink

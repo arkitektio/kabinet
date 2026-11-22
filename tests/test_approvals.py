@@ -19,7 +19,11 @@ AGENT = "live.arkitekt.deployer"
 
 def _approve(kabinet: Kabinet, release: Release, **extra) -> ReleaseApproval:
     return kabinet.approve_release(
-        release.id, mandate="mandate-1", agent=AGENT, digest=release.approval_digest, **extra
+        release.id,
+        mandate="mandate-1",
+        agent=AGENT,
+        digest=release.approval_digest,
+        **extra,
     )
 
 
@@ -46,19 +50,27 @@ def test_an_approval_is_active_and_found(kabinet: Kabinet, release: Release) -> 
 
 
 @pytest.mark.integration
-def test_an_approval_of_a_changed_release_is_refused(kabinet: Kabinet, release: Release) -> None:
+def test_an_approval_of_a_changed_release_is_refused(
+    kabinet: Kabinet, release: Release
+) -> None:
     with pytest.raises(GraphQLException, match="changed since you reviewed"):
-        kabinet.approve_release(release.id, mandate="mandate-1", agent=AGENT, digest="not-the-digest")
+        kabinet.approve_release(
+            release.id, mandate="mandate-1", agent=AGENT, digest="not-the-digest"
+        )
 
 
 @pytest.mark.integration
-def test_deploying_needs_an_active_approval_for_this_backend(kabinet: Kabinet, release: Release) -> None:
+def test_deploying_needs_an_active_approval_for_this_backend(
+    kabinet: Kabinet, release: Release
+) -> None:
     backend = kabinet.declare_backend(name="approvals-backend", kind="apptainer")
     flavour = release.flavours[0]
     approval = _approve(kabinet, release, backends=[backend.id])
 
     deployment = kabinet.create_deployment(
-        local_id=f"local-{uuid.uuid4().hex[:8]}", flavour=flavour.id, approval=approval.id
+        local_id=f"local-{uuid.uuid4().hex[:8]}",
+        flavour=flavour.id,
+        approval=approval.id,
     )
     assert deployment.id
 
@@ -68,5 +80,7 @@ def test_deploying_needs_an_active_approval_for_this_backend(kabinet: Kabinet, r
 
     with pytest.raises(GraphQLException):
         kabinet.create_deployment(
-            local_id=f"local-{uuid.uuid4().hex[:8]}", flavour=flavour.id, approval=approval.id
+            local_id=f"local-{uuid.uuid4().hex[:8]}",
+            flavour=flavour.id,
+            approval=approval.id,
         )

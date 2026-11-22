@@ -8,17 +8,16 @@ ask for the client it returns. An app takes all of it in with
 import os
 from typing import Annotated
 
+from arkitekt_spec.declare.app import AppRegistry
+from arkitekt_spec.declare.tested import tested_against
+from arkitekt_spec.declare.widgets import SearchWidget
 from fakts import Alias, Require, TokenLoader
 from fakts.contrib.rath.auth import FaktsAuthLink
-from graphql import OperationType
 from rath.links.aiohttp import AIOHttpLink
 from rath.links.graphql_ws import GraphQLWSLink
 from rath.links.split import SplitLink
 
-from arkitekt_spec.declare.app import AppRegistry
-from arkitekt_spec.declare.tested import tested_against
-from arkitekt_spec.declare.widgets import SearchWidget
-
+from graphql import OperationType
 from kabinet.api.schema import (
     Definition,
     Deployment,
@@ -57,7 +56,11 @@ TESTED = tested_against("kabinet")
 def kabinet(
     kabinet: Annotated[
         Alias,
-        Require("live.arkitekt.kabinet", "Where this deployment's apps and pods are managed", version=TESTED),
+        Require(
+            "live.arkitekt.kabinet",
+            "Where this deployment's apps and pods are managed",
+            version=TESTED,
+        ),
     ],
     tokens: TokenLoader,
 ) -> Kabinet:
@@ -67,8 +70,16 @@ def kabinet(
             link=KabinetLinkComposition(
                 auth=FaktsAuthLink(token_loader=tokens),
                 split=SplitLink(
-                    left=AIOHttpLink(endpoint_url=kabinet.to_http_path("graphql"), proxy=kabinet.proxy, ssl_context=kabinet.ssl_context()),
-                    right=GraphQLWSLink(ws_endpoint_url=kabinet.to_ws_path("graphql"), proxy=kabinet.proxy, ssl_context=kabinet.ssl_context()),
+                    left=AIOHttpLink(
+                        endpoint_url=kabinet.to_http_path("graphql"),
+                        proxy=kabinet.proxy,
+                        ssl_context=kabinet.ssl_context(),
+                    ),
+                    right=GraphQLWSLink(
+                        ws_endpoint_url=kabinet.to_ws_path("graphql"),
+                        proxy=kabinet.proxy,
+                        ssl_context=kabinet.ssl_context(),
+                    ),
                     split=lambda o: o.node.operation != OperationType.SUBSCRIPTION,
                 ),
             )
@@ -87,8 +98,7 @@ async def expand_pod(id: str, kabinet: Kabinet) -> Pod:
     return await kabinet.aget_pod(id)
 
 
-@registry.structure("@kabinet/deployment", widget=_search(SearchDeploymentsQuery)
-)
+@registry.structure("@kabinet/deployment", widget=_search(SearchDeploymentsQuery))
 async def expand_deployment(id: str, kabinet: Kabinet) -> Deployment:
     """A deployment, by id."""
     return await kabinet.aget_deployment(id)
@@ -106,8 +116,7 @@ async def expand_release_approval(id: str, kabinet: Kabinet) -> ReleaseApproval:
     return await kabinet.aget_release_approval(id)
 
 
-@registry.structure("@kabinet/definition", widget=_search(SearchDefinitionsQuery)
-)
+@registry.structure("@kabinet/definition", widget=_search(SearchDefinitionsQuery))
 async def expand_definition(id: str, kabinet: Kabinet) -> Definition:
     """A definition, by id."""
     return await kabinet.aget_definition(id)

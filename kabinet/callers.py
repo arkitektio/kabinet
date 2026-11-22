@@ -18,7 +18,9 @@ REQUEST_APPROVAL = ActionDemandInput(
         PortMatchInput(at=0, kind=PortKind.STRUCTURE, identifier=RELEASE),
         PortMatchInput(at=1, key="agent", kind=PortKind.STRING),
     ),
-    return_matches=(PortMatchInput(at=0, kind=PortKind.STRUCTURE, identifier=APPROVAL),),
+    return_matches=(
+        PortMatchInput(at=0, kind=PortKind.STRUCTURE, identifier=APPROVAL),
+    ),
     force_arg_length=2,
     force_return_length=1,
 )

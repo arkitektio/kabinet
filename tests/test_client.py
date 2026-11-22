@@ -3,8 +3,9 @@
 No server: the rath is a fake returning canned data.
 """
 
+from collections.abc import AsyncIterator
 from types import SimpleNamespace
-from typing import Any, AsyncIterator, Optional
+from typing import Any
 
 import pytest
 from pydantic import BaseModel, ConfigDict
@@ -30,7 +31,9 @@ class FakeRath:
     async def aquery(self, document: str, variables: dict[str, Any]) -> Any:
         return self._answer(variables)
 
-    async def asubscribe(self, document: str, variables: dict[str, Any]) -> AsyncIterator[Any]:
+    async def asubscribe(
+        self, document: str, variables: dict[str, Any]
+    ) -> AsyncIterator[Any]:
         yield self._answer(variables)
 
 
@@ -52,7 +55,7 @@ class GetPod(BaseModel):
 
     class Arguments(BaseModel):
         id: str
-        note: Optional[str] = None
+        note: str | None = None
 
     class Meta:
         document = "query GetPod($id: ID!) { pod(id: $id) { id backend { id } } }"
@@ -112,7 +115,13 @@ async def test_unset_arguments_are_not_sent() -> None:
 def test_every_operation_is_a_method_of_the_client() -> None:
     assert issubclass(Kabinet, KabinetApi)
     assert set(Kabinet.model_fields) == {"rath"}
-    for name in ("aget_pod", "get_pod", "awatch_pods", "watch_pods", "adeclare_backend"):
+    for name in (
+        "aget_pod",
+        "get_pod",
+        "awatch_pods",
+        "watch_pods",
+        "adeclare_backend",
+    ):
         assert getattr(Kabinet, name) is getattr(KabinetApi, name)
 
 
@@ -149,7 +158,9 @@ async def test_generated_subscription_goes_through_its_client() -> None:
     async def events(operation: Operation) -> AsyncIterator[dict]:
         yield {"create": None, "update": None, "delete": "1"}
 
-    kabinet = Kabinet(rath=KabinetRath(link=AsyncMockLink(subscription_resolver={"pods": events})))
+    kabinet = Kabinet(
+        rath=KabinetRath(link=AsyncMockLink(subscription_resolver={"pods": events}))
+    )
 
     async with kabinet:
         seen = [event async for event in kabinet.awatch_pods()]

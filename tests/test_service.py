@@ -13,10 +13,9 @@ fakts = pytest.importorskip("fakts")
 if not hasattr(fakts, "build_testing_fakts"):  # pragma: no cover
     pytest.skip("installed fakts predates TestingFakts", allow_module_level=True)
 
-from fakts.testing import build_testing_fakts  # noqa: E402
-
-from koil import unkoil  # noqa: E402
 from arkitekt_spec.declare.app import AppRegistry  # noqa: E402
+from fakts.testing import build_testing_fakts  # noqa: E402
+from koil import unkoil  # noqa: E402
 
 from kabinet.arkitekt import kabinet as kabinet_service  # noqa: E402
 from kabinet.kabinet import Kabinet  # noqa: E402

@@ -19,19 +19,33 @@ AGENT = "live.arkitekt.deployer"
 
 
 @pytest.mark.integration
-def test_a_backend_drives_its_pods_by_local_id(kabinet: Kabinet, release: Release) -> None:
-    backend = kabinet.declare_backend(name=f"lifecycle-{uuid.uuid4().hex[:6]}", kind="docker")
-    resource = kabinet.declare_resource(backend=backend.id, local_id="host:docker", name="host")
+def test_a_backend_drives_its_pods_by_local_id(
+    kabinet: Kabinet, release: Release
+) -> None:
+    backend = kabinet.declare_backend(
+        name=f"lifecycle-{uuid.uuid4().hex[:6]}", kind="docker"
+    )
+    resource = kabinet.declare_resource(
+        backend=backend.id, local_id="host:docker", name="host"
+    )
     approval = kabinet.approve_release(
-        release.id, mandate="mandate-1", agent=AGENT, digest=release.approval_digest, backends=[backend.id]
+        release.id,
+        mandate="mandate-1",
+        agent=AGENT,
+        digest=release.approval_digest,
+        backends=[backend.id],
     )
     deployment = kabinet.create_deployment(
-        local_id=f"image-{uuid.uuid4().hex[:6]}", flavour=release.flavours[0].id, approval=approval.id
+        local_id=f"image-{uuid.uuid4().hex[:6]}",
+        flavour=release.flavours[0].id,
+        approval=approval.id,
     )
 
     # The deployer names the pod before anything runs, and the pod starts PENDING.
     pod_key = uuid.uuid4().hex
-    pod = kabinet.create_pod(deployment=deployment.id, local_id=pod_key, resource=resource.id)
+    pod = kabinet.create_pod(
+        deployment=deployment.id, local_id=pod_key, resource=resource.id
+    )
     assert pod.pod_id == pod_key
     assert pod.status == PodStatus.PENDING
 
@@ -41,7 +55,12 @@ def test_a_backend_drives_its_pods_by_local_id(kabinet: Kabinet, release: Releas
     assert updated.status == PodStatus.RUNNING
 
     # Creating again upserts: it only fills in the client the pod enrolled as.
-    again = kabinet.create_pod(deployment=deployment.id, local_id=pod_key, resource=resource.id, client_id="client-1")
+    again = kabinet.create_pod(
+        deployment=deployment.id,
+        local_id=pod_key,
+        resource=resource.id,
+        client_id="client-1",
+    )
     assert again.id == pod.id
     assert again.client_id == "client-1"
 
@@ -58,14 +77,25 @@ def test_a_backend_drives_its_pods_by_local_id(kabinet: Kabinet, release: Releas
 
 @pytest.mark.integration
 def test_my_pods_pages_in_a_stable_order(kabinet: Kabinet, release: Release) -> None:
-    backend = kabinet.declare_backend(name=f"paging-{uuid.uuid4().hex[:6]}", kind="docker")
+    backend = kabinet.declare_backend(
+        name=f"paging-{uuid.uuid4().hex[:6]}", kind="docker"
+    )
     approval = kabinet.approve_release(
-        release.id, mandate="mandate-1", agent=AGENT, digest=release.approval_digest, backends=[backend.id]
+        release.id,
+        mandate="mandate-1",
+        agent=AGENT,
+        digest=release.approval_digest,
+        backends=[backend.id],
     )
     deployment = kabinet.create_deployment(
-        local_id=f"image-{uuid.uuid4().hex[:6]}", flavour=release.flavours[0].id, approval=approval.id
+        local_id=f"image-{uuid.uuid4().hex[:6]}",
+        flavour=release.flavours[0].id,
+        approval=approval.id,
     )
-    created = {kabinet.create_pod(deployment=deployment.id, local_id=uuid.uuid4().hex).id for _ in range(5)}
+    created = {
+        kabinet.create_pod(deployment=deployment.id, local_id=uuid.uuid4().hex).id
+        for _ in range(5)
+    }
 
     everything = [p.id for p in kabinet.my_pods(backend.id, limit=1000)]
     paged: list[str] = []
