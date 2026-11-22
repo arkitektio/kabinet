@@ -7,6 +7,7 @@ release be deployed. The ``release`` fixture (conftest) registers it with
 """
 
 import uuid
+from typing import Any
 
 import pytest
 from rath.operation import GraphQLException
@@ -17,7 +18,7 @@ from kabinet.kabinet import Kabinet
 AGENT = "live.arkitekt.deployer"
 
 
-def _approve(kabinet: Kabinet, release: Release, **extra) -> ReleaseApproval:
+def _approve(kabinet: Kabinet, release: Release, **extra: Any) -> ReleaseApproval:
     return kabinet.approve_release(
         release.id,
         mandate="mandate-1",

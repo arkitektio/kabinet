@@ -2,7 +2,7 @@ import os
 import uuid
 from collections.abc import Generator
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
 from arkitekt_spec.declare.tested import record_tested
@@ -25,7 +25,7 @@ project_path = os.path.join(os.path.dirname(__file__), "integration")
 docker_compose_file = os.path.join(project_path, "docker-compose.yml")
 
 
-async def token_loader():
+async def token_loader() -> str:
     return "test"
 
 
@@ -121,7 +121,7 @@ def release(kabinet: Kabinet) -> Release:
             requirements=[],
         ),
         image=DockerImageInput(
-            image_string=f"example/{identifier}:1.0.0", build_at=datetime.now()
+            image_string=f"example/{identifier}:1.0.0", build_at=datetime.now(UTC)
         ),
         flavour_name="vanilla",
     )

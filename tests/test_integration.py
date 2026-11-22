@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 import pytest
 
 from kabinet.api.schema import (
@@ -12,9 +14,12 @@ from kabinet.api.schema import (
 )
 from kabinet.kabinet import Kabinet
 
+if TYPE_CHECKING:
+    from tests.conftest import DeployedKabinet
+
 
 @pytest.mark.integration
-def test_create_repo(deployed_app) -> None:
+def test_create_repo(deployed_app: "DeployedKabinet") -> None:
     pass
 
 
