@@ -17,23 +17,6 @@ dependencies = [
 
 [project.optional-dependencies]
 
-[tool.uv]
-dev-dependencies =  [
-    "pytest-asyncio>=0.26.0",
-    "pytest-cov>=6.1.1",
-    "pytest>=8.3.5",
-    "python-semantic-release>=9.21.0",
-    "autoflake>=1.7.7,<2",
-    "aiohttp>=3.8.3,<4",
-    "pytest-aiohttp>=1.0.4,<2",
-    "turms>=3.0",
-    "dokker>=2.8",
-    "fakts>=6.1",
-]
-
-
-# `_tested.json` is written by the integration tests (the server version they ran against)
-# and is not in git: named as an artifact, on both, it is shipped all the same.
 [tool.hatch.build.targets.sdist]
 include = ["kabinet"]
 artifacts = ["kabinet/_tested.json"]
@@ -107,4 +90,14 @@ exclude_commit_patterns = [
 dev = [
     "ruff==0.17.6",
     "basedpyright==1.40.2",
+    "pytest-asyncio>=0.26.0",
+    "pytest-cov>=6.1.1",
+    "pytest>=8.3.5",
+    "python-semantic-release>=9.21.0",
+    "autoflake>=1.7.7,<2",
+    "aiohttp>=3.8.3,<4",
+    "pytest-aiohttp>=1.0.4,<2",
+    "turms>=3.0",
+    "dokker>=2.8",
+    "fakts>=6.1",
 ]
