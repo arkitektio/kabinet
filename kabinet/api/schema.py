@@ -57,6 +57,7 @@ class AssignWidgetKind(str, Enum):
     CHOICE = 'CHOICE'
     SLIDER = 'SLIDER'
     CUSTOM = 'CUSTOM'
+    BLOK = 'BLOK'
     STRING = 'STRING'
     STATE_CHOICE = 'STATE_CHOICE'
     PROXY = 'PROXY'
@@ -168,6 +169,19 @@ class ReturnWidgetKind(str, Enum):
     CHOICE = 'CHOICE'
     CUSTOM = 'CUSTOM'
     __str__ = str.__str__
+
+class BlokAssignWidgetInput(BaseModel):
+    """A port blok as the port's widget: BSX the form draws where the port's control would be."""
+    kind: Literal['BLOK'] = Field(default='BLOK')
+    follow_value: str | None = Field(validation_alias=AliasChoices('follow_value', 'followValue'), serialization_alias='followValue', default=None, description='Port path of another port whose value this widget follows and mirrors.')
+    source: str = Field(description='The port blok as v2 BSX: one `<Blok kind="port" context="panel">`. It reads the port as `port`, the form\'s other arguments as `args` and the agents a run would get as `self` and `deps`; it writes `port.value` and calls no agent.')
+    vocab: Annotated[int | None, GraphQLDefault('2')] = Field(default=None, description='The blok language version the source speaks; 2 is the only one.')
+    'The blok language version the source speaks; 2 is the only one.\nDefault: 2'
+    fallback: 'AssignWidgetInput | None' = Field(default=None, description="Widget to render where the UI draws no port bloks; the port's own kind's widget when left out.")
+
+    def model_post_init(self, context):
+        self.__pydantic_fields_set__.update({'kind'})
+    model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
 
 class ChoiceAssignWidgetInput(BaseModel):
     """A dropdown over the port's `choices`."""
@@ -516,7 +530,7 @@ class AskBlokInput(BaseModel):
     'The catalogs it needs, as name@version.\nDefault: []'
     demo: 'BlokDemoInput | None' = Field(default=None, description='What a preview renders it with.')
     model_config = ConfigDict(frozen=True, extra='forbid', populate_by_name=True, use_enum_values=True)
-AssignWidgetInput = Annotated[ChoiceAssignWidgetInput | CustomAssignWidgetInput | ProxyAssignWidgetInput | SearchAssignWidgetInput | SliderAssignWidgetInput | StateChoiceAssignWidgetInput | StringAssignWidgetInput, Field(discriminator='kind')]
+AssignWidgetInput = Annotated[BlokAssignWidgetInput | ChoiceAssignWidgetInput | CustomAssignWidgetInput | ProxyAssignWidgetInput | SearchAssignWidgetInput | SliderAssignWidgetInput | StateChoiceAssignWidgetInput | StringAssignWidgetInput, Field(discriminator='kind')]
 
 class BackendFilter(BaseModel):
     """Filter for backends."""
@@ -548,8 +562,7 @@ class BlokImplementationInput(BaseModel):
     catalog: str | None = Field(default=None, description='The catalog the blok is written for: the address it is published at (`https://arkitekt.live/catalogs/orkestrator/v1`), or the name of one registered in the organization. The base catalog, which every renderer draws, when absent. It is what `module` named before: one of the two is sent, and `module` is kept for an agent on an older spec.')
     catalog_minor: int | None = Field(validation_alias=AliasChoices('catalog_minor', 'catalogMinor'), serialization_alias='catalogMinor', default=None, description='The minor of its catalog the blok needs: the newest `since` among the components and props it uses.')
     description: str | None = Field(default=None, description="A human-readable description about this Blok's purpose and functionality.")
-    context: Annotated[ComponentContext | None, GraphQLDefault('PANEL')] = Field(default=None, description="What draws it, as its `<Blok context=...>` says (the two must agree): PANEL for panels and dashboards, SCENE for a 3D view (one Scene), LOGO for a logo (one Logo): an agent's, or an action's when its kind is action.")
-    "What draws it, as its `<Blok context=...>` says (the two must agree): PANEL for panels and dashboards, SCENE for a 3D view (one Scene), LOGO for a logo (one Logo): an agent's, or an action's when its kind is action.\nDefault: PANEL"
+    context: ComponentContext | None = Field(default=None, description="What draws it, as its `<Blok context=...>` says (the two must agree): PANEL for panels and dashboards, SCENE for a 3D view (one Scene), LOGO for a logo (one Logo): an agent's, or an action's when its kind is action. A blok sent as its `source` need not say it: it is read off its `<Blok>`. PANEL otherwise.")
     default: Annotated[bool | None, GraphQLDefault('False')] = Field(default=None, description="Whether this Blok is its agent's default for its context. A newly declared default replaces the previous one.")
     "Whether this Blok is its agent's default for its context. A newly declared default replaces the previous one.\nDefault: False"
     for_model: str | None = Field(validation_alias=AliasChoices('for_model', 'forModel'), serialization_alias='forModel', default=None, description="The model ('sha256:...') this Blok decorates: viewers showing that model offer this Blok at `for_node`. PANEL bloks only.")
@@ -750,6 +763,8 @@ class FitsInput(BaseModel):
 
 class FlavourFilter(BaseModel):
     """Filter for flavours."""
+    in_collaboration: ID | None = Field(validation_alias=AliasChoices('in_collaboration', 'inCollaboration'), serialization_alias='inCollaboration', default=None, description='Only what is in this collaboration (its key): put in, or part of what was')
+    created_under: ID | None = Field(validation_alias=AliasChoices('created_under', 'createdUnder'), serialization_alias='createdUnder', default=None, description='Only what the workflow (its root task id) created')
     and_: 'FlavourFilter | None' = Field(validation_alias=AliasChoices('and_', 'AND'), serialization_alias='AND', default=None)
     or_: 'FlavourFilter | None' = Field(validation_alias=AliasChoices('or_', 'OR'), serialization_alias='OR', default=None)
     not_: 'FlavourFilter | None' = Field(validation_alias=AliasChoices('not_', 'NOT'), serialization_alias='NOT', default=None)
@@ -1384,12 +1399,12 @@ Arguments:
         _data['demo'] = demo
     return AskBlokInput.model_validate(_data)
 
-def assign_widget_input(kind: AssignWidgetKind, follow_value: str | None | UnsetType=UNSET, min: float | None | UnsetType=UNSET, max: float | None | UnsetType=UNSET, step: float | None | UnsetType=UNSET, placeholder: str | None | UnsetType=UNSET, as_paragraph: bool | None | UnsetType=UNSET, query: SearchQuery | None | UnsetType=UNSET, ward: str | None | UnsetType=UNSET, filters: Iterable[ArgPortInput] | None | UnsetType=UNSET, dependencies: Iterable[str] | None | UnsetType=UNSET, component: str | None | UnsetType=UNSET, props: Iterable[ComponentPropInput] | None | UnsetType=UNSET, children: Iterable[ComponentNodeInput] | None | UnsetType=UNSET, fallback: AssignWidgetInput | None | UnsetType=UNSET, dependency: str | None | UnsetType=UNSET, state_path: str | None | UnsetType=UNSET, state_call: UtilCallInput | None | UnsetType=UNSET, state_accessors: Iterable[StateAccessorInput] | None | UnsetType=UNSET, target_port: str | None | UnsetType=UNSET, target_action: str | None | UnsetType=UNSET, target_dependency: str | None | UnsetType=UNSET) -> AssignWidgetInput:
+def assign_widget_input(kind: AssignWidgetKind, follow_value: str | None | UnsetType=UNSET, min: float | None | UnsetType=UNSET, max: float | None | UnsetType=UNSET, step: float | None | UnsetType=UNSET, placeholder: str | None | UnsetType=UNSET, as_paragraph: bool | None | UnsetType=UNSET, query: SearchQuery | None | UnsetType=UNSET, ward: str | None | UnsetType=UNSET, filters: Iterable[ArgPortInput] | None | UnsetType=UNSET, dependencies: Iterable[str] | None | UnsetType=UNSET, component: str | None | UnsetType=UNSET, props: Iterable[ComponentPropInput] | None | UnsetType=UNSET, children: Iterable[ComponentNodeInput] | None | UnsetType=UNSET, fallback: AssignWidgetInput | None | UnsetType=UNSET, source: str | None | UnsetType=UNSET, vocab: int | None | UnsetType=UNSET, dependency: str | None | UnsetType=UNSET, state_path: str | None | UnsetType=UNSET, state_call: UtilCallInput | None | UnsetType=UNSET, state_accessors: Iterable[StateAccessorInput] | None | UnsetType=UNSET, target_port: str | None | UnsetType=UNSET, target_action: str | None | UnsetType=UNSET, target_dependency: str | None | UnsetType=UNSET) -> AssignWidgetInput:
     """Creates a AssignWidgetInput
 
 Arguments:
     kind: Which kind of assign widget this is; decides which other fields are read.
-    follow_value: (SLIDER, CHOICE, STRING, SEARCH, CUSTOM, STATE_CHOICE, PROXY) Port path of another port whose value this widget follows and mirrors.
+    follow_value: (SLIDER, CHOICE, STRING, SEARCH, CUSTOM, BLOK, STATE_CHOICE, PROXY) Port path of another port whose value this widget follows and mirrors.
     min: (SLIDER) The minimum value.
     max: (SLIDER) The maximum value.
     step: (SLIDER) The step between selectable values; must be positive.
@@ -1402,7 +1417,9 @@ Arguments:
     component: (CUSTOM) The catalog component to render. The port value is in scope as the reserved root `value`.
     props: (CUSTOM) Props of the component. value_paths may only reference `value` and `dependencies`; agent calls are not allowed.
     children: (CUSTOM) The component's children: a tree of blok nodes under the same rules as its props. Left out of the definition's hash when empty, so a widget without any keeps the hash it has.
-    fallback: (CUSTOM) Widget to render when the UI has no such component in its catalog.
+    fallback: (CUSTOM, BLOK) Widget to render when the UI has no such component in its catalog.
+    source: (BLOK) The port blok as v2 BSX: one `<Blok kind="port" context="panel">`. It reads the port as `port`, the form's other arguments as `args` and the agents a run would get as `self` and `deps`; it writes `port.value` and calls no agent.
+    vocab: (BLOK) The blok language version the source speaks; 2 is the only one.
     dependency: (STATE_CHOICE) The agent dependency (by key) whose state provides the choices; omitted: the implementing agent's own state.
     state_path: (STATE_CHOICE) Static JSON pointer into the state value that provides the choices. Mutually exclusive with `state_call`.
     state_call: (STATE_CHOICE) Pure UtilCall returning that pointer dynamically; may reference `state`, `value` and `dependencies`. Mutually exclusive with `state_path`.
@@ -1441,6 +1458,10 @@ Arguments:
         _data['children'] = children
     if fallback is not UNSET:
         _data['fallback'] = fallback
+    if source is not UNSET:
+        _data['source'] = source
+    if vocab is not UNSET:
+        _data['vocab'] = vocab
     if dependency is not UNSET:
         _data['dependency'] = dependency
     if state_path is not UNSET:
@@ -1506,7 +1527,7 @@ Arguments:
         _data['subscriptions'] = subscriptions
     return BlokDemoInput.model_validate(_data)
 
-def blok_implementation_input(key: str, dependencies: Iterable[AgentDependencyInput], context: ComponentContext, default: bool, args: Iterable[ArgPortInput], vocab: int, catalogs: Iterable[str], components: Iterable[ComponentNodeInput] | None | UnsetType=UNSET, source: str | None | UnsetType=UNSET, module: str | None | UnsetType=UNSET, catalog: str | None | UnsetType=UNSET, catalog_minor: int | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, for_model: str | None | UnsetType=UNSET, for_node: str | None | UnsetType=UNSET, demo: BlokDemoInput | None | UnsetType=UNSET) -> BlokImplementationInput:
+def blok_implementation_input(key: str, dependencies: Iterable[AgentDependencyInput], default: bool, args: Iterable[ArgPortInput], vocab: int, catalogs: Iterable[str], components: Iterable[ComponentNodeInput] | None | UnsetType=UNSET, source: str | None | UnsetType=UNSET, module: str | None | UnsetType=UNSET, catalog: str | None | UnsetType=UNSET, catalog_minor: int | None | UnsetType=UNSET, description: str | None | UnsetType=UNSET, context: ComponentContext | None | UnsetType=UNSET, for_model: str | None | UnsetType=UNSET, for_node: str | None | UnsetType=UNSET, demo: BlokDemoInput | None | UnsetType=UNSET) -> BlokImplementationInput:
     """Creates a BlokImplementationInput
 
 Arguments:
@@ -1518,7 +1539,7 @@ Arguments:
     catalog: The catalog the blok is written for: the address it is published at (`https://arkitekt.live/catalogs/orkestrator/v1`), or the name of one registered in the organization. The base catalog, which every renderer draws, when absent. It is what `module` named before: one of the two is sent, and `module` is kept for an agent on an older spec.
     catalog_minor: The minor of its catalog the blok needs: the newest `since` among the components and props it uses.
     description: A human-readable description about this Blok's purpose and functionality.
-    context: What draws it, as its `<Blok context=...>` says (the two must agree): PANEL for panels and dashboards, SCENE for a 3D view (one Scene), LOGO for a logo (one Logo): an agent's, or an action's when its kind is action.
+    context: What draws it, as its `<Blok context=...>` says (the two must agree): PANEL for panels and dashboards, SCENE for a 3D view (one Scene), LOGO for a logo (one Logo): an agent's, or an action's when its kind is action. A blok sent as its `source` need not say it: it is read off its `<Blok>`. PANEL otherwise.
     default: Whether this Blok is its agent's default for its context. A newly declared default replaces the previous one.
     for_model: The model ('sha256:...') this Blok decorates: viewers showing that model offer this Blok at `for_node`. PANEL bloks only.
     for_node: The node of `for_model` this Blok attaches to; the model's root when absent.
@@ -1542,7 +1563,8 @@ Arguments:
         _data['catalogMinor'] = catalog_minor
     if description is not UNSET:
         _data['description'] = description
-    _data['context'] = context
+    if context is not UNSET:
+        _data['context'] = context
     _data['default'] = default
     if for_model is not UNSET:
         _data['forModel'] = for_model
@@ -1874,10 +1896,12 @@ Arguments:
         _data['source'] = source
     return FitsInput.model_validate(_data)
 
-def flavour_filter(and_: FlavourFilter | None | UnsetType=UNSET, or_: FlavourFilter | None | UnsetType=UNSET, not_: FlavourFilter | None | UnsetType=UNSET, distinct: bool | None | UnsetType=UNSET, ids: Iterable[IDCoercible] | None | UnsetType=UNSET, search: str | None | UnsetType=UNSET, has_definitions: Iterable[IDCoercible] | None | UnsetType=UNSET, requires: Iterable[RequiresInput] | None | UnsetType=UNSET) -> FlavourFilter:
+def flavour_filter(in_collaboration: IDCoercible | None | UnsetType=UNSET, created_under: IDCoercible | None | UnsetType=UNSET, and_: FlavourFilter | None | UnsetType=UNSET, or_: FlavourFilter | None | UnsetType=UNSET, not_: FlavourFilter | None | UnsetType=UNSET, distinct: bool | None | UnsetType=UNSET, ids: Iterable[IDCoercible] | None | UnsetType=UNSET, search: str | None | UnsetType=UNSET, has_definitions: Iterable[IDCoercible] | None | UnsetType=UNSET, requires: Iterable[RequiresInput] | None | UnsetType=UNSET) -> FlavourFilter:
     """Creates a FlavourFilter
 
 Arguments:
+    in_collaboration: Only what is in this collaboration (its key): put in, or part of what was
+    created_under: Only what the workflow (its root task id) created
     and_: Filter for flavours.
     or_: Filter for flavours.
     not_: Filter for flavours.
@@ -1888,6 +1912,10 @@ Arguments:
     requires: Filter to the objects satisfying every one of these descriptor constraints: the `requires` of a port (`RequiresInput`), handed on unchanged, so a picker offers what the port accepts. Answered from the stored descriptors, in one indexed query
 """
     _data: dict[str, builtins.object] = {}
+    if in_collaboration is not UNSET:
+        _data['inCollaboration'] = in_collaboration
+    if created_under is not UNSET:
+        _data['createdUnder'] = created_under
     if and_ is not UNSET:
         _data['AND'] = and_
     if or_ is not UNSET:
@@ -4004,7 +4032,7 @@ class WatchPodsSubscriptionPods(BaseModel):
 class WatchPodsSubscription(BaseModel):
     """No documentation found for this operation."""
     pods: WatchPodsSubscriptionPods
-    'Subscribe to lifecycle events for every pod visible to the current organization.'
+    'Subscribe to lifecycle events for every pod visible to the current organization, or only those of one resource or backend.'
 
     class Arguments(BaseModel):
         """Arguments for WatchPods """
@@ -5725,7 +5753,7 @@ Returns:
     async def awatch_pods(self) -> AsyncIterator[WatchPodsSubscriptionPods]:
         """WatchPods 
 
-Subscribe to lifecycle events for every pod visible to the current organization.
+Subscribe to lifecycle events for every pod visible to the current organization, or only those of one resource or backend.
 
 Args:
 
@@ -5739,7 +5767,7 @@ Returns:
     def watch_pods(self) -> Iterator[WatchPodsSubscriptionPods]:
         """WatchPods 
 
-Subscribe to lifecycle events for every pod visible to the current organization.
+Subscribe to lifecycle events for every pod visible to the current organization, or only those of one resource or backend.
 
 Args:
 
@@ -5757,6 +5785,7 @@ AppImageInput.model_rebuild()
 ArgPortInput.model_rebuild()
 AskBlokInput.model_rebuild()
 BackendFilter.model_rebuild()
+BlokAssignWidgetInput.model_rebuild()
 BlokImplementationInput.model_rebuild()
 ComponentNodeInput.model_rebuild()
 ComponentPropInput.model_rebuild()

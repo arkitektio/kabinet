@@ -211,6 +211,20 @@ enum ActionScope {
   BRIDGE_LOCAL_TO_GLOBAL
 }
 
+"""Objects to put in a collaboration at once: all of them, or none"""
+input AddManyToCollaborationInput {
+  """The collaboration's key (lok's)"""
+  collaboration: ID!
+
+  """What to put in; a whole before its parts"""
+  objects: [CollaborationObjectRef!]!
+
+  """
+  The collaboration's name, kept here when these are the first things put in
+  """
+  name: String = null
+}
+
 """
 Defines a callback that routes user interactions directly to an Arkitekt Agent via Rekuest.
 """
@@ -332,12 +346,52 @@ type App @identified(by: "@kabinet/app") {
   """
   embedding: Embedding
 
+  """
+  The app's newest release, by `releasedAt` (a channel build counts as a release). Null for an app without releases.
+  """
+  latestRelease: Release
+
+  """How many releases the app has: a count, without listing them."""
+  releaseCount: Int!
+
+  """
+  How many deployments the app's flavours have, of any release and in any status: 0 for an app that is not installed (and for a guest of the organization: where it runs is never shared).
+  """
+  deploymentCount: Int!
+
+  """
+  How many of the app's deployments are RUNNING (0 for a guest of the organization: where it runs is never shared).
+  """
+  runningCount: Int!
+
+  """
+  What the app's flavours run on: GPU when one requires an accelerator, CPU when one runs without. Read from the flavours' required selectors (`@kabinet/gpu`); empty for an app without flavours.
+  """
+  hardware: [AppHardware!]!
+
+  """
+  The accelerators the app's flavours require, one entry per vendor (cuda, rocm, oneapi), as `@kabinet/gpu` names them. A flavour that requires several vendors at once is a GPU flavour but names none here.
+  """
+  accelerators: [String!]!
+
+  """
+  The services any of the app's flavours require (e.g. `live.arkitekt.mikro`), sorted.
+  """
+  services: [String!]!
+
   """The app's logo: the LOGO blok of its newest release that brings one."""
   logoBlok: FlavourBlok
 }
 
 """Filter for apps."""
 input AppFilter {
+  """
+  Only what is in this collaboration (its key): put in, or part of what was
+  """
+  inCollaboration: ID
+
+  """Only what the workflow (its root task id) created"""
+  createdUnder: ID
   AND: AppFilter
   OR: AppFilter
   NOT: AppFilter
@@ -347,9 +401,50 @@ input AppFilter {
   ids: [ID!]
 
   """
-  Search by identifier: a case-insensitive substring, or semantic similarity of the query to it. Substring matches rank first, then by similarity; an explicit `ordering` replaces that ranking.
+  Search by identifier, by the names of the actions its newest release brings, and by the keys and descriptions of its panels and scenes (each a case-insensitive substring), or by semantic similarity of the query to the identifier. Substring matches rank first, then by similarity; an explicit `ordering` replaces that ranking.
   """
   search: String
+
+  """
+  true: only apps whose newest release brings a panel or a scene (a blok the store offers); false: only apps whose newest release brings none.
+  """
+  bloks: Boolean
+
+  """
+  Keep only the app with exactly this identifier (unique within the organization).
+  """
+  identifier: String
+
+  """Keep only the apps with exactly these identifiers."""
+  identifiers: [String!]
+
+  """
+  Keep only the apps of this publisher: those whose identifier is the publisher plus one last segment (`live.arkitekt` keeps `live.arkitekt.segmentation`, not `live.arkitekt.tools.segmentation`). Segments are separated by `.` or `/`, either way. An exact match, unlike `search`.
+  """
+  publisher: String
+
+  """
+  true: only apps with at least one deployment of any of their flavours (installed); false: only apps with none.
+  """
+  deployed: Boolean
+
+  """
+  Keep only apps with a flavour for each of these: GPU, a flavour that requires an accelerator; CPU, one that runs on a plain CPU backend. Read from the flavours' required selectors (`@kabinet/gpu`).
+  """
+  hardware: [AppHardware!]
+
+  """
+  Keep only apps with a flavour that requires this service (e.g. `live.arkitekt.mikro`).
+  """
+  service: String
+}
+
+"""
+What an app's flavours run on: an accelerator (GPU) or a plain CPU backend.
+"""
+enum AppHardware {
+  GPU
+  CPU
 }
 
 """
@@ -367,6 +462,36 @@ input AppImageInput {
 input AppOrder @oneOf {
   id: Ordering
   identifier: Ordering
+
+  """
+  By the time of the app's newest release (`Release.releasedAt`): DESC for the most recently released first.
+  """
+  releasedAt: Ordering
+
+  """
+  By how many of the app's deployments are RUNNING (`App.runningCount`): DESC for the busiest first.
+  """
+  runningCount: Ordering
+}
+
+"""The store's totals over every app a filter keeps, not a page of them."""
+type AppStoreTotals {
+  """How many apps."""
+  apps: Int!
+
+  """How many distinct actions their newest releases bring."""
+  actions: Int!
+
+  """How many flavours their newest releases have."""
+  flavours: Int!
+
+  """How many of their deployments (of any release) are RUNNING."""
+  running: Int!
+
+  """
+  The services any of their flavours require, most required first, then by name.
+  """
+  services: [ServiceCount!]!
 }
 
 """
@@ -565,7 +690,7 @@ input AssignWidgetInput {
   kind: AssignWidgetKind!
 
   """
-  (SLIDER, CHOICE, STRING, SEARCH, CUSTOM, STATE_CHOICE, PROXY) Port path of another port whose value this widget follows and mirrors.
+  (SLIDER, CHOICE, STRING, SEARCH, CUSTOM, BLOK, STATE_CHOICE, PROXY) Port path of another port whose value this widget follows and mirrors.
   """
   followValue: String = null
 
@@ -620,9 +745,17 @@ input AssignWidgetInput {
   children: [ComponentNodeInput!] = null
 
   """
-  (CUSTOM) Widget to render when the UI has no such component in its catalog.
+  (CUSTOM, BLOK) Widget to render when the UI has no such component in its catalog.
   """
   fallback: AssignWidgetInput = null
+
+  """
+  (BLOK) The port blok as v2 BSX: one `<Blok kind="port" context="panel">`. It reads the port as `port`, the form's other arguments as `args` and the agents a run would get as `self` and `deps`; it writes `port.value` and calls no agent.
+  """
+  source: String = null
+
+  """(BLOK) The blok language version the source speaks; 2 is the only one."""
+  vocab: Int = null
 
   """
   (STATE_CHOICE) The agent dependency (by key) whose state provides the choices; omitted: the implementing agent's own state.
@@ -664,6 +797,7 @@ enum AssignWidgetKind {
   CHOICE
   SLIDER
   CUSTOM
+  BLOK
   STRING
   STATE_CHOICE
   PROXY
@@ -718,6 +852,41 @@ input BackendOrder @oneOf {
   id: Ordering
   name: Ordering
   lastHeartbeat: Ordering
+}
+
+"""
+A port blok as the port's widget: BSX the form draws where the port's control would be.
+"""
+type BlokAssignWidget implements AssignWidget {
+  kind: AssignWidgetKind!
+  followValue: String
+  source: String!
+  vocab: Int!
+  fallback: AssignWidget
+}
+
+"""
+A port blok as the port's widget: BSX the form draws where the port's control would be.
+"""
+input BlokAssignWidgetInput @unionElementOf(union: "AssignWidgetInput", discriminator: "kind", key: "BLOK") {
+  """Port path of another port whose value this widget follows and mirrors."""
+  followValue: String = null
+
+  """Which member of AssignWidgetInput this is."""
+  kind: AssignWidgetKind!
+
+  """
+  The port blok as v2 BSX: one `<Blok kind="port" context="panel">`. It reads the port as `port`, the form's other arguments as `args` and the agents a run would get as `self` and `deps`; it writes `port.value` and calls no agent.
+  """
+  source: String!
+
+  """The blok language version the source speaks; 2 is the only one."""
+  vocab: Int! = 2
+
+  """
+  Widget to render where the UI draws no port bloks; the port's own kind's widget when left out.
+  """
+  fallback: AssignWidgetInput = null
 }
 
 """What a preview renders a blok with, mirroring the roots it reads."""
@@ -781,9 +950,9 @@ input BlokImplementationInput {
   description: String = null
 
   """
-  What draws it, as its `<Blok context=...>` says (the two must agree): PANEL for panels and dashboards, SCENE for a 3D view (one Scene), LOGO for a logo (one Logo): an agent's, or an action's when its kind is action.
+  What draws it, as its `<Blok context=...>` says (the two must agree): PANEL for panels and dashboards, SCENE for a 3D view (one Scene), LOGO for a logo (one Logo): an agent's, or an action's when its kind is action. A blok sent as its `source` need not say it: it is read off its `<Blok>`. PANEL otherwise.
   """
-  context: ComponentContext! = PANEL
+  context: ComponentContext = null
 
   """
   Whether this Blok is its agent's default for its context. A newly declared default replaces the previous one.
@@ -839,6 +1008,154 @@ type CPUSelector implements Selector {
   The CPU architecture the image is built for (docker platform / kubernetes.io/arch values, e.g. 'amd64', 'arm64').
   """
   arch: String
+}
+
+"""
+A curated list of repositories the organization reads, e.g. arkitekt.live's default list: the ones the hub's config names (`ensured`) and the ones the organization added (`createCatalog`).
+"""
+type Catalog @identified(by: "@kabinet/catalog") {
+  id: ID!
+
+  """Where the catalog file is read from."""
+  url: String!
+
+  """
+  Whether the hub's config names it. The organization cannot remove such a catalog.
+  """
+  ensured: Boolean!
+
+  """The name the file gives, empty until it was read."""
+  name: String!
+
+  """The description the file gives."""
+  description: String!
+
+  """When reading the file was last tried."""
+  checkedAt: DateTime
+
+  """When the file was last read without an error."""
+  fetchedAt: DateTime
+
+  """Why the last read failed. The entries of the last good read are kept."""
+  error: String
+
+  """When the organization got this catalog."""
+  addedAt: DateTime!
+
+  """The member who added it; none for a catalog the config names."""
+  creator: User
+
+  """The organization reading this catalog."""
+  organization: Organization!
+
+  """The repositories the catalog lists."""
+  entries(filters: CatalogEntryFilter, ordering: [CatalogEntryOrder!]! = [], pagination: OffsetPaginationInput): [CatalogEntry!]!
+
+  """
+  This object's descriptors, a flat mapping of key to value: the facts about it that a trigger can test (e.g. `@kabinet/status`). The keys are the ones kabinet declares for this structure, and the values are the ones a signal about the object carries. Empty for a structure that declares none
+  """
+  descriptors: JSON!
+}
+
+"""
+A repository a catalog of the organization lists. Importing it (`importCatalogEntry`) imports it as `importRepo` or `createGithubRepo` would; listing it trusts nothing, a release is still approved before it is deployed.
+"""
+type CatalogEntry @identified(by: "@kabinet/catalogentry") {
+  id: ID!
+
+  """The entry's identity in its catalog, the same across reads."""
+  key: String!
+
+  """
+  The repository: `registry/repository` for an OCI entry, `owner/repo:branch` for a GitHub one.
+  """
+  reference: String!
+
+  """The channels an import of an OCI entry follows besides the releases."""
+  channels: [String!]!
+
+  """The name the catalog gives."""
+  name: String!
+
+  """What the catalog says the repository is."""
+  description: String!
+
+  """The catalog's tags for it."""
+  tags: [String!]!
+
+  """A public URL of a logo, as the catalog gives it."""
+  logoUrl: String
+
+  """Where to read more about it."""
+  homepage: String
+
+  """Who maintains it."""
+  maintainer: String
+
+  """The catalog listing it."""
+  catalog: Catalog!
+
+  """
+  This object's descriptors, a flat mapping of key to value: the facts about it that a trigger can test (e.g. `@kabinet/status`). The keys are the ones kabinet declares for this structure, and the values are the ones a signal about the object carries. Empty for a structure that declares none
+  """
+  descriptors: JSON!
+
+  """How the repository is read."""
+  kind: CatalogEntryKind!
+
+  """
+  The OCI repository the organization imported from this entry, if it did.
+  """
+  ociRepo: OciRepo
+
+  """
+  The GitHub repository the organization tracks from this entry, if it does.
+  """
+  githubRepo: GithubRepo
+}
+
+"""Filter for the entries of the hub's catalogs."""
+input CatalogEntryFilter {
+  """
+  Only what is in this collaboration (its key): put in, or part of what was
+  """
+  inCollaboration: ID
+
+  """Only what the workflow (its root task id) created"""
+  createdUnder: ID
+  AND: CatalogEntryFilter
+  OR: CatalogEntryFilter
+  NOT: CatalogEntryFilter
+  DISTINCT: Boolean
+
+  """Keep only entries whose ID is in this list."""
+  ids: [ID!]
+
+  """
+  Case-insensitive substring of the name, the description, the key or the reference.
+  """
+  search: String
+
+  """Keep only entries of this kind."""
+  kind: CatalogEntryKind
+
+  """Keep only entries carrying every one of these tags."""
+  tags: [String!]
+
+  """Keep only entries of this catalog."""
+  catalog: ID
+}
+
+"""How the repository a catalog entry names is read."""
+enum CatalogEntryKind {
+  OCI
+  GITHUB
+}
+
+input CatalogEntryOrder @oneOf {
+  id: Ordering
+  name: Ordering
+  key: Ordering
 }
 
 type Choice {
@@ -940,6 +1257,87 @@ type ClientRelease {
 
   """Version string of the release."""
   version: String!
+}
+
+"""
+What a guest granted it sees of the organization: the objects put in it, and what is part of them.
+"""
+type Collaboration {
+  id: ID!
+  name: String!
+  description: String
+  createdAt: DateTime!
+
+  """
+  The collaboration's key across the hub: what lok grants, and what names it in every service
+  """
+  key: ID!
+
+  """
+  What is in the collaboration, oldest first; what is part of these is in it too. `brought` keeps what was put in by hand (false) or only what came along with it (true)
+  """
+  items(brought: Boolean = null, pagination: OffsetPaginationInput = null): [CollaborationItem!]!
+
+  """
+  How many objects are in the collaboration: all of them, or (`brought`) only those put in by hand (false) or only those that came along with one (true)
+  """
+  itemCount(brought: Boolean = null): Int!
+}
+
+"""
+One object in a collaboration: put there, or brought along with one that needs it to be seen.
+"""
+type CollaborationItem {
+  id: ID!
+
+  """The object's id, in its structure"""
+  objectId: String!
+  addedAt: DateTime!
+
+  """The structure the object is known by across the hub: @mikro/scene"""
+  identifier: String
+
+  """
+  Whether it is in the collaboration only as what another object in it needs to be seen
+  """
+  brought: Boolean!
+}
+
+"""An object to put in, or take out of, a collaboration"""
+input CollaborationObjectInput {
+  """The collaboration's key (lok's)"""
+  collaboration: ID!
+
+  """The structure the object is known by: @mikro/scene"""
+  identifier: String!
+
+  """The object's id"""
+  object: ID!
+
+  """
+  The collaboration's name, kept here when this is the first thing put in
+  """
+  name: String = null
+}
+
+"""An object, by its structure and id"""
+input CollaborationObjectRef {
+  """The structure the object is known by: @mikro/scene"""
+  identifier: String!
+
+  """The object's id"""
+  object: ID!
+}
+
+"""
+How many collaborations the organization has (a guest: theirs), and how much is in them
+"""
+type CollaborationStats {
+  """How many collaborations"""
+  count: Int!
+
+  """How many objects are in them altogether, brought along ones included"""
+  itemCount: Int!
 }
 
 """A named grouping of related action definitions."""
@@ -1067,6 +1465,14 @@ input CpuSelectorInput @unionElementOf(union: "SelectorInput", discriminator: "k
   The CPU architecture the image is built for (docker platform / kubernetes.io/arch values, e.g. 'amd64', 'arm64').
   """
   arch: String = null
+}
+
+"""
+Input for adding a catalog to the organization, or reading an added one again.
+"""
+input CreateCatalogInput {
+  """Where the catalog file (JSON or YAML) is read from, an http(s) URL."""
+  url: String!
 }
 
 """Input for creating a deployment of a flavour on a backend."""
@@ -1356,6 +1762,11 @@ type Definition @identified(by: "@kabinet/definition") {
   embedding: Embedding
 
   """
+  The apps that bring this action, each once, ordered by identifier: those with a release whose flavour provides it. What a list shows instead of every flavour of every release.
+  """
+  apps: [App!]!
+
+  """
   The action logo (a LOGO blok of kind `action`) that draws this action: the one `flavour`'s implementation names, or without `flavour` the one of the newest flavour providing it that names one. Null when none does.
   """
   logo(flavour: ID = null): FlavourBlok
@@ -1368,6 +1779,13 @@ type Definition @identified(by: "@kabinet/definition") {
 
 """Filter for action definitions."""
 input DefinitionFilter {
+  """
+  Only what is in this collaboration (its key): put in, or part of what was
+  """
+  inCollaboration: ID
+
+  """Only what the workflow (its root task id) created"""
+  createdUnder: ID
   AND: DefinitionFilter
   OR: DefinitionFilter
   NOT: DefinitionFilter
@@ -1541,6 +1959,12 @@ input DefinitionOrder @oneOf {
   kind: Ordering
 }
 
+"""Input for removing a catalog the organization added."""
+input DeleteCatalogInput {
+  """The ID of the catalog to remove."""
+  id: String!
+}
+
 """Input for deleting a pod."""
 input DeletePodInput {
   """The ID of the pod to delete."""
@@ -1584,6 +2008,13 @@ type Deployment @identified(by: "@kabinet/deployment") {
 
 """Filter for deployments."""
 input DeploymentFilter {
+  """
+  Only what is in this collaboration (its key): put in, or part of what was
+  """
+  inCollaboration: ID
+
+  """Only what the workflow (its root task id) created"""
+  createdUnder: ID
   AND: DeploymentFilter
   OR: DeploymentFilter
   NOT: DeploymentFilter
@@ -1935,6 +2366,13 @@ type FlavourBlok {
 
 """Filter for flavours."""
 input FlavourFilter {
+  """
+  Only what is in this collaboration (its key): put in, or part of what was
+  """
+  inCollaboration: ID
+
+  """Only what the workflow (its root task id) created"""
+  createdUnder: ID
   AND: FlavourFilter
   OR: FlavourFilter
   NOT: FlavourFilter
@@ -1993,6 +2431,9 @@ type GithubRepo @identified(by: "@kabinet/githubrepo") {
   """When this repository was first added to Kabinet."""
   addedAt: DateTime!
 
+  """The member who added this repository, if known."""
+  creator: User
+
   """The organization that owns this repository."""
   organization: Organization!
 
@@ -2005,6 +2446,16 @@ type GithubRepo @identified(by: "@kabinet/githubrepo") {
   This repository's stored vector, as `<model id>:<floats>`. Null until it has been indexed.
   """
   embedding: Embedding
+
+  """
+  How many flavours scanning this repository found: a count, without listing them.
+  """
+  flavourCount: Int!
+
+  """
+  How many bloks this repository publishes on its own: a count, without listing them.
+  """
+  blokCount: Int!
 
   """The URL for opening a new issue against this repository on GitHub."""
   issueUrl: String!
@@ -2020,6 +2471,13 @@ enum GithubRepoField {
 
 """Filter for tracked GitHub repositories."""
 input GithubRepoFilter {
+  """
+  Only what is in this collaboration (its key): put in, or part of what was
+  """
+  inCollaboration: ID
+
+  """Only what the workflow (its root task id) created"""
+  createdUnder: ID
   AND: GithubRepoFilter
   OR: GithubRepoFilter
   NOT: GithubRepoFilter
@@ -2041,6 +2499,11 @@ input GithubRepoFilter {
 
   """Case-insensitive match on the branch name."""
   branch: String
+
+  """
+  Keep only repositories this user added, given by their sub (their id in lok). `user` is the GitHub owner, not a member.
+  """
+  creator: ID
 }
 
 input GithubRepoOrder @oneOf {
@@ -2208,6 +2671,19 @@ input ImplementationInput {
   What this implementation can handle, per argument. An action is not offered for an object no live implementation fits.
   """
   fits: [FitsInput!] = null
+}
+
+"""
+Input for importing the repository a catalog entry names into the organization.
+"""
+input ImportCatalogEntryInput {
+  """The ID of the catalog entry."""
+  id: String!
+
+  """
+  For an OCI entry, the channels to follow besides the releases. Omit for the ones the catalog gives.
+  """
+  channels: [String!] = null
 }
 
 """
@@ -2443,6 +2919,24 @@ type Mutation {
   """
   importRepo(input: ImportRepoInput!): OciRepo! @auth(required_scopes: ["kabinet_repos"], any_role_of: ["kabinet_deployer"])
 
+  """
+  Import the repository a catalog entry names into the organization: an OCI entry as `importRepo`, a GitHub entry as `createGithubRepo`.
+  """
+  importCatalogEntry(input: ImportCatalogEntryInput!): CatalogEntry! @auth(required_scopes: ["kabinet_repos"], any_role_of: ["kabinet_deployer"])
+
+  """
+  Add a catalog (a curated list of repositories, JSON or YAML at a URL) to the organization and read it, or read an added one again. A URL that is not a readable catalog is refused.
+  """
+  createCatalog(input: CreateCatalogInput!): Catalog! @auth(required_scopes: ["kabinet_repos"], any_role_of: ["kabinet_deployer"])
+
+  """
+  Remove a catalog the organization added, with its entries; what was imported from it stays. A catalog the hub's config names cannot be removed.
+  """
+  deleteCatalog(input: DeleteCatalogInput!): ID! @auth(required_scopes: ["kabinet_repos"], any_role_of: ["kabinet_deployer"])
+
+  """Read a catalog again now, however recently it was read."""
+  refreshCatalog(input: RefreshCatalogInput!): Catalog! @auth(required_scopes: ["kabinet_repos"], any_role_of: ["kabinet_deployer"])
+
   """Start tracking a new GitHub repository so it can be scanned for apps."""
   createGithubRepo(input: CreateGithubRepoInput!): GithubRepo! @auth(required_scopes: ["kabinet_repos"], any_role_of: ["kabinet_deployer"])
 
@@ -2485,6 +2979,31 @@ type Mutation {
 
   """Delete a backend and return its ID."""
   deleteBackend(id: ID!): ID! @auth(required_scopes: ["kabinet_deploy"], any_role_of: ["kabinet_deployer"])
+
+  """
+  Put an app, an action definition or a repository in a collaboration (lok's, by its key), with what it needs to be seen: an app brings its releases and flavours, their images and the actions they provide. Deployments, pods, approvals and catalogs are never shared. The collaboration's row here is made the first time something is put in
+  """
+  addToCollaboration(input: CollaborationObjectInput!): Collaboration! @auth(required_scopes: ["kabinet_share"], any_role_of: ["kabinet_deployer"])
+
+  """
+  Put several objects in a collaboration (by its key) at once, a whole before its parts, each with what it needs to be seen: all of them, or none
+  """
+  addManyToCollaboration(input: AddManyToCollaborationInput!): Collaboration! @auth(required_scopes: ["kabinet_share"], any_role_of: ["kabinet_deployer"])
+
+  """
+  Put what a workflow (its root task) created in kabinet in a collaboration, as it is now: what it makes later is not. A release, flavour or action made for an app made before the workflow, and not shared, is left out and reported; `dryRun` only says what would be put in
+  """
+  shareWorkflow(input: ShareWorkflowInput!): WorkflowShare! @auth(required_scopes: ["kabinet_share"], any_role_of: ["kabinet_deployer"])
+
+  """
+  Take an object out of a collaboration, with what it brought that nothing else there needs
+  """
+  removeFromCollaboration(input: CollaborationObjectInput!): Collaboration! @auth(required_scopes: ["kabinet_share"], any_role_of: ["kabinet_deployer"])
+
+  """
+  Take everything kabinet put in a collaboration (by its key) out of it: whoever was granted it sees nothing of it here any more. lok's collaboration, and its grants, stay
+  """
+  deleteCollaboration(key: ID!): ID! @auth(required_scopes: ["kabinet_share"], any_role_of: ["kabinet_deployer"])
 }
 
 """
@@ -2517,11 +3036,42 @@ type OciRepo {
   """When this repository was imported."""
   addedAt: DateTime!
 
+  """The member who imported this repository, if known."""
+  creator: User
+
   """The organization that imported this repository."""
   organization: Organization!
 
   """The repository as an image reference starts: `registry/repository`."""
   reference: String!
+}
+
+"""Filter for imported OCI repositories."""
+input OciRepoFilter {
+  AND: OciRepoFilter
+  OR: OciRepoFilter
+  NOT: OciRepoFilter
+  DISTINCT: Boolean
+
+  """Keep only repositories whose ID is in this list."""
+  ids: [ID!]
+
+  """
+  Case-insensitive substring of the name, the registry or the repository path.
+  """
+  search: String
+
+  """
+  Keep only repositories this user imported, given by their sub (their id in lok).
+  """
+  creator: ID
+}
+
+input OciRepoOrder @oneOf {
+  id: Ordering
+  name: Ordering
+  addedAt: Ordering
+  updatedAt: Ordering
 }
 
 input OffsetPaginationInput {
@@ -2659,6 +3209,13 @@ type PodEvent {
 
 """Filter for pods."""
 input PodFilter {
+  """
+  Only what is in this collaboration (its key): put in, or part of what was
+  """
+  inCollaboration: ID
+
+  """Only what the workflow (its root task id) created"""
+  createdUnder: ID
   AND: PodFilter
   OR: PodFilter
   NOT: PodFilter
@@ -2937,6 +3494,24 @@ type Query {
   """Return a single tracked GitHub repository by its ID."""
   githubRepo(id: ID!): GithubRepo! @auth(required_scopes: ["kabinet_read"])
 
+  """
+  List the organization's catalogs (curated lists of repositories, e.g. arkitekt.live's): the ones the hub's config names and the ones it added, reading again the ones not read for a while.
+  """
+  catalogs: [Catalog!]! @auth(required_scopes: ["kabinet_read"])
+
+  """
+  Return a single catalog by its ID, read again first when it was not read for a while.
+  """
+  catalog(id: ID!): Catalog! @auth(required_scopes: ["kabinet_read"])
+
+  """Return a single catalog entry by its ID."""
+  catalogEntry(id: ID!): CatalogEntry! @auth(required_scopes: ["kabinet_read"])
+
+  """
+  List the repositories the organization's catalogs list, as they were last read. `catalogs` adds the config's catalogs and reads stale ones again.
+  """
+  catalogEntries(filters: CatalogEntryFilter, ordering: [CatalogEntryOrder!]! = [], pagination: OffsetPaginationInput): [CatalogEntry!]! @auth(required_scopes: ["kabinet_read"])
+
   """Return a single imported OCI repository by its ID."""
   ociRepo(id: ID!): OciRepo! @auth(required_scopes: ["kabinet_read"])
 
@@ -2955,7 +3530,7 @@ type Query {
   """
   Return a single blok a flavour's app brings by its ID (`<flavour id>:<key>`), or null when there is none.
   """
-  flavourBlok(id: ID!): FlavourBlok @auth(required_scopes: ["kabinet_read"])
+  flavourBlok(id: ID!): FlavourBlok @auth(required_scopes: ["kabinet_read"], allow_scoped: true)
 
   """Return a single blok a repository publishes by its ID."""
   repoBlok(id: ID!): RepoBlok! @auth(required_scopes: ["kabinet_read"])
@@ -2978,6 +3553,11 @@ type Query {
   """List all apps visible to the current organization."""
   apps(filters: AppFilter, ordering: [AppOrder!]! = [], pagination: OffsetPaginationInput): [App!]! @auth(required_scopes: ["kabinet_read"])
 
+  """
+  The store's totals over every app `filters` keeps (as `apps` takes them): apps, actions, flavours, running deployments, and how many apps require each service.
+  """
+  appStoreTotals(filters: AppFilter = null): AppStoreTotals! @auth(required_scopes: ["kabinet_read"])
+
   """List all app releases visible to the current organization."""
   releases(filters: ReleaseFilter, ordering: [ReleaseOrder!]! = [], pagination: OffsetPaginationInput): [Release!]! @auth(required_scopes: ["kabinet_read"])
 
@@ -2995,7 +3575,7 @@ type Query {
   """
   List all imported OCI repositories visible to the current organization.
   """
-  ociRepos(pagination: OffsetPaginationInput): [OciRepo!]! @auth(required_scopes: ["kabinet_read"])
+  ociRepos(filters: OciRepoFilter, ordering: [OciRepoOrder!]! = [], pagination: OffsetPaginationInput): [OciRepo!]! @auth(required_scopes: ["kabinet_read"])
 
   """
   List the bloks the tracked GitHub repositories publish on their own, visible to the current organization.
@@ -3016,6 +3596,19 @@ type Query {
 
   """Return a single release approval by its ID."""
   releaseApproval(id: ID!): ReleaseApproval! @auth(required_scopes: ["kabinet_read"])
+
+  """
+  List the organization's collaborations that hold something of kabinet (a guest: the collaborations granted to them)
+  """
+  collaborations(pagination: OffsetPaginationInput = null): [Collaboration!]! @auth(required_scopes: ["kabinet_read"])
+
+  """Get a single collaboration by its key (lok's): what was put in it here"""
+  collaboration(key: ID!): Collaboration! @auth(required_scopes: ["kabinet_read"])
+
+  """
+  Count the collaborations `collaborations` lists, and the objects in them
+  """
+  collaborationsStats: CollaborationStats! @auth(required_scopes: ["kabinet_read"])
 
   """Stats about github repos"""
   githubRepoStats(filters: GithubRepoFilter = null): GithubRepoStats! @auth(required_scopes: ["kabinet_read"])
@@ -3063,6 +3656,12 @@ input RamSelectorInput @unionElementOf(union: "SelectorInput", discriminator: "k
   min: Int = null
 }
 
+"""Input for reading a catalog again now."""
+input RefreshCatalogInput {
+  """The ID of the catalog to read."""
+  id: String!
+}
+
 """
 A specific version of an app, bundling the flavours that can be deployed for it.
 """
@@ -3093,6 +3692,11 @@ type Release @identified(by: "@kabinet/release") {
   The source revision this release was built from, when its publisher said.
   """
   revision: String
+
+  """
+  When this release was made: what an app's newest release and `AppOrder.releasedAt` go by.
+  """
+  releasedAt: DateTime!
 
   """The flavours (buildable variants) available for this release."""
   flavours(filters: FlavourFilter, ordering: [FlavourOrder!]! = [], pagination: OffsetPaginationInput): [Flavour!]!
@@ -3197,10 +3801,22 @@ input ReleaseApprovalFilter {
   Keep only approvals that are not revoked. Staleness depends on the live release and is read from `isStale`.
   """
   revoked: Boolean
+
+  """
+  Keep only approvals this user gave, given by their sub (their id in lok): with `revoked: false`, what they installed.
+  """
+  approver: ID
 }
 
 """Filter for app releases."""
 input ReleaseFilter {
+  """
+  Only what is in this collaboration (its key): put in, or part of what was
+  """
+  inCollaboration: ID
+
+  """Only what the workflow (its root task id) created"""
+  createdUnder: ID
   AND: ReleaseFilter
   OR: ReleaseFilter
   NOT: ReleaseFilter
@@ -3335,7 +3951,9 @@ input RepoBlokFilter {
   """Keep only bloks whose ID is in this list."""
   ids: [ID!]
 
-  """Case-insensitive substring of the blok's name, key or description."""
+  """
+  Case-insensitive substring of the blok's name, key or description, or of its repository's name.
+  """
   search: String
 
   """Keep only bloks of this context (PANEL or SCENE)."""
@@ -3360,6 +3978,11 @@ type Requirement {
 
   """Whether the flavour can still run if this service is unavailable."""
   optional: Boolean!
+
+  """
+  The versions of the service the app was written for, as a specifier ('>=12.1,<14'). Advisory: an instance outside it is still used.
+  """
+  version: String
 }
 
 input RequirementInput {
@@ -3731,6 +4354,62 @@ input SelectorInput {
   value: String = null
 }
 
+"""
+A service apps require, and how many of the counted apps have a flavour that requires it.
+"""
+type ServiceCount {
+  """The service, e.g. `live.arkitekt.mikro`."""
+  service: String!
+
+  """How many of the apps require it."""
+  apps: Int!
+}
+
+"""Put what a workflow created in a collaboration, as it is now"""
+input ShareWorkflowInput {
+  """The collaboration's key (lok's)"""
+  collaboration: ID!
+
+  """
+  The workflow: the id of the task a person started, the root of every task it caused
+  """
+  rootTask: ID!
+
+  """Only say what would be put in, and what left out"""
+  dryRun: Boolean! = false
+
+  """The collaboration's name, kept here when this puts the first things in"""
+  name: String = null
+}
+
+"""An object, by its structure and id"""
+type SharedObject {
+  """The structure the object is known by: @mikro/scene"""
+  identifier: String
+
+  """The object's id"""
+  object: ID!
+}
+
+"""
+Created in the workflow, but part of something made before it that is not shared: left out
+"""
+type SkippedObject {
+  """The structure the object is known by"""
+  identifier: String
+
+  """The object's id"""
+  object: ID!
+
+  """The structure of what it is part of"""
+  wholeIdentifier: String
+
+  """
+  The id of what it is part of: put that in, and share the workflow again, to bring it
+  """
+  whole: ID!
+}
+
 type SliderAssignWidget implements AssignWidget {
   kind: AssignWidgetKind!
   followValue: String
@@ -3946,9 +4625,17 @@ type Subscription {
   pod(podId: ID!): PodEvent! @auth(required_scopes: ["kabinet_read"])
 
   """
-  Subscribe to lifecycle events for every pod visible to the current organization.
+  Subscribe to lifecycle events for every pod visible to the current organization, or only those of one resource or backend.
   """
-  pods: PodEvent! @auth(required_scopes: ["kabinet_read"])
+  pods(
+    """
+    Only the pods on this resource (and every deletion: it names only an id).
+    """
+    resource: ID = null
+
+    """Only the pods of this backend (and every deletion)."""
+    backend: ID = null
+  ): PodEvent! @auth(required_scopes: ["kabinet_read"])
 }
 
 """
@@ -4065,4 +4752,31 @@ input ValidatorInput {
   The authoring expression the call was compiled from (informational; never parsed or validated by the server).
   """
   source: String = null
+}
+
+"""
+What sharing a workflow put in a collaboration here (or, tried, would put in)
+"""
+type WorkflowShare {
+  """The collaboration's key"""
+  collaboration: ID!
+
+  """Whether nothing was written"""
+  dryRun: Boolean!
+
+  """Put in, with what each needs to be seen"""
+  added: [SharedObject!]!
+
+  """
+  How many parts came along with their whole, without being put in themselves
+  """
+  covered: Int!
+
+  """Left out: parts of something made before the workflow and not shared"""
+  skipped: [SkippedObject!]!
+
+  """
+  Structures here that cannot say what created their objects: not looked at
+  """
+  unknown: [String!]!
 }
