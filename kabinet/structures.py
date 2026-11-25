@@ -3,6 +3,7 @@
 Imported by ``kabinet/__init__``, so each class is marked whenever kabinet is.
 """
 
+from arkitekt_spec.actions import AssignWidgetInput
 from arkitekt_spec.declare.structures.declare import structure
 from arkitekt_spec.declare.widgets import SearchWidget
 
@@ -23,7 +24,7 @@ from kabinet.api.schema import (
 from kabinet.kabinet import Kabinet
 
 
-def _search(query: object) -> SearchWidget:
+def _search(query: object) -> AssignWidgetInput:
     """The widget that picks one of these out of the deployment."""
     return SearchWidget(query=query.Meta.document, ward="kabinet")  # type: ignore[attr-defined]
 
