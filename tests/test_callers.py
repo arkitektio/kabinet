@@ -9,8 +9,9 @@ import pytest
 pytest.importorskip("rekuest")
 
 from arkitekt_spec.actions import PortKind  # noqa: E402
+from arkitekt_spec.declare.client import client_of  # noqa: E402
 
-from kabinet import arkitekt as declared  # noqa: E402
+from kabinet import Kabinet  # noqa: E402
 from kabinet.callers import APPROVAL, RELEASE, REQUEST_APPROVAL  # noqa: E402
 
 
@@ -18,7 +19,9 @@ def test_request_approval_takes_a_release_and_a_deployer_and_returns_an_approval
     None
 ):
     """The demand an approving caller must meet: (release, deployer) -> approval."""
-    registered = set(declared.registry.structure_registry.identifier_structure_map)
+    declared = client_of(Kabinet)
+    assert declared is not None
+    registered = {s.identifier for s in declared.structures}
     assert {RELEASE, APPROVAL} <= registered
 
     release, agent = REQUEST_APPROVAL.arg_matches

@@ -27,17 +27,17 @@ flavour (`kabinet.get_pod(id)`, `await kabinet.aget_pod(id)`). Nothing is looked
 
 ### In an arkitekt app
 
-Add the service to your app and ask for `kabinet: Kabinet`; the client is injected by annotation.
+Ask for `kabinet: Kabinet`; the client is injected by annotation.
 Pods, deployments, releases, approvals, definitions and flavours travel between actions by id
 (`@kabinet/pod`, `@kabinet/deployment`, `@kabinet/release`, `@kabinet/approval`,
 `@kabinet/definition`, `@kabinet/flavour`), so an action can take and return them directly:
 
 ```python
 from arkitekt import App, run
-from kabinet import Kabinet, kabinet_service
+from kabinet import Kabinet
 from kabinet.api.schema import Pod
 
-app = App("pod-status", "0.1.0", services=[kabinet_service])
+app = App("pod-status", "0.1.0")
 
 
 @app.action
@@ -56,10 +56,10 @@ if __name__ == "__main__":
 ### From a script
 
 ```python
-from arkitekt import easy
-from kabinet import kabinet_service
+from arkitekt import connect
+from kabinet import Kabinet
 
-with easy("my-script", kabinet_service) as kabinet:
+with connect(Kabinet) as kabinet:
     repo = kabinet.create_github_repo(
         name="A new repo",
         identifier="jhnnsrs/kabinet:main",

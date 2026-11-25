@@ -1,8 +1,12 @@
 """The core client for the kabinet service"""
 
+import os
 from collections.abc import AsyncGenerator, Generator
-from typing import Any
+from typing import Annotated, Any, Self
 
+from arkitekt_spec.declare.client import client
+from arkitekt_spec.declare.tested import tested_against
+from arkitekt_spec.declare.wiring import Alias, Require, TokenLoader
 from koil import unkoil, unkoil_gen
 from koil.composition import Composition
 from pydantic import Field
@@ -12,7 +16,21 @@ from rath.turms.funcs import TOperation
 from kabinet.api.schema import KabinetApi
 from kabinet.rath import KabinetRath
 
+TESTED = tested_against("kabinet")
+"""The kabinet server this release wants: the one its release job tested it against."""
 
+_API = os.path.join(os.path.dirname(__file__), "api")
+KABINET = Require(
+    "live.arkitekt.kabinet",
+    "Where this deployment's apps and pods are managed",
+    version=TESTED,
+)
+
+
+@client(
+    schema=os.path.join(_API, "schema.graphql"),
+    turms=os.path.join(_API, "project.json"),
+)
 class Kabinet(Composition, KabinetApi):
     """Kabinet
 
@@ -30,6 +48,15 @@ class Kabinet(Composition, KabinetApi):
         ...,
         description="The Rath client used to interact with the Kabinet API.",
     )
+
+    @classmethod
+    def from_fakts(
+        cls, kabinet: Annotated[Alias, KABINET], tokens: TokenLoader
+    ) -> Self:
+        """Kabinet: the apps and pods a deployment runs."""
+        from kabinet.connect import kabinet_rath
+
+        return cls(rath=kabinet_rath(kabinet, tokens))
 
     def _serialize(
         self, operation: type[TOperation], variables: dict[str, Any]
